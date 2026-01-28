@@ -1,12 +1,19 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ChevronRight, Clock, Download, CheckCircle, GitCommit, UserPlus, FileText } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon } from '../ui';
-import { MOCK_CHANNELS, MOCK_USERS, MOCK_RECENT_DECISIONS, MOCK_CHANNEL_ACTIVITY } from '../../data/mockData';
+import { MOCK_CHANNELS, MOCK_USERS, MOCK_RECENT_DECISIONS, MOCK_CHANNEL_ACTIVITY, MOCK_TEAMS } from '../../data/mockData';
 
-const ChannelDetail = () => {
+const ChannelDetail = ({ userRole }) => {
     const { channelId } = useParams();
     const navigate = useNavigate();
     const channel = MOCK_CHANNELS.find(c => c.id.toString() === channelId);
+    // Find parent team to check scopes
+    const parentTeam = channel ? MOCK_TEAMS.find(t => t.name === channel.team) : null;
+
+    // Permission checks
+    const showScope = userRole !== 'Member';
+    // Manager needs 'export' scope enabled on the team to see Export button
+    const canExport = userRole === 'Admin' || (userRole === 'Manager' && parentTeam?.scopes?.includes('export'));
 
     const getActivityIcon = (iconType) => {
         switch (iconType) {
@@ -47,18 +54,22 @@ const ChannelDetail = () => {
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Team</span>
                                 <span className="text-xs font-semibold text-slate-700">{channel.team}</span>
                             </div>
-                            <div className="w-px h-3 bg-slate-300"></div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Scope</span>
-                                <span className="text-xs font-semibold text-slate-700">{channel.scope}</span>
-                            </div>
+                            {showScope && (
+                                <>
+                                    <div className="w-px h-3 bg-slate-300"></div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Scope</span>
+                                        <span className="text-xs font-semibold text-slate-700">{channel.scope}</span>
+                                    </div>
+                                </>
+                            )}
                             <div className="w-px h-3 bg-slate-300"></div>
                             <StatusBadge status={channel.status} />
                         </div>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="secondary" icon={Clock} onClick={() => navigate(`/timeline/${channel.id}`)}>View Timeline</Button>
-                        <Button variant="secondary" icon={Download}>Export</Button>
+                        {canExport && <Button variant="secondary" icon={Download}>Export</Button>}
                     </div>
                 </div>
             </div>

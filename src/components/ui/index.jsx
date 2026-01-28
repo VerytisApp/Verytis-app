@@ -56,8 +56,8 @@ export const Button = ({ variant = 'primary', icon: Icon, children, onClick, cla
     );
 };
 
-export const ToggleSwitch = ({ enabled }) => (
-    <div className={`w-8 h-4.5 flex items-center rounded-full p-0.5 transition-colors duration-300 ${enabled ? 'bg-indigo-600' : 'bg-slate-200'}`}>
+export const ToggleSwitch = ({ enabled, disabled, onClick }) => (
+    <div onClick={() => !disabled && onClick && onClick()} className={`w-8 h-4.5 flex items-center rounded-full p-0.5 transition-colors duration-300 ${enabled ? 'bg-[#0EA5E9]' : 'bg-slate-200'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
         <div className={`bg-white w-3.5 h-3.5 rounded-full shadow-sm transform transition-transform duration-300 ${enabled ? 'translate-x-3.5' : 'translate-x-0'}`}></div>
     </div>
 );

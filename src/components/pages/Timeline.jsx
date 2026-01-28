@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Activity, CheckCircle, Settings, FileText, UserPlus, FilterX } from 'lucide-react';
 import { Card, Button, PlatformIcon } from '../ui';
-import { MOCK_CHANNELS, MOCK_TIMELINE_EVENTS } from '../../data/mockData';
+import { MOCK_CHANNELS, MOCK_TIMELINE_EVENTS, MOCK_TEAMS } from '../../data/mockData';
 
-const Timeline = () => {
+const Timeline = ({ userRole }) => {
     const { channelId } = useParams();
     const navigate = useNavigate();
     const [selectedChannelId, setSelectedChannelId] = useState(channelId || null);
@@ -13,6 +13,14 @@ const Timeline = () => {
     useEffect(() => {
         setSelectedChannelId(channelId || null);
     }, [channelId]);
+
+    // Role-based logic helpers
+    const canViewScope = userRole !== 'Member';
+
+    // Simulate channel filtering for Members (e.g., they only see channels they are part of)
+    // For mock purposes, we'll just show all, relying on the 'Scope' visibility restriction as the main requested feature.
+    // If strict channel filtering is needed: const visibleChannels = userRole === 'Member' ? MOCK_CHANNELS.slice(0, 2) : MOCK_CHANNELS;
+    const visibleChannels = MOCK_CHANNELS;
 
     // STATE: Selection Screen
     if (!selectedChannelId) {
@@ -27,7 +35,7 @@ const Timeline = () => {
                 </header>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto px-4">
-                    {MOCK_CHANNELS.map(channel => (
+                    {visibleChannels.map(channel => (
                         <Card
                             key={channel.id}
                             onClick={() => navigate(`/timeline/${channel.id}`)}
@@ -45,12 +53,16 @@ const Timeline = () => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-4 mt-4 pt-4 border-t border-slate-50">
-                                <div className="flex flex-col">
-                                    <span className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Scope</span>
-                                    <span className="text-[10px] font-bold text-slate-700">{channel.scope}</span>
-                                </div>
-                                <div className="w-px h-6 bg-slate-100 mx-auto"></div>
-                                <div className="flex flex-col text-right">
+                                {canViewScope && (
+                                    <>
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Scope</span>
+                                            <span className="text-[10px] font-bold text-slate-700">{channel.scope}</span>
+                                        </div>
+                                        <div className="w-px h-6 bg-slate-100 mx-auto"></div>
+                                    </>
+                                )}
+                                <div className="flex flex-col text-right ml-auto">
                                     <span className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Last Active</span>
                                     <span className="text-[10px] font-bold text-slate-700">{new Date(channel.lastActive).toLocaleDateString()}</span>
                                 </div>
@@ -64,6 +76,13 @@ const Timeline = () => {
 
     // STATE: Timeline View
     const selectedChannel = MOCK_CHANNELS.find(c => c.id.toString() === selectedChannelId.toString());
+    const parentTeam = selectedChannel ? MOCK_TEAMS.find(t => t.name === selectedChannel.team) : null;
+
+    // Export permission logic
+    // Admin: Always allow
+    // Manager: Allow only if their team has 'export' scope
+    // Member: Never allow
+    const canExport = userRole === 'Admin' || (userRole === 'Manager' && parentTeam?.scopes?.includes('export'));
 
     const filteredEvents = MOCK_TIMELINE_EVENTS.filter(event => {
         if (event.channelId.toString() !== selectedChannelId.toString()) return false;
@@ -110,8 +129,12 @@ const Timeline = () => {
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5 font-medium">
                             <span>{selectedChannel?.team}</span>
-                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                            <span>{selectedChannel?.scope}</span>
+                            {canViewScope && (
+                                <>
+                                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                    <span>{selectedChannel?.scope}</span>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -126,7 +149,7 @@ const Timeline = () => {
                         <option value="decisions">Decisions Only</option>
                         <option value="system">System & Meta</option>
                     </select>
-                    <Button variant="secondary" icon={Download} className="text-xs">Export</Button>
+                    {canExport && <Button variant="secondary" icon={Download} className="text-xs">Export</Button>}
                 </div>
             </header>
 

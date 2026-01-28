@@ -1,25 +1,36 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Plus, ChevronRight, X } from 'lucide-react';
+import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Card, Button, StatusBadge, PlatformIcon } from '../ui';
-import { MOCK_CHANNELS } from '../../data/mockData';
+import { Card, Button, StatusBadge, PlatformIcon, Modal } from '../ui';
+import { MOCK_CHANNELS, MOCK_TEAMS } from '../../data/mockData';
 
-const ChannelsList = () => {
+const ChannelsList = ({ userRole }) => {
     const [channels] = useState(MOCK_CHANNELS);
     const [searchQuery, setSearchQuery] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [filters, setFilters] = useState({ platform: '', status: '' });
 
-    // Close filter dropdown when clicking outside
+    // Modal State
+    const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+    const [manageTeamsModal, setManageTeamsModal] = useState({ isOpen: false, channel: null });
+    const [newChannelData, setNewChannelData] = useState({ name: '', teamId: '' });
+
+    // Dropdown State
+    const [activeDropdown, setActiveDropdown] = useState(null);
+
+    // Close menus when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (showFilters && !event.target.closest('.filter-menu')) {
                 setShowFilters(false);
             }
+            if (activeDropdown && !event.target.closest('.action-menu')) {
+                setActiveDropdown(null);
+            }
         };
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
-    }, [showFilters]);
+    }, [showFilters, activeDropdown]);
 
     // Filter logic
     const filteredChannels = channels.filter(channel => {
@@ -34,6 +45,9 @@ const ChannelsList = () => {
     const clearFilters = () => {
         setFilters({ platform: '', status: '' });
     };
+
+    // Derived state for available teams based on role
+    const availableTeams = userRole === 'Admin' ? MOCK_TEAMS : MOCK_TEAMS.slice(0, 1);
 
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
@@ -102,7 +116,9 @@ const ChannelsList = () => {
                             </div>
                         )}
                     </div>
-                    <Button variant="primary" icon={Plus}>Add Channel</Button>
+                    {userRole !== 'Member' && (
+                        <Button variant="primary" icon={Plus} onClick={() => setIsLinkModalOpen(true)}>Add Channel</Button>
+                    )}
                 </div>
             </header>
 
@@ -134,7 +150,7 @@ const ChannelsList = () => {
                             <th className="px-6 py-3 uppercase tracking-wide">Status</th>
                             <th className="px-6 py-3 uppercase tracking-wide">Decisions</th>
                             <th className="px-6 py-3 uppercase tracking-wide">Last Activity</th>
-                            <th className="px-6 py-3 text-right uppercase tracking-wide">Actions</th>
+                            {userRole === 'Admin' && <th className="px-6 py-3 text-right uppercase tracking-wide">Actions</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -156,15 +172,52 @@ const ChannelsList = () => {
                                 </td>
                                 <td className="px-6 py-4 text-slate-600 font-mono">{channel.decisions}</td>
                                 <td className="px-6 py-4 text-slate-500">{new Date(channel.lastActive).toLocaleString()}</td>
-                                <td className="px-6 py-4 text-right">
-                                    <Link to={`/channels/${channel.id}`} className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded transition-colors inline-block">
-                                        <ChevronRight className="w-4 h-4" />
-                                    </Link>
-                                </td>
+                                {userRole === 'Admin' && (
+                                    <td className="px-6 py-4 text-right relative action-menu">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveDropdown(activeDropdown === channel.id ? null : channel.id);
+                                            }}
+                                            className={`p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors ${activeDropdown === channel.id ? 'bg-slate-100 text-slate-900' : ''}`}
+                                        >
+                                            <MoreVertical className="w-4 h-4" />
+                                        </button>
+                                        {activeDropdown === channel.id && (
+                                            <div className="absolute right-8 top-1 w-48 bg-white rounded-lg shadow-xl border border-slate-200 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                                                <div className="py-1">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setManageTeamsModal({ isOpen: true, channel });
+                                                            setActiveDropdown(null);
+                                                        }}
+                                                        className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                                    >
+                                                        <Users className="w-3.5 h-3.5 text-slate-400" /> Assign to Teams
+                                                    </button>
+                                                    <div className="h-px bg-slate-100 my-1"></div>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            // Delete logic (mock)
+                                                            // In a real app, we would call an API here
+                                                            console.log('Deleting channel', channel.id);
+                                                            setActiveDropdown(null);
+                                                        }}
+                                                        className="w-full text-left px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" /> Delete Channel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </td>
+                                )}
                             </tr>
                         )) : (
                             <tr>
-                                <td colSpan="6" className="px-6 py-12 text-center">
+                                <td colSpan={userRole === 'Admin' ? "6" : "5"} className="px-6 py-12 text-center">
                                     <div className="text-slate-400 text-sm">No channels match your filters.</div>
                                     <button onClick={clearFilters} className="text-indigo-600 text-xs mt-2 hover:underline font-medium">Clear Filters</button>
                                 </td>
@@ -173,7 +226,86 @@ const ChannelsList = () => {
                     </tbody>
                 </table>
             </Card>
-        </div>
+
+            <Modal
+                isOpen={isLinkModalOpen}
+                onClose={() => setIsLinkModalOpen(false)}
+                title="Link New Channel"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Channel Name or Link</label>
+                        <input
+                            type="text"
+                            placeholder="#general or https://..."
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                            value={newChannelData.name}
+                            onChange={(e) => setNewChannelData({ ...newChannelData, name: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Assign to Team</label>
+                        <select
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                            value={newChannelData.teamId}
+                            onChange={(e) => setNewChannelData({ ...newChannelData, teamId: e.target.value })}
+                        >
+                            <option value="">Select a team...</option>
+                            {availableTeams.map(t => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                            {userRole === 'Manager'
+                                ? "You can only link channels to teams you manage."
+                                : "Admins can link channels to any team."}
+                        </p>
+                    </div>
+                    <div className="flex justify-end pt-4 gap-2">
+                        <Button variant="ghost" onClick={() => setIsLinkModalOpen(false)}>Cancel</Button>
+                        <Button variant="primary" onClick={() => setIsLinkModalOpen(false)} disabled={!newChannelData.name || !newChannelData.teamId}>Link Channel</Button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={manageTeamsModal.isOpen}
+                onClose={() => setManageTeamsModal({ isOpen: false, channel: null })}
+                title={manageTeamsModal.channel ? `Manage Teams: ${manageTeamsModal.channel.name}` : 'Manage Teams'}
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-slate-500">Select which teams this channel is assigned to.</p>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto border border-slate-200 rounded-md">
+                        {MOCK_TEAMS.map(team => {
+                            // Mock logic: Check if channel.team string matches or if we had a list. 
+                            // Since mock data is simple (string), we simplistically check basic string match for now.
+                            // In a real app with M-to-N, we would check array inclusion.
+                            // Here we just let UI toggle (visual only since no backend).
+                            const isAssigned = manageTeamsModal.channel?.team === team.name;
+                            return (
+                                <label key={team.id} className={`flex items-center justify-between p-3 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 ${isAssigned ? 'bg-indigo-50/50' : ''}`}>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                            defaultChecked={isAssigned}
+                                        />
+                                        <div>
+                                            <div className="text-xs font-bold text-slate-900">{team.name}</div>
+                                            <div className="text-[10px] text-slate-500">{team.description}</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            );
+                        })}
+                    </div>
+                    <div className="flex justify-end pt-4 gap-2">
+                        <Button variant="ghost" onClick={() => setManageTeamsModal({ isOpen: false, channel: null })}>Cancel</Button>
+                        <Button variant="primary" onClick={() => setManageTeamsModal({ isOpen: false, channel: null })}>Save Changes</Button>
+                    </div>
+                </div>
+            </Modal>
+        </div >
     );
 };
 

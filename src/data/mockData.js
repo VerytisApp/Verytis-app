@@ -79,10 +79,10 @@ export const MOCK_RECENT_DECISIONS = [
 ];
 
 export const MOCK_CHANNEL_ACTIVITY = [
-    { id: 1, type: 'decision_validated', text: 'Decision validated: Budget Increase Q4', time: '2 hours ago', iconType: 'CheckCircle' },
-    { id: 2, type: 'decision_created', text: 'New decision proposed: Q1 Roadmap', time: '5 hours ago', iconType: 'GitCommit' },
-    { id: 3, type: 'member_joined', text: 'Michael Thorne joined the channel', time: '1 day ago', iconType: 'UserPlus' },
-    { id: 4, type: 'doc_upload', text: 'Document indexed: Financial_Report.pdf', time: '2 days ago', iconType: 'FileText' },
+    { id: 1, type: 'decision_validated', text: 'Decision validated: Budget Increase Q4', time: '2 hours ago', iconType: 'CheckCircle', sourceChannel: '#finance-approvals' },
+    { id: 2, type: 'decision_created', text: 'New decision proposed: Q1 Roadmap', time: '5 hours ago', iconType: 'GitCommit', sourceChannel: '#product-strategy' },
+    { id: 3, type: 'member_joined', text: 'Michael Thorne joined the channel', time: '1 day ago', iconType: 'UserPlus', sourceChannel: '#team-general' },
+    { id: 4, type: 'doc_upload', text: 'Document indexed: Financial_Report.pdf', time: '2 days ago', iconType: 'FileText', sourceChannel: '#finance-reports' },
 ];
 
 // Email Metadata for Audit (no content, only metadata)

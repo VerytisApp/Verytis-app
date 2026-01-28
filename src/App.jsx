@@ -10,6 +10,7 @@ import {
 export default function App() {
     const [activeModal, setActiveModal] = useState(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [currentRole, setCurrentRole] = useState('Admin'); // Lifted state for Role-Based Access Control
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 font-sans text-slate-900 selection:bg-indigo-200 overflow-hidden">
@@ -18,29 +19,31 @@ export default function App() {
                 isCollapsed={isSidebarCollapsed}
                 onToggleCollapse={setIsSidebarCollapsed}
                 onModalOpen={setActiveModal}
+                currentRole={currentRole}
+                onRoleChange={setCurrentRole}
             />
 
             {/* Main Content Area */}
             <main className={`${isSidebarCollapsed ? 'ml-24' : 'ml-56'} p-8 min-h-screen transition-all duration-300 ease-out`}>
                 <div className="max-w-6xl mx-auto">
                     <Routes>
-                        <Route path="/" element={<Dashboard />} />
-                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/" element={<Dashboard userRole={currentRole} />} />
+                        <Route path="/dashboard" element={<Dashboard userRole={currentRole} />} />
 
-                        <Route path="/teams" element={<Teams />} />
-                        <Route path="/teams/:teamId" element={<TeamDetail />} />
+                        <Route path="/teams" element={<Teams userRole={currentRole} />} />
+                        <Route path="/teams/:teamId" element={<TeamDetail userRole={currentRole} />} />
 
-                        <Route path="/users" element={<UsersAndRoles />} />
-                        <Route path="/users/:userId" element={<UserDetail />} />
+                        <Route path="/users" element={<UsersAndRoles userRole={currentRole} />} />
+                        <Route path="/users/:userId" element={<UserDetail userRole={currentRole} />} />
 
-                        <Route path="/channels" element={<Channels />} />
-                        <Route path="/channels/:channelId" element={<ChannelDetail />} />
+                        <Route path="/channels" element={<Channels userRole={currentRole} />} />
+                        <Route path="/channels/:channelId" element={<ChannelDetail userRole={currentRole} />} />
 
-                        <Route path="/timeline" element={<Timeline />} />
-                        <Route path="/timeline/:channelId" element={<Timeline />} />
+                        <Route path="/timeline" element={<Timeline userRole={currentRole} />} />
+                        <Route path="/timeline/:channelId" element={<Timeline userRole={currentRole} />} />
 
-                        <Route path="/email-audit" element={<EmailAudit />} />
-                        <Route path="/reports" element={<AuditDocumentation />} />
+                        <Route path="/email-audit" element={<EmailAudit userRole={currentRole} />} />
+                        <Route path="/reports" element={<AuditDocumentation userRole={currentRole} />} />
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                 </div>

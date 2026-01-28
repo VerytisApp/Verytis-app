@@ -7,20 +7,32 @@ import {
 } from 'lucide-react';
 import IcareLogo from '../image/Gemini Generated Image (14).png';
 
-const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse }) => {
+const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRole, onRoleChange }) => {
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+    // currentRole and onRoleChange are now passed as props from App.jsx
     const profileMenuRef = useRef(null);
     const location = useLocation();
 
-    const navItems = [
-        { path: '/', altPath: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { path: '/teams', label: 'Teams', icon: Layers },
-        { path: '/users', label: 'Users', icon: Users },
-        { path: '/channels', label: 'Channels', icon: MessageSquare },
-        { path: '/timeline', label: 'Timeline', icon: Clock },
-        { path: '/email-audit', label: 'Email Audit', icon: Mail },
-        { path: '/reports', label: 'Reports', icon: FileText },
+    // Define user personas for display
+    const userPersonas = {
+        Admin: { name: 'Sarah Jenkins', initials: 'SJ', role: 'Admin', color: 'from-indigo-500 to-purple-600' },
+        Manager: { name: 'David Chen', initials: 'DC', role: 'Manager', color: 'from-emerald-500 to-teal-600' },
+        Member: { name: 'Elena Ross', initials: 'ER', role: 'Member', color: 'from-amber-500 to-orange-600' }
+    };
+
+    const currentUser = userPersonas[currentRole];
+
+    const allNavItems = [
+        { path: '/', altPath: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Manager'] },
+        { path: '/teams', label: 'Teams', icon: Layers, roles: ['Admin', 'Manager', 'Member'] },
+        { path: '/users', label: 'Users', icon: Users, roles: ['Admin'] },
+        { path: '/channels', label: 'Channels', icon: MessageSquare, roles: ['Admin', 'Manager', 'Member'] },
+        { path: '/timeline', label: 'Timeline', icon: Clock, roles: ['Admin', 'Manager', 'Member'] },
+        { path: '/email-audit', label: 'Email Audit', icon: Mail, roles: ['Admin', 'Manager', 'Member'] },
+        { path: '/reports', label: 'Reports', icon: FileText, roles: ['Admin', 'Manager', 'Member'] },
     ];
+
+    const navItems = allNavItems.filter(item => item.roles.includes(currentRole));
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -98,6 +110,24 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse }) => {
                 </nav>
             </div>
 
+            {/* Role Switcher - Dev Tool */}
+            {!isCollapsed && (
+                <div className="px-6 py-2 mb-2">
+                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Dev: Switch Role</div>
+                    <div className="flex gap-1 p-1 bg-slate-100 rounded-lg">
+                        {['Admin', 'Manager', 'Member'].map(role => (
+                            <button
+                                key={role}
+                                onClick={() => onRoleChange(role)}
+                                className={`flex-1 py-1 px-2 rounded-md text-[9px] font-bold transition-all ${currentRole === role ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                {role.charAt(0)}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Profile Section */}
             <div className={`border-t border-slate-200/50 relative ${isCollapsed ? 'py-4' : 'p-4'}`} ref={profileMenuRef}>
                 <AnimatePresence>
@@ -124,6 +154,21 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse }) => {
                                 Security & Account
                             </button>
                             <div className="h-px bg-slate-100 my-1" />
+                            <div className="px-3 py-1.5 ">
+                                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block mb-1">Current Role</span>
+                                <div className="flex gap-1">
+                                    {['Admin', 'Manager', 'Member'].map(role => (
+                                        <button
+                                            key={role}
+                                            onClick={() => { onRoleChange(role); }}
+                                            className={`text-[10px] px-1.5 py-0.5 rounded border ${currentRole === role ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200'}`}
+                                        >
+                                            {role}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="h-px bg-slate-100 my-1" />
                             <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg text-left font-medium">
                                 <LogOut className="w-3.5 h-3.5" />
                                 Log Out
@@ -134,14 +179,14 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse }) => {
 
                 <div className={`flex items-center ${isCollapsed ? 'justify-center w-full' : 'justify-between px-3'}`}>
                     <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-lg">
-                            SJ
+                        <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${currentUser.color} flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-lg`}>
+                            {currentUser.initials}
                         </div>
                         {/* User info - only when expanded */}
                         {!isCollapsed && (
                             <div className="text-xs">
-                                <p className="font-bold text-slate-900 truncate w-24">Sarah Jenkins</p>
-                                <p className="text-[10px] text-slate-500 font-medium">Admin</p>
+                                <p className="font-bold text-slate-900 truncate w-24">{currentUser.name}</p>
+                                <p className="text-[10px] text-slate-500 font-medium">{currentUser.role}</p>
                             </div>
                         )}
                     </div>

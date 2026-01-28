@@ -1,11 +1,36 @@
 import { useState } from 'react';
-import { Shield, FileCheck, FileText, CheckSquare, Square, Download, Mail, Table, FileSpreadsheet } from 'lucide-react';
+import { Shield, FileCheck, FileText, CheckSquare, Square, Download, Mail, Table, FileSpreadsheet, Calendar, Info, Lock, Search } from 'lucide-react';
 import { Card, Button, StatusBadge, Modal } from '../ui';
-import { MOCK_CONNECTED_ACCOUNTS, MOCK_EMAIL_METADATA } from '../../data/mockData';
+import { MOCK_CONNECTED_ACCOUNTS, MOCK_EMAIL_METADATA, MOCK_USERS, MOCK_TEAMS } from '../../data/mockData';
 
-const EmailAudit = () => {
+const EmailAudit = ({ userRole }) => {
     const [selectedIds, setSelectedIds] = useState([]);
     const [exportModal, setExportModal] = useState({ type: null, isOpen: false });
+    const [dateRange, setDateRange] = useState('all');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Determine current user based on role
+    const getCurrentUser = () => {
+        if (userRole === 'Admin') return MOCK_USERS.find(u => u.role === 'Admin') || MOCK_USERS[0];
+        if (userRole === 'Manager') return MOCK_USERS.find(u => u.role === 'Manager') || MOCK_USERS[1];
+        return MOCK_USERS.find(u => u.role === 'Employee') || MOCK_USERS[2];
+    };
+    const currentUser = getCurrentUser();
+    const currentUserEmail = currentUser?.email || '';
+
+    // Filter logic for personal emails (current user's own emails)
+    const userEmails = MOCK_EMAIL_METADATA.filter(email => email.sender === currentUserEmail || email.recipients.includes(currentUserEmail));
+
+    // 2. Apply search filter (Correspondent or Subject)
+    const filteredMemberEmails = userEmails.filter(email => {
+        const term = searchTerm.toLowerCase();
+        const matchesSender = email.sender.toLowerCase().includes(term);
+        const matchesRecipient = email.recipients.some(r => r.toLowerCase().includes(term));
+        const matchesSubject = email.subject.toLowerCase().includes(term);
+        return matchesSender || matchesRecipient || matchesSubject;
+    });
 
     const handleSelectOne = (id) => {
         if (selectedIds.includes(id)) {
@@ -25,22 +50,391 @@ const EmailAudit = () => {
 
     const isAllSelected = selectedIds.length === MOCK_CONNECTED_ACCOUNTS.length;
 
+    // MEMBER VIEW
+    if (userRole === 'Member') {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-300">
+                <header>
+                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">My Email Audit</h1>
+                    <p className="text-slate-500 mt-1 text-xs font-medium">Transparency log for your connected professional account.</p>
+                </header>
+
+                <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 flex gap-3 items-start">
+                    <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wide mb-1">Transparency & Privacy Notice</h4>
+                        <p className="text-xs text-amber-800 leading-relaxed mb-2">
+                            This audit log is strictly limited to your professional email activity on <strong>{currentUserEmail}</strong>, in compliance with corporate transparency policies.
+                        </p>
+                        <p className="text-xs text-amber-800 leading-relaxed">
+                            <strong>What is captured:</strong> Only metadata (Sender, Recipient, Timestamp, Subject) and interaction status (Open, Reply).<br />
+                            <strong>What is PRIVATE:</strong> The actual body content and attachments of your emails are <span className="font-bold underline">never</span> accessed, read, or stored by this system.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm gap-4">
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-slate-50 rounded-md border border-slate-100">
+                                <Calendar className="w-4 h-4 text-slate-500" />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Time Range</span>
+                                <div className="flex items-center gap-2">
+                                    <select
+                                        value={dateRange}
+                                        onChange={(e) => setDateRange(e.target.value)}
+                                        className="text-xs font-semibold text-slate-900 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
+                                    >
+                                        <option value="all">Since Connection (All Time)</option>
+                                        <option value="30">Last 30 Days</option>
+                                        <option value="7">Last 7 Days</option>
+                                        <option value="custom">Custom Range</option>
+                                    </select>
+                                    {dateRange === 'custom' && (
+                                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 ml-2 pl-2 border-l border-slate-200">
+                                            <input
+                                                type="date"
+                                                value={startDate}
+                                                onChange={(e) => setStartDate(e.target.value)}
+                                                className="text-xs border border-slate-200 rounded px-2 py-0.5 text-slate-600 focus:ring-indigo-500 focus:border-indigo-500"
+                                            />
+                                            <span className="text-slate-300">-</span>
+                                            <input
+                                                type="date"
+                                                value={endDate}
+                                                onChange={(e) => setEndDate(e.target.value)}
+                                                className="text-xs border border-slate-200 rounded px-2 py-0.5 text-slate-600 focus:ring-indigo-500 focus:border-indigo-500"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="w-px h-8 bg-slate-100" />
+
+                        <div className="flex items-center gap-3">
+                            <Search className="w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Filter by email or subject..."
+                                className="text-xs border-none p-0 w-48 focus:ring-0 bg-transparent placeholder:text-slate-400"
+                            />
+                        </div>
+                    </div>
+                    <Button variant="secondary" icon={Download} className="text-xs">Export My Logs</Button>
+                </div>
+
+                <Card className="overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900 flex items-center gap-2">
+                            <Lock className="w-3.5 h-3.5 text-slate-400" />
+                            Your Metadata Log
+                        </h3>
+                        <span className="text-[10px] text-slate-400 font-mono">Showing {filteredMemberEmails.length} records</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left">
+                            <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-3 uppercase tracking-wide">Timestamp</th>
+                                    <th className="px-6 py-3 uppercase tracking-wide">Type</th>
+                                    <th className="px-6 py-3 uppercase tracking-wide">Correspondent</th>
+                                    <th className="px-6 py-3 uppercase tracking-wide">Subject</th>
+                                    <th className="px-6 py-3 uppercase tracking-wide">Tracking Status</th>
+                                    <th className="px-6 py-3 uppercase tracking-wide text-right">Ref ID</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {filteredMemberEmails.length > 0 ? filteredMemberEmails.map((email, idx) => {
+                                    const isSender = email.sender === currentUserEmail;
+                                    return (
+                                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-6 py-3 font-mono text-slate-500">{new Date(email.sentAt).toLocaleString()}</td>
+                                            <td className="px-6 py-3">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${isSender ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                                                    {isSender ? 'Sent' : 'Received'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-3 font-medium text-slate-700">
+                                                {isSender ? email.recipients.join(', ') : email.sender}
+                                            </td>
+                                            <td className="px-6 py-3 text-slate-600 truncate max-w-[200px]" title={email.subject}>
+                                                {email.subject}
+                                            </td>
+                                            <td className="px-6 py-3">
+                                                <div className="flex gap-2">
+                                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${email.openStatus === 'opened' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${email.openStatus === 'opened' ? 'bg-emerald-500' : 'bg-slate-400'}`}></div>
+                                                        {email.openStatus}
+                                                    </span>
+                                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${email.replyStatus === 'replied' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${email.replyStatus === 'replied' ? 'bg-blue-500' : 'bg-slate-400'}`}></div>
+                                                        {email.replyStatus}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-3 text-right">
+                                                <span className="text-[10px] font-mono text-slate-400">{email.messageId}</span>
+                                            </td>
+                                        </tr>
+                                    );
+                                }) : (
+                                    <tr>
+                                        <td colSpan="6" className="px-6 py-12 text-center text-slate-400">
+                                            No logs found matching your filter.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
+
+    // ADMIN / MANAGER VIEW
+    // Determine available accounts based on role
+    // Admin: All accounts in the organization
+    // Manager: Only team members if 'email' scope is authorized
+    const managerTeam = MOCK_TEAMS.find(t => t.scopes?.includes('email')); // Simulate manager's team with email scope
+    const availableAccounts = userRole === 'Admin'
+        ? MOCK_CONNECTED_ACCOUNTS
+        : (managerTeam ? MOCK_CONNECTED_ACCOUNTS.filter(a => a.department === 'Finance' || a.department === 'Legal') : []);
+
+    const hasEmailScope = userRole === 'Admin' || (managerTeam?.scopes?.includes('email'));
+
+    // Filter emails for selected accounts
+    const getEmailsForAccounts = () => {
+        if (selectedIds.length === 0) return [];
+        const selectedEmails = MOCK_CONNECTED_ACCOUNTS
+            .filter(a => selectedIds.includes(a.id))
+            .map(a => a.email);
+        return MOCK_EMAIL_METADATA.filter(email =>
+            selectedEmails.includes(email.sender) ||
+            email.recipients.some(r => selectedEmails.includes(r))
+        );
+    };
+
+    const accountEmails = getEmailsForAccounts();
+
+    // Apply search filter to account emails
+    const filteredAccountEmails = accountEmails.filter(email => {
+        const term = searchTerm.toLowerCase();
+        const matchesSender = email.sender.toLowerCase().includes(term);
+        const matchesRecipient = email.recipients.some(r => r.toLowerCase().includes(term));
+        const matchesSubject = email.subject.toLowerCase().includes(term);
+        return matchesSender || matchesRecipient || matchesSubject;
+    });
+
+    // Manager without email scope: Show personal audit + restricted message for team audit
+    if (userRole === 'Manager' && !hasEmailScope) {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-300">
+                <header>
+                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Email Metadata Audit</h1>
+                    <p className="text-slate-500 mt-1 text-xs font-medium">Review your personal email activity and team accounts.</p>
+                </header>
+
+                {/* Personal Audit - Always accessible */}
+                <Card className="overflow-hidden border-indigo-100">
+                    <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50/80 to-slate-50/50 flex justify-between items-center">
+                        <h3 className="text-xs font-bold uppercase tracking-wide text-indigo-900 flex items-center gap-2">
+                            <Lock className="w-3.5 h-3.5 text-indigo-400" />
+                            My Personal Email Audit
+                        </h3>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[10px] text-slate-400 font-mono">{filteredMemberEmails.length} records</span>
+                            <Button variant="secondary" icon={Download} className="text-xs py-1">Export</Button>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+                        <table className="w-full text-xs text-left">
+                            <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 sticky top-0">
+                                <tr>
+                                    <th className="px-6 py-3 uppercase tracking-wide">Timestamp</th>
+                                    <th className="px-6 py-3 uppercase tracking-wide">Type</th>
+                                    <th className="px-6 py-3 uppercase tracking-wide">Correspondent</th>
+                                    <th className="px-6 py-3 uppercase tracking-wide">Subject</th>
+                                    <th className="px-6 py-3 uppercase tracking-wide">Tracking</th>
+                                    <th className="px-6 py-3 uppercase tracking-wide text-right">Ref ID</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {filteredMemberEmails.length > 0 ? filteredMemberEmails.map((email, idx) => {
+                                    const isSender = email.sender === currentUserEmail;
+                                    return (
+                                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-6 py-3 font-mono text-slate-500">{new Date(email.sentAt).toLocaleString()}</td>
+                                            <td className="px-6 py-3">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${isSender ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                                                    {isSender ? 'Sent' : 'Received'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-3 font-medium text-slate-700">
+                                                {isSender ? email.recipients.join(', ') : email.sender}
+                                            </td>
+                                            <td className="px-6 py-3 text-slate-600 truncate max-w-[200px]" title={email.subject}>
+                                                {email.subject}
+                                            </td>
+                                            <td className="px-6 py-3">
+                                                <div className="flex gap-2">
+                                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${email.openStatus === 'opened' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                                                        {email.openStatus}
+                                                    </span>
+                                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${email.replyStatus === 'replied' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                                                        {email.replyStatus}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-3 text-right">
+                                                <span className="text-[10px] font-mono text-slate-400">{email.messageId}</span>
+                                            </td>
+                                        </tr>
+                                    );
+                                }) : (
+                                    <tr>
+                                        <td colSpan="6" className="px-6 py-8 text-center text-slate-400">
+                                            No personal email logs found.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
+
+                {/* Team Audit - Restricted */}
+                <Card className="p-8 text-center border-slate-200 bg-slate-50/50">
+                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Lock className="w-6 h-6 text-slate-400" />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 mb-1">Team Email Audit Not Authorized</h3>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                        Your team does not have the "Email Audit" scope enabled. Contact your administrator to request access to audit team members.
+                    </p>
+                </Card>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
             <header>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900">Email Metadata Audit</h1>
-                <p className="text-slate-500 mt-1 text-xs font-medium">Review connected corporate email accounts.</p>
+                <p className="text-slate-500 mt-1 text-xs font-medium">
+                    {userRole === 'Admin' ? 'Review all connected corporate email accounts.' : 'Review email accounts for your team members.'}
+                </p>
             </header>
+
             <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg flex gap-3 items-start">
                 <Shield className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div>
                     <h4 className="text-[10px] font-bold text-blue-900 uppercase tracking-wide">Privacy Scope</h4>
-                    <p className="text-xs text-blue-700 mt-0.5 leading-relaxed">This view displays only connected corporate email accounts. No content is collected.</p>
+                    <p className="text-xs text-blue-700 mt-0.5 leading-relaxed">
+                        {userRole === 'Admin'
+                            ? 'Organization-wide audit access. Only metadata is visible – no email content is collected or stored.'
+                            : 'Team-level audit access. You can only view metadata for members of your authorized team.'}
+                    </p>
                 </div>
             </div>
+
+            {/* My Personal Audit - Admin/Manager can see their own audit too */}
+            <Card className="overflow-hidden border-indigo-100">
+                <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50/80 to-slate-50/50 flex justify-between items-center">
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-indigo-900 flex items-center gap-2">
+                        <Lock className="w-3.5 h-3.5 text-indigo-400" />
+                        My Personal Email Audit
+                    </h3>
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <Search className="w-3.5 h-3.5 text-slate-400" />
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Filter my logs..."
+                                className="text-xs border-none p-0 w-32 focus:ring-0 bg-transparent placeholder:text-slate-400"
+                            />
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-mono">{filteredMemberEmails.length} records</span>
+                        <Button variant="secondary" icon={Download} className="text-xs py-1">Export</Button>
+                    </div>
+                </div>
+                <div className="overflow-x-auto max-h-[250px] overflow-y-auto">
+                    <table className="w-full text-xs text-left">
+                        <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 sticky top-0">
+                            <tr>
+                                <th className="px-6 py-3 uppercase tracking-wide">Timestamp</th>
+                                <th className="px-6 py-3 uppercase tracking-wide">Type</th>
+                                <th className="px-6 py-3 uppercase tracking-wide">Correspondent</th>
+                                <th className="px-6 py-3 uppercase tracking-wide">Subject</th>
+                                <th className="px-6 py-3 uppercase tracking-wide">Tracking</th>
+                                <th className="px-6 py-3 uppercase tracking-wide text-right">Ref ID</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {filteredMemberEmails.length > 0 ? filteredMemberEmails.map((email, idx) => {
+                                const isSender = email.sender === currentUserEmail;
+                                return (
+                                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                        <td className="px-6 py-3 font-mono text-slate-500">{new Date(email.sentAt).toLocaleString()}</td>
+                                        <td className="px-6 py-3">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${isSender ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                                                {isSender ? 'Sent' : 'Received'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-3 font-medium text-slate-700">
+                                            {isSender ? email.recipients.join(', ') : email.sender}
+                                        </td>
+                                        <td className="px-6 py-3 text-slate-600 truncate max-w-[200px]" title={email.subject}>
+                                            {email.subject}
+                                        </td>
+                                        <td className="px-6 py-3">
+                                            <div className="flex gap-2">
+                                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${email.openStatus === 'opened' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                                                    {email.openStatus}
+                                                </span>
+                                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${email.replyStatus === 'replied' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                                                    {email.replyStatus}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-3 text-right">
+                                            <span className="text-[10px] font-mono text-slate-400">{email.messageId}</span>
+                                        </td>
+                                    </tr>
+                                );
+                            }) : (
+                                <tr>
+                                    <td colSpan="6" className="px-6 py-8 text-center text-slate-400">
+                                        No personal email logs found.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
+
+
+            {/* Account Selection Table */}
             <div className="flex gap-6">
                 <div className="flex-1">
                     <Card className="overflow-hidden">
+                        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900">
+                                {userRole === 'Admin' ? 'All Connected Accounts' : 'Team Members'}
+                            </h3>
+                            <span className="text-[10px] text-slate-400">
+                                {selectedIds.length > 0 ? `${selectedIds.length} selected` : `${availableAccounts.length} accounts`}
+                            </span>
+                        </div>
                         <table className="w-full text-xs text-left">
                             <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                                 <tr>
@@ -57,8 +451,8 @@ const EmailAudit = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {MOCK_CONNECTED_ACCOUNTS.map(account => (
-                                    <tr key={account.id} className={`hover:bg-slate-50/80 transition-colors ${selectedIds.includes(account.id) ? 'bg-blue-50/30' : ''}`}>
+                                {availableAccounts.map(account => (
+                                    <tr key={account.id} className={`hover:bg-slate-50/80 transition-colors cursor-pointer ${selectedIds.includes(account.id) ? 'bg-blue-50/30' : ''}`}>
                                         <td className="px-6 py-3">
                                             <button onClick={() => handleSelectOne(account.id)} className={`text-slate-400 hover:text-slate-600 ${selectedIds.includes(account.id) ? 'text-blue-600' : ''}`}>
                                                 {selectedIds.includes(account.id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
@@ -75,15 +469,17 @@ const EmailAudit = () => {
                         </table>
                     </Card>
                 </div>
+
+                {/* Export Sidebar */}
                 {selectedIds.length > 0 && (
                     <div className="w-72 animate-in slide-in-from-right-4 fade-in duration-300">
                         <Card className="p-4 sticky top-6 border-blue-100 shadow-sm bg-white">
                             <div className="flex items-center gap-2 mb-3 text-blue-700">
                                 <FileCheck className="w-4 h-4" />
-                                <h3 className="font-bold text-xs uppercase tracking-wide">Export Context</h3>
+                                <h3 className="font-bold text-xs uppercase tracking-wide">Audit Actions</h3>
                             </div>
                             <p className="text-[10px] text-slate-500 mb-4 leading-relaxed">
-                                Export metadata for the <strong>{selectedIds.length}</strong> selected users. Content is strictly excluded.
+                                {selectedIds.length} user(s) selected. View detailed logs or export metadata.
                             </p>
                             <div className="space-y-3">
                                 <Button variant="primary" icon={FileText} className="w-full justify-center" onClick={() => setExportModal({ type: 'pdf', isOpen: true })}>Export PDF</Button>
@@ -96,6 +492,76 @@ const EmailAudit = () => {
                     </div>
                 )}
             </div>
+
+            {/* Detailed Email Log for Selected Accounts */}
+            {selectedIds.length > 0 && (
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <Card className="overflow-hidden">
+                        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900 flex items-center gap-2">
+                                <Mail className="w-3.5 h-3.5 text-slate-400" />
+                                Email Metadata Log
+                            </h3>
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <Search className="w-3.5 h-3.5 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        placeholder="Filter logs..."
+                                        className="text-xs border-none p-0 w-32 focus:ring-0 bg-transparent placeholder:text-slate-400"
+                                    />
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-mono">{filteredAccountEmails.length} records</span>
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                            <table className="w-full text-xs text-left">
+                                <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 sticky top-0">
+                                    <tr>
+                                        <th className="px-6 py-3 uppercase tracking-wide">Timestamp</th>
+                                        <th className="px-6 py-3 uppercase tracking-wide">Sender</th>
+                                        <th className="px-6 py-3 uppercase tracking-wide">Recipients</th>
+                                        <th className="px-6 py-3 uppercase tracking-wide">Subject</th>
+                                        <th className="px-6 py-3 uppercase tracking-wide">Tracking</th>
+                                        <th className="px-6 py-3 uppercase tracking-wide text-right">Ref ID</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredAccountEmails.length > 0 ? filteredAccountEmails.map((email, idx) => (
+                                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-6 py-3 font-mono text-slate-500">{new Date(email.sentAt).toLocaleString()}</td>
+                                            <td className="px-6 py-3 font-medium text-slate-700">{email.sender}</td>
+                                            <td className="px-6 py-3 text-slate-600 truncate max-w-[150px]">{email.recipients.join(', ')}</td>
+                                            <td className="px-6 py-3 text-slate-600 truncate max-w-[200px]" title={email.subject}>{email.subject}</td>
+                                            <td className="px-6 py-3">
+                                                <div className="flex gap-2">
+                                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${email.openStatus === 'opened' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                                                        {email.openStatus}
+                                                    </span>
+                                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${email.replyStatus === 'replied' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                                                        {email.replyStatus}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-3 text-right">
+                                                <span className="text-[10px] font-mono text-slate-400">{email.messageId}</span>
+                                            </td>
+                                        </tr>
+                                    )) : (
+                                        <tr>
+                                            <td colSpan="6" className="px-6 py-12 text-center text-slate-400">
+                                                No email metadata found for selected accounts.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                </div>
+            )}
 
             {/* Email Metadata PDF Modal */}
             <Modal
