@@ -45,10 +45,10 @@ export const MOCK_CONNECTED_ACCOUNTS = [
 ];
 
 export const MOCK_USERS = [
-    { id: 1, name: 'Sarah Jenkins', email: 's.jenkins@icare.corp', role: 'Admin', status: 'Active', auditEnabled: true, channels: 12, initials: 'SJ' },
-    { id: 2, name: 'David Chen', email: 'd.chen@icare.corp', role: 'Manager', status: 'Active', auditEnabled: true, channels: 5, initials: 'DC' },
-    { id: 3, name: 'Elena Ross', email: 'e.ross@icare.corp', role: 'Employee', status: 'Active', auditEnabled: false, channels: 2, initials: 'ER' },
-    { id: 4, name: 'Michael Thorne', email: 'm.thorne@icare.corp', role: 'Employee', status: 'Pending', auditEnabled: false, channels: 0, initials: 'MT' },
+    { id: 1, name: 'Sarah Jenkins', email: 's.jenkins@icare.corp', role: 'Admin', status: 'Active', auditEnabled: true, channels: 12, initials: 'SJ', scopes: ['Channel Audit', 'Documentation Audit', 'Email Audit', 'Reports & Exports'] },
+    { id: 2, name: 'David Chen', email: 'd.chen@icare.corp', role: 'Manager', status: 'Active', auditEnabled: true, channels: 5, initials: 'DC', scopes: ['Channel Audit', 'Documentation Audit'] },
+    { id: 3, name: 'Elena Ross', email: 'e.ross@icare.corp', role: 'Employee', status: 'Active', auditEnabled: false, channels: 2, initials: 'ER', scopes: ['Channel Audit'] },
+    { id: 4, name: 'Michael Thorne', email: 'm.thorne@icare.corp', role: 'Employee', status: 'Pending', auditEnabled: false, channels: 0, initials: 'MT', scopes: [] },
 ];
 
 export const MOCK_SECURITY_LOGS = [
@@ -65,10 +65,10 @@ export const MOCK_CHANNEL_MEMBERS = [
 ];
 
 export const SCOPES_CONFIG = [
-    { title: "Channel Audit", desc: "Access full history of linked channels" },
-    { title: "Documentation Audit", desc: "Extract docs for compliance review" },
-    { title: "Email Audit", desc: "View metadata for team mailboxes" },
-    { title: "Reports & Exports", desc: "Generate PDF/CSV audit reports" },
+    { key: 'audit', title: "Channel Audit", desc: "Access full history of linked channels" },
+    { key: 'docs', title: "Documentation Audit", desc: "Extract docs for compliance review" },
+    { key: 'email', title: "Email Audit", desc: "View metadata for team mailboxes" },
+    { key: 'export', title: "Reports & Exports", desc: "Generate PDF/CSV audit reports" },
 ];
 
 export const MOCK_RECENT_DECISIONS = [
@@ -83,4 +83,96 @@ export const MOCK_CHANNEL_ACTIVITY = [
     { id: 2, type: 'decision_created', text: 'New decision proposed: Q1 Roadmap', time: '5 hours ago', iconType: 'GitCommit' },
     { id: 3, type: 'member_joined', text: 'Michael Thorne joined the channel', time: '1 day ago', iconType: 'UserPlus' },
     { id: 4, type: 'doc_upload', text: 'Document indexed: Financial_Report.pdf', time: '2 days ago', iconType: 'FileText' },
+];
+
+// Email Metadata for Audit (no content, only metadata)
+export const MOCK_EMAIL_METADATA = [
+    {
+        id: 'em001',
+        accountId: 1,
+        sender: 's.jenkins@icare.corp',
+        recipients: ['d.chen@icare.corp', 'a.singh@icare.corp'],
+        sentAt: '2023-10-27T14:30:00',
+        subject: 'Q4 Budget Approval - Action Required',
+        messageId: 'MSG-2023-10-27-001-SJ',
+        openStatus: 'opened',
+        replyStatus: 'replied'
+    },
+    {
+        id: 'em002',
+        accountId: 1,
+        sender: 's.jenkins@icare.corp',
+        recipients: ['e.ross@icare.corp'],
+        sentAt: '2023-10-27T11:15:00',
+        subject: 'Legal Review: Vendor Contract Terms',
+        messageId: 'MSG-2023-10-27-002-SJ',
+        openStatus: 'opened',
+        replyStatus: 'replied'
+    },
+    {
+        id: 'em003',
+        accountId: 1,
+        sender: 's.jenkins@icare.corp',
+        recipients: ['m.thorne@icare.corp', 'd.chen@icare.corp'],
+        sentAt: '2023-10-26T16:45:00',
+        subject: 'Finance Team Weekly Sync Notes',
+        messageId: 'MSG-2023-10-26-003-SJ',
+        openStatus: 'opened',
+        replyStatus: 'no-reply'
+    },
+    {
+        id: 'em004',
+        accountId: 2,
+        sender: 'd.chen@icare.corp',
+        recipients: ['s.jenkins@icare.corp', 'a.singh@icare.corp'],
+        sentAt: '2023-10-27T09:00:00',
+        subject: 'Re: Q4 Budget Approval - Approved',
+        messageId: 'MSG-2023-10-27-004-DC',
+        openStatus: 'opened',
+        replyStatus: 'no-reply'
+    },
+    {
+        id: 'em005',
+        accountId: 2,
+        sender: 'd.chen@icare.corp',
+        recipients: ['product-team@icare.corp'],
+        sentAt: '2023-10-26T14:20:00',
+        subject: 'Product Roadmap Q1 2024 - Draft',
+        messageId: 'MSG-2023-10-26-005-DC',
+        openStatus: 'opened',
+        replyStatus: 'replied'
+    },
+    {
+        id: 'em006',
+        accountId: 3,
+        sender: 'e.ross@icare.corp',
+        recipients: ['s.jenkins@icare.corp', 'compliance@icare.corp'],
+        sentAt: '2023-10-25T10:30:00',
+        subject: 'Compliance Audit Findings - Confidential',
+        messageId: 'MSG-2023-10-25-006-ER',
+        openStatus: 'unopened',
+        replyStatus: 'no-reply'
+    },
+    {
+        id: 'em007',
+        accountId: 5,
+        sender: 'a.singh@icare.corp',
+        recipients: ['engineering@icare.corp'],
+        sentAt: '2023-10-27T08:15:00',
+        subject: 'Security Patch Deployment - Urgent',
+        messageId: 'MSG-2023-10-27-007-AS',
+        openStatus: 'opened',
+        replyStatus: 'replied'
+    },
+    {
+        id: 'em008',
+        accountId: 5,
+        sender: 'a.singh@icare.corp',
+        recipients: ['s.jenkins@icare.corp', 'd.chen@icare.corp'],
+        sentAt: '2023-10-26T17:00:00',
+        subject: 'Infrastructure Budget Request FY2024',
+        messageId: 'MSG-2023-10-26-008-AS',
+        openStatus: 'opened',
+        replyStatus: 'no-reply'
+    },
 ];

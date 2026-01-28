@@ -1,9 +1,12 @@
 export { default as Dashboard } from './Dashboard';
-export { default as Teams } from './Teams';
-export { default as Channels } from './Channels';
+export { default as Teams } from './TeamsList';
+export { default as TeamDetail } from './TeamDetail';
+export { default as Channels } from './ChannelsList';
+export { default as ChannelDetail } from './ChannelDetail';
 export { default as Timeline } from './Timeline';
 export { default as EmailAudit } from './EmailAudit';
 export { default as AuditDocumentation } from './AuditDocumentation';
 export { default as UsersAndRoles } from './UsersAndRoles';
+export { default as UserDetail } from './UserDetail';
 export { default as IntegrationsSettings } from './IntegrationsSettings';
 export { default as AdminSecuritySettings } from './AdminSecuritySettings';

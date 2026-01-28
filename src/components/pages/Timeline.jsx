@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Activity, CheckCircle, Settings, FileText, UserPlus, FilterX } from 'lucide-react';
 import { Card, Button, PlatformIcon } from '../ui';
 import { MOCK_CHANNELS, MOCK_TIMELINE_EVENTS } from '../../data/mockData';
 
-const Timeline = ({ initialChannelId }) => {
-    const [selectedChannelId, setSelectedChannelId] = useState(initialChannelId || null);
+const Timeline = () => {
+    const { channelId } = useParams();
+    const navigate = useNavigate();
+    const [selectedChannelId, setSelectedChannelId] = useState(channelId || null);
     const [filterType, setFilterType] = useState('all');
 
     useEffect(() => {
-        if (initialChannelId) setSelectedChannelId(initialChannelId);
-    }, [initialChannelId]);
+        setSelectedChannelId(channelId || null);
+    }, [channelId]);
 
     // STATE: Selection Screen
     if (!selectedChannelId) {
@@ -27,7 +30,7 @@ const Timeline = ({ initialChannelId }) => {
                     {MOCK_CHANNELS.map(channel => (
                         <Card
                             key={channel.id}
-                            onClick={() => setSelectedChannelId(channel.id)}
+                            onClick={() => navigate(`/timeline/${channel.id}`)}
                             className="p-5 hover:border-indigo-300 hover:shadow-lg transition-all group relative overflow-hidden cursor-pointer"
                         >
                             <div className="flex justify-between items-start mb-4">
@@ -93,7 +96,7 @@ const Timeline = ({ initialChannelId }) => {
             <header className="flex items-center justify-between pb-4 border-b border-slate-200">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => setSelectedChannelId(null)}
+                        onClick={() => navigate('/timeline')}
                         className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors border border-transparent hover:border-slate-200"
                     >
                         <ArrowLeft className="w-4 h-4" />
