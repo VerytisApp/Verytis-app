@@ -248,7 +248,38 @@ const EmailAudit = ({ userRole }) => {
                             <Lock className="w-3.5 h-3.5 text-indigo-400" />
                             My Personal Email Audit
                         </h3>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                <select
+                                    value={dateRange}
+                                    onChange={(e) => setDateRange(e.target.value)}
+                                    className="text-xs font-medium text-slate-700 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
+                                >
+                                    <option value="all">All Time</option>
+                                    <option value="30">Last 30 Days</option>
+                                    <option value="7">Last 7 Days</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                                {dateRange === 'custom' && (
+                                    <div className="flex items-center gap-1 ml-1">
+                                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-xs border border-slate-200 rounded px-1.5 py-0.5" />
+                                        <span className="text-slate-300">-</span>
+                                        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="text-xs border border-slate-200 rounded px-1.5 py-0.5" />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="w-px h-4 bg-slate-200" />
+                            <div className="flex items-center gap-2">
+                                <Search className="w-3.5 h-3.5 text-slate-400" />
+                                <input
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="Filter..."
+                                    className="text-xs border-none p-0 w-24 focus:ring-0 bg-transparent placeholder:text-slate-400"
+                                />
+                            </div>
                             <span className="text-[10px] text-slate-400 font-mono">{filteredMemberEmails.length} records</span>
                             <Button variant="secondary" icon={Download} className="text-xs py-1">Export</Button>
                         </div>
@@ -351,15 +382,36 @@ const EmailAudit = ({ userRole }) => {
                         <Lock className="w-3.5 h-3.5 text-indigo-400" />
                         My Personal Email Audit
                     </h3>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                            <select
+                                value={dateRange}
+                                onChange={(e) => setDateRange(e.target.value)}
+                                className="text-xs font-medium text-slate-700 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
+                            >
+                                <option value="all">All Time</option>
+                                <option value="30">Last 30 Days</option>
+                                <option value="7">Last 7 Days</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                            {dateRange === 'custom' && (
+                                <div className="flex items-center gap-1 ml-1">
+                                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-xs border border-slate-200 rounded px-1.5 py-0.5" />
+                                    <span className="text-slate-300">-</span>
+                                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="text-xs border border-slate-200 rounded px-1.5 py-0.5" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="w-px h-4 bg-slate-200" />
                         <div className="flex items-center gap-2">
                             <Search className="w-3.5 h-3.5 text-slate-400" />
                             <input
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Filter my logs..."
-                                className="text-xs border-none p-0 w-32 focus:ring-0 bg-transparent placeholder:text-slate-400"
+                                placeholder="Filter..."
+                                className="text-xs border-none p-0 w-24 focus:ring-0 bg-transparent placeholder:text-slate-400"
                             />
                         </div>
                         <span className="text-[10px] text-slate-400 font-mono">{filteredMemberEmails.length} records</span>
@@ -504,13 +556,34 @@ const EmailAudit = ({ userRole }) => {
                             </h3>
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2">
+                                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                    <select
+                                        value={dateRange}
+                                        onChange={(e) => setDateRange(e.target.value)}
+                                        className="text-xs font-medium text-slate-700 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
+                                    >
+                                        <option value="all">All Time</option>
+                                        <option value="30">Last 30 Days</option>
+                                        <option value="7">Last 7 Days</option>
+                                        <option value="custom">Custom</option>
+                                    </select>
+                                    {dateRange === 'custom' && (
+                                        <div className="flex items-center gap-1 ml-1">
+                                            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-xs border border-slate-200 rounded px-1.5 py-0.5" />
+                                            <span className="text-slate-300">-</span>
+                                            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="text-xs border border-slate-200 rounded px-1.5 py-0.5" />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="w-px h-4 bg-slate-200" />
+                                <div className="flex items-center gap-2">
                                     <Search className="w-3.5 h-3.5 text-slate-400" />
                                     <input
                                         type="text"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        placeholder="Filter logs..."
-                                        className="text-xs border-none p-0 w-32 focus:ring-0 bg-transparent placeholder:text-slate-400"
+                                        placeholder="Filter..."
+                                        className="text-xs border-none p-0 w-24 focus:ring-0 bg-transparent placeholder:text-slate-400"
                                     />
                                 </div>
                                 <span className="text-[10px] text-slate-400 font-mono">{filteredAccountEmails.length} records</span>

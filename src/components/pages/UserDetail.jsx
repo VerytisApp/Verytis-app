@@ -51,8 +51,8 @@ const UserDetail = () => {
                             <div className="flex items-center gap-3">
                                 <span className="text-slate-500 text-sm font-medium">{user.email}</span>
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${user.role === 'Admin' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                                        user.role === 'Manager' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                                            'bg-slate-50 text-slate-600 border-slate-200'
+                                    user.role === 'Manager' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                        'bg-slate-50 text-slate-600 border-slate-200'
                                     }`}>
                                     {user.role}
                                 </span>
@@ -102,8 +102,8 @@ const UserDetail = () => {
                                                 key={idx}
                                                 onClick={() => isActive && setScopeModal({ isOpen: true, title: scope.title, teams: scopeTeams })}
                                                 className={`flex items-center justify-between p-2 rounded transition-all ${isActive
-                                                        ? 'bg-indigo-50/50 border border-indigo-100 cursor-pointer hover:bg-indigo-50 hover:shadow-sm hover:border-indigo-200'
-                                                        : 'bg-slate-50 border border-slate-100'
+                                                    ? 'bg-indigo-50/50 border border-indigo-100 cursor-pointer hover:bg-indigo-50 hover:shadow-sm hover:border-indigo-200'
+                                                    : 'bg-slate-50 border border-slate-100'
                                                     }`}
                                             >
                                                 <div className="flex items-start gap-3">
@@ -194,6 +194,32 @@ const UserDetail = () => {
                             )}
                         </div>
                     </Card>
+
+                    <Card>
+                        <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/30">
+                            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900 flex items-center gap-2">
+                                <Activity className="w-3.5 h-3.5" /> Connected Apps
+                            </h3>
+                        </div>
+                        <div className="p-5 grid grid-cols-2 gap-4">
+                            {[
+                                { name: 'Slack', status: 'Connected', icon: PlatformIcon },
+                                { name: 'Microsoft Teams', status: 'Connected', icon: PlatformIcon },
+                                { name: 'Outlook', status: 'Disconnected', icon: PlatformIcon },
+                                { name: 'Gmail', status: 'Connected', icon: PlatformIcon }
+                            ].map((app, idx) => (
+                                <div key={idx} className="flex items-center gap-3 p-3 rounded border border-slate-100 bg-slate-50/50">
+                                    <PlatformIcon platform={app.name} />
+                                    <div>
+                                        <div className="text-xs font-bold text-slate-900">{app.name}</div>
+                                        <div className={`text-[10px] font-medium ${app.status === 'Connected' ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                            {app.status}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
                 </div>
 
                 {/* Right Column: Teams & Channels */}
@@ -236,22 +262,29 @@ const UserDetail = () => {
                         </div>
                     </Card>
 
-                    <Card className="bg-gradient-to-br from-indigo-600 to-indigo-700 text-white border-none">
-                        <div className="p-5">
-                            <div className="flex items-center gap-3 mb-4">
-                                <Activity className="w-5 h-5 text-indigo-200" />
-                                <h3 className="text-sm font-bold">Audit Impact</h3>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <div className="text-2xl font-bold">12</div>
-                                    <div className="text-[10px] text-indigo-200 uppercase tracking-wide font-medium mt-1">Actions Audited</div>
+                    <Card className="p-0 overflow-hidden">
+                        <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between">
+                            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900 flex items-center gap-2">
+                                <Activity className="w-3.5 h-3.5" /> Recent Activity
+                            </h3>
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                            {[
+                                { action: 'Exported Compliance Report', time: '2 mins ago', icon: Download, color: 'text-blue-500 bg-blue-50' },
+                                { action: 'Imported 15 users via CSV', time: '1 hour ago', icon: FileText, color: 'text-emerald-500 bg-emerald-50' },
+                                { action: 'Generated Decision Audit (PDF)', time: '3 hours ago', icon: Download, color: 'text-blue-500 bg-blue-50' },
+                                { action: 'Updated Channel Permissions', time: 'Yesterday', icon: Shield, color: 'text-amber-500 bg-amber-50' },
+                            ].map((item, idx) => (
+                                <div key={idx} className="p-3 flex items-center gap-3 hover:bg-slate-50 transition-colors">
+                                    <div className={`p-1.5 rounded ${item.color}`}>
+                                        <item.icon className="w-3.5 h-3.5" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="text-xs font-medium text-slate-800">{item.action}</div>
+                                        <div className="text-[10px] text-slate-400">{item.time}</div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div className="text-2xl font-bold">98%</div>
-                                    <div className="text-[10px] text-indigo-200 uppercase tracking-wide font-medium mt-1">Compliance Score</div>
-                                </div>
-                            </div>
+                            ))}
                         </div>
                     </Card>
                 </div>

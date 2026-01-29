@@ -1,16 +1,97 @@
-import { useState } from 'react';
-import { Shield, FileText, Slack, Users, CheckCircle, XCircle, UserCheck, Download, Table, FileSpreadsheet, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Shield, FileText, Slack, Users, CheckCircle, XCircle, UserCheck, Download, Table, FileSpreadsheet, X, Calendar, Search, Filter, Lock } from 'lucide-react';
 import { Card, Button, PlatformIcon, Modal } from '../ui';
-import { MOCK_CHANNELS, MOCK_CHANNEL_MEMBERS } from '../../data/mockData';
+import { MOCK_CHANNELS, MOCK_CHANNEL_MEMBERS, MOCK_USERS, MOCK_TEAMS } from '../../data/mockData';
 
-const AuditDocumentation = () => {
+const AuditDocumentation = ({ userRole }) => {
     const [reportType, setReportType] = useState('Full Channel Audit');
+
+    // Reset report type when role changes to ensure validity
+    useEffect(() => {
+        if (userRole === 'Member') {
+            setReportType('Full Channel Audit (Your Activity Only)');
+        } else {
+            setReportType('Full Channel Audit');
+        }
+    }, [userRole]);
+
     const [platform, setPlatform] = useState('Slack');
     const [selectedChannels, setSelectedChannels] = useState([]);
+    // State for single channel selection (Member view)
+    const [selectedChannelId, setSelectedChannelId] = useState('');
+
     const [selectedMembers, setSelectedMembers] = useState([]);
+
+    // Time Range State
+    const [dateRange, setDateRange] = useState('all');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+
     const [exportModal, setExportModal] = useState({ type: null, isOpen: false });
 
-    const availableChannels = MOCK_CHANNELS.filter(c => c.platform.toLowerCase() === platform.toLowerCase());
+    // Mock Current User for Member view logic
+    const currentUser = MOCK_USERS.find(u => u.role === (userRole === 'Member' ? 'Employee' : userRole)) || MOCK_USERS[0];
+
+    const [selectedTeamId, setSelectedTeamId] = useState('all');
+
+    // Manager Scope Check
+    const managerTeam = MOCK_TEAMS.find(t => t.name === 'Engineering & Product' || t.name === 'Finance & Legal'); // Mock team finder
+    // In a real app we would match currentUser.teamId
+    const hasAuditScope = userRole === 'Admin' || (userRole === 'Manager' && (currentUser.scopes?.includes('Channel Audit') || currentUser.scopes?.includes('Documentation Audit')));
+
+    // Filter channels based on selected platform
+    const allPlatformChannels = MOCK_CHANNELS.filter(c => c.platform.toLowerCase() === platform.toLowerCase());
+
+    // Filter logic for Manager and Admin (with Team selection)
+    const getAvailableChannels = () => {
+        // Admin Personal Audit: Filter for channels where Admin is a member (Mocking 'Finance & Legal')
+        if (userRole === 'Admin' && reportType.includes('My Activity')) {
+            return allPlatformChannels.filter(c => c.team === 'Finance & Legal');
+        }
+
+        if (userRole === 'Admin') {
+            if (selectedTeamId === 'all') return allPlatformChannels;
+            // Admin selected a specific team: find team name and filter
+            const selectedTeam = MOCK_TEAMS.find(t => t.id.toString() === selectedTeamId.toString());
+            // Need to match partial names because mock data strings might differ slightly (e.g. "Finance & Legal" vs "Finance")
+            // Or exact match if reliable. Let's try exact match with fallback.
+            if (!selectedTeam) return allPlatformChannels;
+
+            return allPlatformChannels.filter(c => c.team === selectedTeam.name || c.team?.includes(selectedTeam.name.split(' ')[0]));
+        }
+
+        // Manager & Member: Filter by Team
+        // Mocking: David Chen (Manager) is in 'Engineering & Product' (Product Manager)
+        // But MOCK_CHANNELS have team string.
+        // Let's assume Manager has access to channels matching their Team.
+        // For 'David Chen' (Manager), let's say "Finance & Legal" for the demo consistency or "Engineering". 
+        // Based on Mock Data, David Chen is Product Manager, Department Product. 
+        // Let's use generic logic: 
+        return allPlatformChannels.filter(c => userRole === 'Admin' || c.team === 'Finance & Legal' || c.team === 'Engineering');
+    };
+
+    const availableChannels = getAvailableChannels();
+
+    // Manager View blocked if no scope
+    if (userRole === 'Manager' && !hasAuditScope) {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-300">
+                <header>
+                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Audit Documentation</h1>
+                    <p className="text-slate-500 mt-1 text-xs font-medium">Generate compliance reports for team channels.</p>
+                </header>
+                <Card className="p-12 text-center">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Lock className="w-8 h-8 text-slate-400" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">Audit Access Restricted</h3>
+                    <p className="text-sm text-slate-500 max-w-md mx-auto">
+                        Your account does not have the necessary "Audit" or "Documentation" scopes enabled to perform channel audits. Please contact your administrator.
+                    </p>
+                </Card>
+            </div>
+        );
+    }
 
     const handleChannelSelect = (channelName) => {
         if (selectedChannels.includes(channelName)) {
@@ -31,19 +112,33 @@ const AuditDocumentation = () => {
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
             <header>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Audit Documentation</h1>
-                <p className="text-slate-500 mt-1 text-xs font-medium">Generate complete and legally usable audit documents from authorized channels.</p>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                    {userRole === 'Member' ? 'My Audit Documentation' : 'Audit Documentation'}
+                </h1>
+                <p className="text-slate-500 mt-1 text-xs font-medium">
+                    {userRole === 'Member'
+                        ? 'Generate personal activity reports from your channels.'
+                        : 'Generate complete and legally usable audit documents from authorized channels.'}
+                </p>
             </header>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-1 space-y-6">
                     <Card className="p-5">
-                        <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-4">Configuration</h3>
+                        <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-4">
+                            {userRole === 'Member' ? 'My Channel Audit' : 'Configuration'}
+                        </h3>
                         <div className="space-y-4">
+                            {/* Platform Selector */}
                             <div>
                                 <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Platform</label>
                                 <select
                                     value={platform}
-                                    onChange={(e) => { setPlatform(e.target.value); setSelectedChannels([]); }}
+                                    onChange={(e) => {
+                                        setPlatform(e.target.value);
+                                        setSelectedChannels([]);
+                                        setSelectedChannelId('');
+                                        // Reset Team selection if platform changes? No, teams are cross-platform usually, but keep it simple.
+                                    }}
                                     className="w-full bg-white border border-slate-200 rounded-md text-xs shadow-sm focus:border-slate-500 focus:ring-1 focus:ring-slate-500 py-2 px-3 outline-none"
                                 >
                                     <option value="Slack">Slack</option>
@@ -51,43 +146,119 @@ const AuditDocumentation = () => {
                                 </select>
                             </div>
 
+                            {/* Team Selector (Admin Only - Hidden for Personal Audit) */}
+                            {userRole === 'Admin' && !reportType.includes('My Activity') && (
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Organization Team</label>
+                                    <select
+                                        value={selectedTeamId}
+                                        onChange={(e) => {
+                                            setSelectedTeamId(e.target.value);
+                                            setSelectedChannels([]); // Reset channels when team changes
+                                        }}
+                                        className="w-full bg-white border border-slate-200 rounded-md text-xs shadow-sm focus:border-slate-500 focus:ring-1 focus:ring-slate-500 py-2 px-3 outline-none font-medium"
+                                    >
+                                        <option value="all">All Teams</option>
+                                        {MOCK_TEAMS.map(team => (
+                                            <option key={team.id} value={team.id}>{team.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* Report Type Selector */}
                             <div>
                                 <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Report Type</label>
                                 <select
                                     value={reportType}
-                                    onChange={(e) => setReportType(e.target.value)}
+                                    onChange={(e) => {
+                                        setReportType(e.target.value);
+                                        // Clear member selection if switching away from member audit
+                                        if (!e.target.value.includes('Member')) setSelectedMembers([]);
+                                    }}
                                     className="w-full bg-white border border-slate-200 rounded-md text-xs shadow-sm focus:border-slate-500 focus:ring-1 focus:ring-slate-500 py-2 px-3 outline-none"
                                 >
-                                    <option>Full Channel Audit</option>
-                                    <option>Channel Audit (Time Range)</option>
-                                    <option>Channel Audit (Selected Members)</option>
+                                    {userRole === 'Member' ? (
+                                        <>
+                                            <option>Full Channel Audit (Your Activity Only)</option>
+                                            <option>Decision Audit</option>
+                                        </>
+                                    ) : userRole === 'Manager' ? (
+                                        <>
+                                            <option>My Activity (Full Audit)</option>
+                                            <option>My Activity (Decisions Only)</option>
+                                            <option disabled className="text-slate-300">--- Team Audit ---</option>
+                                            <option>Team Channel Audit (Full History)</option>
+                                            <option>Team Channel Audit (Decisions Only)</option>
+                                            <option>Team Member Audit (Full History)</option>
+                                            <option>Team Member Audit (Decisions Only)</option>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <option>My Activity (Full Audit)</option>
+                                            <option>My Activity (Decisions Only)</option>
+                                            <option disabled className="text-slate-300">--- Organization Audit ---</option>
+                                            <option>Full Channel Audit</option>
+                                            <option>Full Decision Audit (Channel)</option>
+                                            <option>Selected Member Audit (Full)</option>
+                                            <option>Selected Member Audit (Decisions)</option>
+                                        </>
+                                    )}
                                 </select>
+                                {(userRole === 'Member' || reportType.includes('My Activity')) && (
+                                    <p className="mt-1.5 text-[10px] text-emerald-600 font-medium leading-tight">
+                                        Compliance Note: This report extracts only messages sent by you or threads where you are an active participant.
+                                    </p>
+                                )}
                             </div>
 
+                            {/* Channel Selector - Role Based */}
                             <div>
-                                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Authorized Channels</label>
-                                <div className="max-h-32 overflow-y-auto border border-slate-200 rounded-md p-2 bg-slate-50">
-                                    {availableChannels.map(channel => (
-                                        <div key={channel.id} className="flex items-center gap-2 mb-1.5 last:mb-0">
-                                            <input
-                                                type="checkbox"
-                                                id={`chan-${channel.id}`}
-                                                checked={selectedChannels.includes(channel.name)}
-                                                onChange={() => handleChannelSelect(channel.name)}
-                                                className="rounded text-slate-900 focus:ring-slate-500"
-                                            />
-                                            <label htmlFor={`chan-${channel.id}`} className="text-xs text-slate-700 cursor-pointer font-medium">{channel.name}</label>
-                                        </div>
-                                    ))}
-                                    {availableChannels.length === 0 && <p className="text-xs text-slate-400 p-1">No channels found.</p>}
-                                </div>
+                                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+                                    {userRole === 'Member' ? 'Select Channel' : 'Authorized Channels'}
+                                </label>
+                                {userRole === 'Member' ? (
+                                    <select
+                                        value={selectedChannelId}
+                                        onChange={(e) => {
+                                            setSelectedChannelId(e.target.value);
+                                            const channel = availableChannels.find(c => c.id.toString() === e.target.value);
+                                            if (channel) setSelectedChannels([channel.name]);
+                                        }}
+                                        className="w-full bg-white border border-slate-200 rounded-md text-xs shadow-sm focus:border-slate-500 focus:ring-1 focus:ring-slate-500 py-2 px-3 outline-none"
+                                    >
+                                        <option value="">Select a channel...</option>
+                                        {availableChannels.map(channel => (
+                                            <option key={channel.id} value={channel.id}>{channel.name} ({channel.team})</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="max-h-32 overflow-y-auto border border-slate-200 rounded-md p-2 bg-slate-50">
+                                        {availableChannels.map(channel => (
+                                            <div key={channel.id} className="flex items-center gap-2 mb-1.5 last:mb-0">
+                                                <input
+                                                    type="checkbox"
+                                                    id={`chan-${channel.id}`}
+                                                    checked={selectedChannels.includes(channel.name)}
+                                                    onChange={() => handleChannelSelect(channel.name)}
+                                                    className="rounded text-slate-900 focus:ring-slate-500"
+                                                />
+                                                <label htmlFor={`chan-${channel.id}`} className="text-xs text-slate-700 cursor-pointer font-medium">{channel.name}</label>
+                                            </div>
+                                        ))}
+                                        {availableChannels.length === 0 && <p className="text-xs text-slate-400 p-1">No channels found matching the filters.</p>}
+                                    </div>
+                                )}
                             </div>
 
-                            {reportType === 'Channel Audit (Selected Members)' && (
+                            {/* Member Selection Logic */}
+                            {userRole !== 'Member' && (reportType.includes('Member') || reportType.includes('Selected Members')) && (
                                 <div className="animate-in fade-in zoom-in-95 duration-200">
-                                    <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Channel Members</label>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+                                        {userRole === 'Manager' ? 'Team Members' : 'Select Members'}
+                                    </label>
                                     <div className="max-h-32 overflow-y-auto border border-slate-200 rounded-md p-2 bg-slate-50">
-                                        {MOCK_CHANNEL_MEMBERS.map(member => (
+                                        {MOCK_CHANNEL_MEMBERS.filter(m => userRole === 'Admin' || m.role !== 'Admin').map(member => (
                                             <div key={member.id} className="flex items-center gap-2 mb-1.5 last:mb-0">
                                                 <input
                                                     type="checkbox"
@@ -98,6 +269,7 @@ const AuditDocumentation = () => {
                                                 />
                                                 <label htmlFor={`mem-${member.id}`} className="text-xs text-slate-700 cursor-pointer flex items-center gap-1 font-medium">
                                                     <UserCheck className="w-3 h-3 text-slate-400" /> {member.name}
+                                                    {userRole === 'Manager' && <span className="text-[9px] text-slate-400">({member.role})</span>}
                                                 </label>
                                             </div>
                                         ))}
@@ -105,13 +277,36 @@ const AuditDocumentation = () => {
                                 </div>
                             )}
 
+                            {/* Time Range Selector */}
                             <div>
                                 <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Time Range</label>
-                                <select className="w-full bg-white border border-slate-200 rounded-md text-xs shadow-sm focus:border-slate-500 focus:ring-1 focus:ring-slate-500 py-2 px-3 outline-none">
-                                    <option>Last 7 Days</option>
-                                    <option>Last 30 Days</option>
-                                    <option>Custom Range...</option>
+                                <select
+                                    value={dateRange}
+                                    onChange={(e) => setDateRange(e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded-md text-xs shadow-sm focus:border-slate-500 focus:ring-1 focus:ring-slate-500 py-2 px-3 outline-none"
+                                >
+                                    <option value="all">All Time</option>
+                                    <option value="30">Last 30 Days</option>
+                                    <option value="7">Last 7 Days</option>
+                                    <option value="custom">Custom Range...</option>
                                 </select>
+                                {dateRange === 'custom' && (
+                                    <div className="flex items-center gap-2 mt-2 animate-in fade-in zoom-in-95">
+                                        <input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 text-slate-600 focus:ring-1 focus:ring-slate-500 outline-none"
+                                        />
+                                        <span className="text-slate-300">-</span>
+                                        <input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            className="w-full text-xs border border-slate-200 rounded px-2 py-1.5 text-slate-600 focus:ring-1 focus:ring-slate-500 outline-none"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </Card>
@@ -149,7 +344,9 @@ const AuditDocumentation = () => {
                                             <div className="flex items-center gap-3">
                                                 {platform === 'Slack' ? <Slack className="w-8 h-8 text-slate-700" /> : <Users className="w-8 h-8 text-indigo-600" />}
                                                 <div>
-                                                    <h3 className="font-bold text-slate-900 text-lg">Audit Report</h3>
+                                                    <h3 className="font-bold text-slate-900 text-lg">
+                                                        {userRole === 'Member' ? 'Channel Audit (Personal)' : 'Audit Report'}
+                                                    </h3>
                                                     <p className="text-[10px] text-slate-500 uppercase tracking-wide font-bold">{new Date().toLocaleDateString()}</p>
                                                 </div>
                                             </div>
@@ -166,9 +363,13 @@ const AuditDocumentation = () => {
                                             <div className="flex justify-between text-xs">
                                                 <span className="text-slate-500 font-medium">Filter</span>
                                                 <span className="font-bold text-slate-900">
-                                                    {reportType === 'Channel Audit (Selected Members)'
-                                                        ? `${selectedMembers.length} Members`
-                                                        : 'Full History'}
+                                                    {reportType.toLowerCase().includes('decision')
+                                                        ? 'Decisions Only'
+                                                        : (selectedMembers.length > 0)
+                                                            ? `${selectedMembers.length} Members`
+                                                            : dateRange !== 'all'
+                                                                ? `Last ${dateRange} Days`
+                                                                : 'Full History'}
                                                 </span>
                                             </div>
                                             <div className="flex justify-between text-xs">

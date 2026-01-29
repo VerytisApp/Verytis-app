@@ -32,7 +32,11 @@ const UsersAndRoles = () => {
     };
 
     const handleUpdateUser = () => {
-        // Logic to update user would go here (mock implementation)
+        const name = document.getElementById('edit-user-name').value;
+        const email = document.getElementById('edit-user-email').value;
+        const role = document.getElementById('edit-user-role').value;
+
+        setUsers(users.map(u => u.id === modalConfig.user.id ? { ...u, name, email, role } : u));
         setModalConfig({ type: null, user: null });
     };
 
@@ -59,7 +63,40 @@ const UsersAndRoles = () => {
                     <p className="text-slate-500 mt-1 text-xs font-medium">Manage roles, channel visibility and email audit scope.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="secondary" icon={Upload}>Import CSV</Button>
+                    <input
+                        type="file"
+                        id="csv-upload"
+                        className="hidden"
+                        accept=".csv"
+                        onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                const text = event.target.result;
+                                const lines = text.split('\n');
+                                const newUsers = lines.slice(1).map((line, i) => {
+                                    const [name, email, role] = line.split(',');
+                                    if (!name || !email) return null;
+                                    return {
+                                        id: users.length + i + 1,
+                                        name: name.trim(),
+                                        email: email.trim(),
+                                        role: role ? role.trim() : 'Member',
+                                        status: 'Pending',
+                                        auditEnabled: false,
+                                        channels: 0,
+                                        initials: name.trim().split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
+                                    };
+                                }).filter(Boolean);
+                                setUsers([...users, ...newUsers]);
+                                alert(`Imported ${newUsers.length} users successfully!`);
+                            };
+                            reader.readAsText(file);
+                            e.target.value = null; // Reset input
+                        }}
+                    />
+                    <Button variant="secondary" icon={Upload} onClick={() => document.getElementById('csv-upload').click()}>Import CSV</Button>
                     <Button variant="primary" icon={Plus}>Invite User</Button>
                 </div>
             </header>
@@ -95,7 +132,7 @@ const UsersAndRoles = () => {
                                 </td>
                                 <td className="px-6 py-3.5">
                                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${user.role === 'Admin' ? 'bg-purple-50 text-purple-700 border-purple-200' : user.role === 'Manager' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                                        {user.role}
+                                        {user.role === 'Employee' ? 'Member' : user.role}
                                     </span>
                                 </td>
                                 <td className="px-6 py-3.5 text-slate-600 font-mono text-xs">
@@ -160,18 +197,18 @@ const UsersAndRoles = () => {
                 <div className="space-y-4">
                     <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
-                        <input type="text" defaultValue={modalConfig.user?.name} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                        <input type="text" id="edit-user-name" defaultValue={modalConfig.user?.name} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
-                        <input type="email" defaultValue={modalConfig.user?.email} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                        <input type="email" id="edit-user-email" defaultValue={modalConfig.user?.email} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">Role</label>
-                        <select defaultValue={modalConfig.user?.role} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm">
+                        <select id="edit-user-role" defaultValue={modalConfig.user?.role} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm">
                             <option value="Admin">Admin</option>
                             <option value="Manager">Manager</option>
-                            <option value="Employee">Employee</option>
+                            <option value="Member">Member</option>
                         </select>
                     </div>
                     <div className="flex justify-end pt-4 gap-2">

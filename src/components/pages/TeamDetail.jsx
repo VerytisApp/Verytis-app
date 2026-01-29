@@ -38,6 +38,9 @@ const TeamDetail = ({ userRole }) => {
         );
     }
 
+    const isManagerOfTeam = userRole === 'Manager' && team?.name === 'Engineering & Product';
+    const canManageTeam = userRole === 'Admin' || isManagerOfTeam;
+
     return (
         <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
             <div className="space-y-4">
@@ -56,7 +59,7 @@ const TeamDetail = ({ userRole }) => {
                             <span className="px-2 py-0.5 rounded text-[10px] font-medium border bg-slate-50 border-slate-200 text-slate-600">{team.type}</span>
                         </div>
                     </div>
-                    {userRole !== 'Member' && <Button variant="primary" onClick={() => setIsEditModalOpen(true)}>Edit Settings</Button>}
+                    {canManageTeam && <Button variant="primary" onClick={() => setIsEditModalOpen(true)}>Edit Settings</Button>}
                 </div>
             </div>
 
@@ -101,7 +104,7 @@ const TeamDetail = ({ userRole }) => {
                         <span className="block text-2xl font-bold text-slate-900 tracking-tight">{team.members}</span>
                         <span className="text-[11px] text-slate-500 font-medium">Total Members</span>
                     </div>
-                    {userRole !== 'Member' && (
+                    {canManageTeam && (
                         <div>
                             <div className="flex gap-1.5 mt-1">
                                 {selectedScopes.map(scopeTitle => (
@@ -123,7 +126,7 @@ const TeamDetail = ({ userRole }) => {
                 <Card className="flex flex-col h-full border-slate-200">
                     <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
                         <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900">Roster</h3>
-                        {userRole !== 'Member' && <Button variant="secondary" className="h-7 text-[10px] px-2.5" icon={Plus} onClick={() => setIsAddUserModalOpen(true)}>Add User</Button>}
+                        {canManageTeam && <Button variant="secondary" className="h-7 text-[10px] px-2.5" icon={Plus} onClick={() => setIsAddUserModalOpen(true)}>Add User</Button>}
                     </div>
 
                     <Modal isOpen={isAddUserModalOpen} onClose={() => setIsAddUserModalOpen(false)} title="Add User to Team">
@@ -211,7 +214,7 @@ const TeamDetail = ({ userRole }) => {
                                         <td className="px-5 py-3 text-right">
                                             <div className="flex items-center justify-end gap-3">
                                                 <span className="text-[10px] font-medium text-slate-400">Member</span>
-                                                {userRole !== 'Member' && (
+                                                {canManageTeam && (
                                                     <div className="relative member-action-menu">
                                                         <button
                                                             onClick={(e) => {
@@ -257,7 +260,7 @@ const TeamDetail = ({ userRole }) => {
                     <Card>
                         <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
                             <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900">Linked Channels</h3>
-                            {userRole !== 'Member' && <Button variant="secondary" className="h-7 text-[10px] px-2.5" icon={LinkIcon} onClick={() => setIsLinkChannelModalOpen(true)}>Link</Button>}
+                            {canManageTeam && <Button variant="secondary" className="h-7 text-[10px] px-2.5" icon={LinkIcon} onClick={() => setIsLinkChannelModalOpen(true)}>Link</Button>}
                         </div>
 
                         <Modal isOpen={isLinkChannelModalOpen} onClose={() => setIsLinkChannelModalOpen(false)} title="Link Channel">
@@ -286,7 +289,7 @@ const TeamDetail = ({ userRole }) => {
                                 </Link>
                                 <div className="flex items-center gap-3">
                                     <div className="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">{channel.decisions} Decisions</div>
-                                    {userRole !== 'Member' && (
+                                    {canManageTeam && (
                                         <div className="relative channel-action-menu">
                                             <button
                                                 onClick={(e) => {
@@ -316,11 +319,11 @@ const TeamDetail = ({ userRole }) => {
                     <Card>
                         <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
                             <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900">
-                                {userRole === 'Member' ? 'Latest Activity' : 'Audit Scope'}
+                                {canManageTeam ? 'Audit Scope' : 'Latest Activity'}
                             </h3>
                         </div>
                         <div className="p-5 space-y-4">
-                            {userRole === 'Member' ? (
+                            {!canManageTeam ? (
                                 // For Members: Show Mini Timeline / Activity
                                 <div className="space-y-4">
                                     {MOCK_CHANNEL_ACTIVITY.slice(0, 3).map(activity => (
