@@ -342,7 +342,7 @@ const AuditDocumentation = ({ userRole }) => {
                                     <div className="p-6">
                                         <div className="flex items-center justify-between mb-6">
                                             <div className="flex items-center gap-3">
-                                                {platform === 'Slack' ? <Slack className="w-8 h-8 text-slate-700" /> : <Users className="w-8 h-8 text-indigo-600" />}
+                                                {platform === 'Slack' ? <Slack className="w-8 h-8 text-slate-700" /> : <Users className="w-8 h-8 text-blue-600" />}
                                                 <div>
                                                     <h3 className="font-bold text-slate-900 text-lg">
                                                         {userRole === 'Member' ? 'Channel Audit (Personal)' : 'Audit Report'}
@@ -430,8 +430,8 @@ const AuditDocumentation = ({ userRole }) => {
                         <div className="space-y-4">
                             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                                 <div className="flex items-center gap-3 mb-3">
-                                    <div className="p-2 bg-indigo-100 rounded-lg">
-                                        <FileText className="w-5 h-5 text-indigo-600" />
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                        <FileText className="w-5 h-5 text-blue-600" />
                                     </div>
                                     <div>
                                         <h4 className="text-sm font-bold text-slate-900">Audit Report PDF</h4>
@@ -471,7 +471,7 @@ const AuditDocumentation = ({ userRole }) => {
                                 {/* Message 1 - Text message */}
                                 <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-white text-[10px] font-bold">SJ</div>
+                                        <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold">SJ</div>
                                         <div>
                                             <span className="font-bold text-slate-900">Sarah Jenkins</span>
                                             <span className="text-slate-400 text-[10px] ml-2">#legal-approvals • Oct 27, 2023 10:30 AM</span>
@@ -485,8 +485,8 @@ const AuditDocumentation = ({ userRole }) => {
                                 </div>
 
                                 {/* Message 2 - Threaded reply */}
-                                <div className="ml-4 border-l-2 border-indigo-200 pl-3">
-                                    <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-100">
+                                <div className="ml-4 border-l-2 border-blue-200 pl-3">
+                                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
                                         <div className="flex items-center gap-2 mb-2">
                                             <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[9px] font-bold">DC</div>
                                             <div>
@@ -706,9 +706,9 @@ const AuditDocumentation = ({ userRole }) => {
                                         <div className="text-2xl font-bold text-emerald-700">142</div>
                                         <div className="text-[10px] text-emerald-600 font-medium uppercase">Total Messages</div>
                                     </div>
-                                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-center">
-                                        <div className="text-2xl font-bold text-indigo-700">8</div>
-                                        <div className="text-[10px] text-indigo-600 font-medium uppercase">Decisions</div>
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                                        <div className="text-2xl font-bold text-blue-700">8</div>
+                                        <div className="text-[10px] text-blue-600 font-medium uppercase">Decisions</div>
                                     </div>
                                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
                                         <div className="text-2xl font-bold text-amber-700">4</div>

@@ -39,11 +39,11 @@ const Timeline = ({ userRole }) => {
                         <Card
                             key={channel.id}
                             onClick={() => navigate(`/timeline/${channel.id}`)}
-                            className="p-5 hover:border-indigo-300 hover:shadow-lg transition-all group relative overflow-hidden cursor-pointer"
+                            className="p-5 hover:border-blue-300 hover:shadow-lg transition-all group relative overflow-hidden cursor-pointer"
                         >
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 group-hover:bg-indigo-50 group-hover:border-indigo-100 transition-colors">
+                                    <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
                                         <PlatformIcon platform={channel.platform} />
                                     </div>
                                     <div className="overflow-hidden">
@@ -105,7 +105,7 @@ const Timeline = ({ userRole }) => {
             case 'decision': return <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />;
             case 'system': return <Settings className="w-3.5 h-3.5 text-slate-500" />;
             case 'doc_metadata': return <FileText className="w-3.5 h-3.5 text-blue-500" />;
-            case 'member': return <UserPlus className="w-3.5 h-3.5 text-indigo-500" />;
+            case 'member': return <UserPlus className="w-3.5 h-3.5 text-blue-500" />;
             default: return <Activity className="w-3.5 h-3.5 text-slate-400" />;
         }
     };

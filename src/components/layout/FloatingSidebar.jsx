@@ -15,7 +15,7 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
 
     // Define user personas for display
     const userPersonas = {
-        Admin: { name: 'Sarah Jenkins', initials: 'SJ', role: 'Admin', color: 'from-indigo-500 to-purple-600' },
+        Admin: { name: 'Sarah Jenkins', initials: 'SJ', role: 'Admin', color: 'from-blue-500 to-purple-600' },
         Manager: { name: 'David Chen', initials: 'DC', role: 'Manager', color: 'from-emerald-500 to-teal-600' },
         Member: { name: 'Elena Ross', initials: 'ER', role: 'Member', color: 'from-amber-500 to-orange-600' }
     };
@@ -72,7 +72,7 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                     {!isCollapsed && (
                         <button
                             onClick={() => onToggleCollapse(true)}
-                            className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                            className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                         >
                             <ChevronLeft className="w-4 h-4" />
                         </button>
@@ -94,8 +94,8 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                                 key={item.path}
                                 to={item.path}
                                 className={`w-full flex items-center transition-all duration-200 ${isCollapsed ? 'justify-center px-0' : 'justify-start px-3'} py-2.5 rounded-xl text-xs font-medium ${active
-                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                                    : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
+                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                                    : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'
                                     }`}
                                 title={isCollapsed ? item.label : ''}
                             >

@@ -58,13 +58,13 @@ const ChannelsList = ({ userRole }) => {
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
                     <div className="relative flex-1 md:w-64 group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
                         <input
                             type="text"
                             placeholder="Search channels..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
+                            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all shadow-sm"
                         />
                     </div>
                     <div className="relative filter-menu">
@@ -72,7 +72,7 @@ const ChannelsList = ({ userRole }) => {
                             variant="secondary"
                             icon={Filter}
                             onClick={(e) => { e.stopPropagation(); setShowFilters(!showFilters); }}
-                            className={activeFilterCount > 0 ? 'border-indigo-300 bg-indigo-50' : ''}
+                            className={activeFilterCount > 0 ? 'border-blue-300 bg-blue-50' : ''}
                         >
                             Filter {activeFilterCount > 0 && `(${activeFilterCount})`}
                         </Button>
@@ -81,7 +81,7 @@ const ChannelsList = ({ userRole }) => {
                                 <div className="flex justify-between items-center mb-3">
                                     <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">Filters</span>
                                     {activeFilterCount > 0 && (
-                                        <button onClick={clearFilters} className="text-[10px] text-indigo-600 hover:underline font-medium">Clear All</button>
+                                        <button onClick={clearFilters} className="text-[10px] text-blue-600 hover:underline font-medium">Clear All</button>
                                     )}
                                 </div>
                                 <div className="space-y-3">
@@ -90,7 +90,7 @@ const ChannelsList = ({ userRole }) => {
                                         <select
                                             value={filters.platform}
                                             onChange={(e) => setFilters({ ...filters, platform: e.target.value })}
-                                            className="w-full px-3 py-1.5 border border-slate-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500"
+                                            className="w-full px-3 py-1.5 border border-slate-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500"
                                         >
                                             <option value="">All Platforms</option>
                                             <option value="slack">Slack</option>
@@ -102,7 +102,7 @@ const ChannelsList = ({ userRole }) => {
                                         <select
                                             value={filters.status}
                                             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                                            className="w-full px-3 py-1.5 border border-slate-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500"
+                                            className="w-full px-3 py-1.5 border border-slate-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500"
                                         >
                                             <option value="">All Statuses</option>
                                             <option value="active">Active</option>
@@ -127,15 +127,15 @@ const ChannelsList = ({ userRole }) => {
                 <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">Active Filters:</span>
                     {filters.platform && (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-medium border border-indigo-100">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] font-medium border border-blue-100">
                             Platform: <span className="capitalize">{filters.platform}</span>
-                            <button onClick={() => setFilters({ ...filters, platform: '' })} className="hover:text-indigo-900"><X className="w-3 h-3" /></button>
+                            <button onClick={() => setFilters({ ...filters, platform: '' })} className="hover:text-blue-900"><X className="w-3 h-3" /></button>
                         </span>
                     )}
                     {filters.status && (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-medium border border-indigo-100">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] font-medium border border-blue-100">
                             Status: <span className="capitalize">{filters.status}</span>
-                            <button onClick={() => setFilters({ ...filters, status: '' })} className="hover:text-indigo-900"><X className="w-3 h-3" /></button>
+                            <button onClick={() => setFilters({ ...filters, status: '' })} className="hover:text-blue-900"><X className="w-3 h-3" /></button>
                         </span>
                     )}
                 </div>
@@ -157,7 +157,7 @@ const ChannelsList = ({ userRole }) => {
                         {filteredChannels.length > 0 ? filteredChannels.map(channel => (
                             <tr key={channel.id} className="hover:bg-slate-50/50 transition-colors group">
                                 <td className="px-6 py-4">
-                                    <Link to={`/channels/${channel.id}`} className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                    <Link to={`/channels/${channel.id}`} className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
                                         {channel.name}
                                     </Link>
                                 </td>
@@ -219,7 +219,7 @@ const ChannelsList = ({ userRole }) => {
                             <tr>
                                 <td colSpan={userRole === 'Admin' ? "6" : "5"} className="px-6 py-12 text-center">
                                     <div className="text-slate-400 text-sm">No channels match your filters.</div>
-                                    <button onClick={clearFilters} className="text-indigo-600 text-xs mt-2 hover:underline font-medium">Clear Filters</button>
+                                    <button onClick={clearFilters} className="text-blue-600 text-xs mt-2 hover:underline font-medium">Clear Filters</button>
                                 </td>
                             </tr>
                         )}
@@ -283,11 +283,11 @@ const ChannelsList = ({ userRole }) => {
                             // Here we just let UI toggle (visual only since no backend).
                             const isAssigned = manageTeamsModal.channel?.team === team.name;
                             return (
-                                <label key={team.id} className={`flex items-center justify-between p-3 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 ${isAssigned ? 'bg-indigo-50/50' : ''}`}>
+                                <label key={team.id} className={`flex items-center justify-between p-3 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 ${isAssigned ? 'bg-blue-50/50' : ''}`}>
                                     <div className="flex items-center gap-3">
                                         <input
                                             type="checkbox"
-                                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                             defaultChecked={isAssigned}
                                         />
                                         <div>

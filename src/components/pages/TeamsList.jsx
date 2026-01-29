@@ -105,7 +105,7 @@ const TeamsList = ({ userRole }) => {
                                             to={`/teams/${team.id}`}
                                             className="block cursor-pointer"
                                         >
-                                            <span className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">{team.name}</span>
+                                            <span className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition-colors">{team.name}</span>
                                             <p className="text-slate-500 mt-0.5 truncate max-w-xs">{team.description}</p>
                                         </Link>
                                     </td>
@@ -121,7 +121,7 @@ const TeamsList = ({ userRole }) => {
                                     {userRole !== 'Admin' && (
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${role === 'Manager'
-                                                ? 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                                                ? 'bg-blue-50 text-blue-600 border-blue-100'
                                                 : 'bg-emerald-50 text-emerald-600 border-emerald-100'
                                                 }`}>
                                                 {role || 'Member'}
@@ -144,7 +144,7 @@ const TeamsList = ({ userRole }) => {
                                         ) : (
                                             <div className="flex gap-1.5">
                                                 {team.scopes.map(scope => (
-                                                    <div key={scope} className="p-1 rounded bg-indigo-50 border border-indigo-100 text-indigo-600" title={scope}>
+                                                    <div key={scope} className="p-1 rounded bg-blue-50 border border-blue-100 text-blue-600" title={scope}>
                                                         {scope === 'audit' && <Shield className="w-3 h-3" />}
                                                         {scope === 'docs' && <FileText className="w-3 h-3" />}
                                                         {scope === 'export' && <Download className="w-3 h-3" />}
@@ -213,11 +213,11 @@ const TeamsList = ({ userRole }) => {
                     <div className="space-y-6">
                         {/* Step Indicator */}
                         <div className="flex items-center justify-between px-2 mb-4">
-                            <div className={`h-1 flex-1 rounded-full ${currentStep >= 1 ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
+                            <div className={`h-1 flex-1 rounded-full ${currentStep >= 1 ? 'bg-blue-600' : 'bg-slate-200'}`}></div>
                             <div className="w-2"></div>
-                            <div className={`h-1 flex-1 rounded-full ${currentStep >= 2 ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
+                            <div className={`h-1 flex-1 rounded-full ${currentStep >= 2 ? 'bg-blue-600' : 'bg-slate-200'}`}></div>
                             <div className="w-2"></div>
-                            <div className={`h-1 flex-1 rounded-full ${currentStep >= 3 ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
+                            <div className={`h-1 flex-1 rounded-full ${currentStep >= 3 ? 'bg-blue-600' : 'bg-slate-200'}`}></div>
                         </div>
 
                         {/* Step 1: Basic Info */}
@@ -321,10 +321,10 @@ const TeamsList = ({ userRole }) => {
                                     <label className="block text-xs font-semibold text-slate-700">Manager Scope</label>
                                     <div className="grid grid-cols-2 gap-3">
                                         {SCOPES_CONFIG.map((scope, idx) => (
-                                            <label key={idx} className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-colors ${teamFormData.scopes.includes(scope.title) ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
+                                            <label key={idx} className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-colors ${teamFormData.scopes.includes(scope.title) ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
                                                 <input
                                                     type="checkbox"
-                                                    className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                    className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                                     checked={teamFormData.scopes.includes(scope.title)}
                                                     onChange={(e) => {
                                                         if (e.target.checked) setTeamFormData({ ...teamFormData, scopes: [...teamFormData.scopes, scope.title] });
@@ -348,11 +348,11 @@ const TeamsList = ({ userRole }) => {
                                 <p className="text-xs text-slate-500">Select channels to link to this team. Decisions made in these channels will be audited.</p>
                                 <div className="space-y-2 max-h-[300px] overflow-y-auto border border-slate-200 rounded-md">
                                     {MOCK_CHANNELS.map(channel => (
-                                        <label key={channel.id} className={`flex items-center justify-between p-3 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 ${teamFormData.channels.includes(channel.id) ? 'bg-indigo-50/50' : ''}`}>
+                                        <label key={channel.id} className={`flex items-center justify-between p-3 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 ${teamFormData.channels.includes(channel.id) ? 'bg-blue-50/50' : ''}`}>
                                             <div className="flex items-center gap-3">
                                                 <input
                                                     type="checkbox"
-                                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                                     checked={teamFormData.channels.includes(channel.id)}
                                                     onChange={(e) => {
                                                         if (e.target.checked) setTeamFormData({ ...teamFormData, channels: [...teamFormData.channels, channel.id] });

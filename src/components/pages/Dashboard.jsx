@@ -29,7 +29,7 @@ const AdminDashboard = () => {
     const EXECUTIVE_METRICS = [
         { label: "% Initiatives < 24h", value: isFiltered ? (selectedTeam === '1' ? "92%" : "84%") : "87%", trend: isFiltered ? "+5%" : "+2%", icon: Zap, color: "text-emerald-500", border: "border-t-emerald-500" },
         { label: "Avg Signal-to-Action", value: isFiltered ? (selectedTeam === '1' ? "2.1h" : "5.5h") : "4.2h", trend: "-15m", icon: Clock, color: "text-blue-500", border: "border-t-blue-500" },
-        { label: "Closed Loop Rate", value: isFiltered ? "98%" : "94%", trend: "Stable", icon: RefreshCw, color: "text-indigo-500", border: "border-t-indigo-500" },
+        { label: "Closed Loop Rate", value: isFiltered ? "98%" : "94%", trend: "Stable", icon: RefreshCw, color: "text-blue-500", border: "border-t-blue-500" },
         { label: "Abandoned / No Response", value: isFiltered ? "0" : "3", trend: "-1", icon: AlertCircle, color: "text-rose-500", border: "border-t-rose-500" }
     ];
 
@@ -68,7 +68,7 @@ const AdminDashboard = () => {
             { label: "Team Decisions", value: availableChannels.reduce((sum, c) => sum + c.decisions, 0), trend: "+8%", icon: Activity, color: "text-emerald-500", border: "border-t-emerald-500" },
             { label: "Avg Validation Time", value: selectedTeam === '1' ? "2.1h" : "3.5h", trend: "-20m", icon: Clock, color: "text-blue-500", border: "border-t-blue-500" },
             { label: "Pending Actions", value: Math.ceil(availableChannels.reduce((sum, c) => sum + c.decisions, 0) * 0.08), trend: "-2", icon: AlertCircle, color: "text-amber-500", border: "border-t-amber-500" },
-            { label: "Loop Closure", value: "96%", trend: "Stable", icon: RefreshCw, color: "text-indigo-500", border: "border-t-indigo-500" }
+            { label: "Loop Closure", value: "96%", trend: "Stable", icon: RefreshCw, color: "text-blue-500", border: "border-t-blue-500" }
         ];
 
         // Team-specific Alerts
@@ -87,7 +87,7 @@ const AdminDashboard = () => {
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight text-slate-900">{currentTeam.name}</h1>
                         <p className="text-slate-500 mt-1 text-xs font-medium flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
                             Team View • {availableChannels.length} Channels • Last synced 1 min ago
                         </p>
                     </div>
@@ -95,7 +95,7 @@ const AdminDashboard = () => {
                         {/* Team Filter */}
                         <div className="relative group">
                             <select
-                                className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
+                                className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
                                 value={selectedTeam}
                                 onChange={(e) => {
                                     setSelectedTeam(e.target.value);
@@ -112,7 +112,7 @@ const AdminDashboard = () => {
                         {/* Channel Filter */}
                         <div className="relative group">
                             <select
-                                className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
+                                className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
                                 value={selectedChannel}
                                 onChange={(e) => setSelectedChannel(e.target.value)}
                             >
@@ -151,7 +151,7 @@ const AdminDashboard = () => {
                         <div className="flex justify-between items-start mb-4">
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <TrendingUp className="w-4 h-4 text-indigo-500" />
+                                    <TrendingUp className="w-4 h-4 text-blue-500" />
                                     <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Decision Velocity (Team Trend)</h3>
                                 </div>
                                 <p className="text-[10px] text-slate-400 mt-1 leading-tight">Daily decision volume for {currentTeam.name}.</p>
@@ -161,9 +161,9 @@ const AdminDashboard = () => {
                         <div className="flex-1 flex items-end justify-between px-2 gap-3 h-36">
                             {[25, 40, 20, 55, 65, 35, 50].map((h, i) => (
                                 <div key={i} className="flex flex-col items-center gap-1 flex-1 group cursor-pointer h-full justify-end">
-                                    <div className="text-[10px] font-bold text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">{h}</div>
+                                    <div className="text-[10px] font-bold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">{h}</div>
                                     <div
-                                        className="w-full max-w-8 bg-indigo-200 hover:bg-indigo-500 rounded-t transition-all duration-300 group-hover:shadow-lg"
+                                        className="w-full max-w-8 bg-blue-200 hover:bg-blue-500 rounded-t transition-all duration-300 group-hover:shadow-lg"
                                         style={{ height: `${h}%`, minHeight: '4px' }}
                                     ></div>
                                     <div className="text-[10px] text-slate-400 font-mono mt-1">D{i + 1}</div>
@@ -187,7 +187,7 @@ const AdminDashboard = () => {
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-2">
                                             <div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
-                                            <span className="text-xs font-medium text-slate-800 group-hover:text-indigo-600 transition-colors">{alert.text}</span>
+                                            <span className="text-xs font-medium text-slate-800 group-hover:text-blue-600 transition-colors">{alert.text}</span>
                                         </div>
                                         <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded uppercase">{alert.source}</span>
                                     </div>
@@ -200,7 +200,7 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Team Quick Wins */}
-                <Card className="bg-gradient-to-r from-indigo-900 to-indigo-800 text-white p-5 shadow-lg border-none relative overflow-hidden">
+                <Card className="bg-gradient-to-r from-blue-900 to-blue-800 text-white p-5 shadow-lg border-none relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-3 opacity-10">
                         <Trophy className="w-24 h-24" />
                     </div>
@@ -235,7 +235,7 @@ const AdminDashboard = () => {
                     {/* Team Filter */}
                     <div className="relative group">
                         <select
-                            className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
+                            className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
                             value={selectedTeam}
                             onChange={(e) => {
                                 setSelectedTeam(e.target.value);
@@ -253,7 +253,7 @@ const AdminDashboard = () => {
                     <div className={`relative group transition-opacity duration-200 ${selectedTeam === 'all' ? 'opacity-50 pointer-events-none grayscale' : 'opacity-100'}`}>
                         <select
                             disabled={selectedTeam === 'all'}
-                            className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
+                            className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
                             value={selectedChannel}
                             onChange={(e) => setSelectedChannel(e.target.value)}
                         >
@@ -290,14 +290,14 @@ const AdminDashboard = () => {
                 {/* Top Teams */}
                 <Card className="p-0 overflow-hidden flex flex-col">
                     <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-                        <Users className="w-4 h-4 text-indigo-500" />
+                        <Users className="w-4 h-4 text-blue-500" />
                         <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Top 5 Initiator Teams</h3>
                     </div>
                     <div className="divide-y divide-slate-100">
                         {TOP_TEAMS.map((team, idx) => (
                             <div key={idx} className="p-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold">{idx + 1}</div>
+                                    <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold">{idx + 1}</div>
                                     <span className="text-xs font-bold text-slate-800">{team.name}</span>
                                 </div>
                                 <div className="text-right">
@@ -316,14 +316,14 @@ const AdminDashboard = () => {
                         <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Interaction Types</h3>
                     </div>
                     {/* CSS Donut Chart */}
-                    <div className="w-32 h-32 rounded-full border-[12px] border-indigo-500 border-r-emerald-400 border-b-amber-400 border-l-rose-400 transform rotate-45 flex items-center justify-center shadow-sm">
+                    <div className="w-32 h-32 rounded-full border-[12px] border-blue-500 border-r-emerald-400 border-b-amber-400 border-l-rose-400 transform rotate-45 flex items-center justify-center shadow-sm">
                         <div className="text-center transform -rotate-45">
                             <div className="text-xl font-bold text-slate-900">1.2k</div>
                             <div className="text-[9px] text-slate-400 uppercase">Total</div>
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-6 w-full px-4">
-                        <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-indigo-500"></div><span className="text-[10px] text-slate-600">Decision (40%)</span></div>
+                        <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"></div><span className="text-[10px] text-slate-600">Decision (40%)</span></div>
                         <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-400"></div><span className="text-[10px] text-slate-600">Update (25%)</span></div>
                         <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-400"></div><span className="text-[10px] text-slate-600">Request (20%)</span></div>
                         <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-400"></div><span className="text-[10px] text-slate-600">Escalation (15%)</span></div>
@@ -371,7 +371,7 @@ const AdminDashboard = () => {
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
-                                        <span className="text-xs font-medium text-slate-800 group-hover:text-indigo-600 transition-colors">{alert.text}</span>
+                                        <span className="text-xs font-medium text-slate-800 group-hover:text-blue-600 transition-colors">{alert.text}</span>
                                     </div>
                                     <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded uppercase">{alert.source}</span>
                                 </div>
@@ -397,8 +397,8 @@ const AdminDashboard = () => {
                         <div className="text-2xl font-bold text-slate-900">4,210</div>
                         <div className="text-[10px] text-slate-500 uppercase tracking-wide text-center">Audit Logs (Sep)</div>
                     </Card>
-                    <Card className="p-4 flex flex-col items-center justify-center border-l-4 border-l-indigo-500">
-                        <MousePointer2 className="w-6 h-6 text-indigo-500 mb-2" />
+                    <Card className="p-4 flex flex-col items-center justify-center border-l-4 border-l-blue-500">
+                        <MousePointer2 className="w-6 h-6 text-blue-500 mb-2" />
                         <div className="text-lg font-bold text-slate-900">Auto: 92%</div>
                         <div className="text-[10px] text-slate-500 uppercase tracking-wide text-center">Capture Rate</div>
                     </Card>
@@ -541,7 +541,7 @@ const Dashboard = ({ userRole }) => {
                     {/* Channel Filter */}
                     <div className="relative group">
                         <select
-                            className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
+                            className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
                             value={selectedChannel}
                             onChange={(e) => setSelectedChannel(e.target.value)}
                         >
@@ -627,7 +627,7 @@ const Dashboard = ({ userRole }) => {
                     <div className="flex justify-between items-start mb-4">
                         <div>
                             <div className="flex items-center gap-2">
-                                <TrendingUp className="w-4 h-4 text-indigo-500" />
+                                <TrendingUp className="w-4 h-4 text-blue-500" />
                                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Decision Velocity (Trend)</h3>
                             </div>
                             <p className="text-[10px] text-slate-400 mt-1 leading-tight">Daily decision volume. Higher bars indicate increased activity and processing speed.</p>
@@ -640,9 +640,9 @@ const Dashboard = ({ userRole }) => {
                         {/* Simulated Bar Chart with CSS */}
                         {velocityData.map((h, i) => (
                             <div key={i} className="flex flex-col items-center gap-1 flex-1 group cursor-pointer h-full justify-end">
-                                <div className="text-[10px] font-bold text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">{h}</div>
+                                <div className="text-[10px] font-bold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">{h}</div>
                                 <div
-                                    className="w-full max-w-8 bg-indigo-200 hover:bg-indigo-500 rounded-t transition-all duration-300 group-hover:shadow-lg"
+                                    className="w-full max-w-8 bg-blue-200 hover:bg-blue-500 rounded-t transition-all duration-300 group-hover:shadow-lg"
                                     style={{ height: `${h}%`, minHeight: '4px' }}
                                 ></div>
                                 <div className="text-[10px] text-slate-400 font-mono mt-1">D{i + 1}</div>
@@ -724,7 +724,7 @@ const Dashboard = ({ userRole }) => {
                     <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/50 flex items-start justify-between">
                         <div>
                             <div className="flex items-center gap-2">
-                                <Users className="w-4 h-4 text-indigo-500" />
+                                <Users className="w-4 h-4 text-blue-500" />
                                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Team Performance</h3>
                             </div>
                             <p className="text-[10px] text-slate-400 mt-1 leading-tight">Tracks average response times to identify bottlenecks.</p>
@@ -752,14 +752,14 @@ const Dashboard = ({ userRole }) => {
                 </Card>
 
                 {/* Success Stories */}
-                <Card className="p-0 overflow-hidden flex flex-col bg-gradient-to-br from-indigo-500 to-indigo-600 text-white border-none shadow-lg">
-                    <div className="px-5 py-3 border-b border-indigo-400/30 flex items-start justify-between">
+                <Card className="p-0 overflow-hidden flex flex-col bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none shadow-lg">
+                    <div className="px-5 py-3 border-b border-blue-400/30 flex items-start justify-between">
                         <div>
                             <div className="flex items-center gap-2">
                                 <Trophy className="w-4 h-4 text-amber-300" />
                                 <h3 className="text-xs font-bold text-white uppercase tracking-wide">Success Spotlight</h3>
                             </div>
-                            <p className="text-[10px] text-indigo-100 mt-1 leading-tight">Highlighting quick wins and resolved blockers.</p>
+                            <p className="text-[10px] text-blue-100 mt-1 leading-tight">Highlighting quick wins and resolved blockers.</p>
                         </div>
                     </div>
                     <div className="p-5 flex-1 flex flex-col gap-4">

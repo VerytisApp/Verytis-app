@@ -33,7 +33,7 @@ const TeamDetail = ({ userRole }) => {
         return (
             <div className="text-center py-12">
                 <p className="text-slate-500">Team not found</p>
-                <Link to="/teams" className="text-indigo-600 hover:underline mt-2 inline-block">Back to Teams</Link>
+                <Link to="/teams" className="text-blue-600 hover:underline mt-2 inline-block">Back to Teams</Link>
             </div>
         );
     }
@@ -164,7 +164,7 @@ const TeamDetail = ({ userRole }) => {
                                 {MOCK_USERS.filter(u => u.role === 'Admin' || u.role === 'Manager').slice(0, team.managers).map(user => (
                                     <tr key={user.id} className="hover:bg-slate-50/50">
                                         <td className="px-5 py-3 w-10">
-                                            <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold shadow-sm">{user.initials}</div>
+                                            <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shadow-sm">{user.initials}</div>
                                         </td>
                                         <td className="px-5 py-3">
                                             <div className="font-bold text-slate-900">{user.name}</div>
@@ -172,7 +172,7 @@ const TeamDetail = ({ userRole }) => {
                                         </td>
                                         <td className="px-5 py-3 text-right">
                                             <div className="flex items-center justify-end gap-3">
-                                                <span className="text-[9px] font-bold uppercase text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">Manager</span>
+                                                <span className="text-[9px] font-bold uppercase text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">Manager</span>
                                                 {userRole === 'Admin' && (
                                                     <div className="relative member-action-menu">
                                                         <button
@@ -251,7 +251,7 @@ const TeamDetail = ({ userRole }) => {
                             </tbody>
                         </table>
                         <div className="p-3 text-center border-t border-slate-100 bg-slate-50/30">
-                            <button className="text-[10px] font-bold text-slate-500 hover:text-indigo-600 transition-colors uppercase tracking-wide">View All Members</button>
+                            <button className="text-[10px] font-bold text-slate-500 hover:text-blue-600 transition-colors uppercase tracking-wide">View All Members</button>
                         </div>
                     </div>
                 </Card>
@@ -283,7 +283,7 @@ const TeamDetail = ({ userRole }) => {
                                         <PlatformIcon platform={channel.platform} />
                                     </div>
                                     <div>
-                                        <div className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{channel.name}</div>
+                                        <div className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{channel.name}</div>
                                         <div className="text-[10px] text-slate-500">Public Channel</div>
                                     </div>
                                 </Link>
@@ -330,7 +330,7 @@ const TeamDetail = ({ userRole }) => {
                                         <div key={activity.id} className="flex gap-3">
                                             <div className="relative mt-0.5">
                                                 <div className="absolute top-2 left-1 -ml-px h-full w-0.5 bg-slate-100"></div>
-                                                <div className={`relative flex h-2 w-2 items-center justify-center rounded-full ring-4 ring-white ${activity.type.includes('decision') ? 'bg-indigo-500' : 'bg-slate-300'}`}></div>
+                                                <div className={`relative flex h-2 w-2 items-center justify-center rounded-full ring-4 ring-white ${activity.type.includes('decision') ? 'bg-blue-500' : 'bg-slate-300'}`}></div>
                                             </div>
                                             <div>
                                                 <p className="text-xs font-medium text-slate-900">{activity.text}</p>
@@ -339,7 +339,7 @@ const TeamDetail = ({ userRole }) => {
                                         </div>
                                     ))}
                                     <div className="pt-2">
-                                        <Link to="/timeline" className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-wide">View Full Timeline &rarr;</Link>
+                                        <Link to="/timeline" className="text-[10px] font-bold text-blue-600 hover:text-blue-800 uppercase tracking-wide">View Full Timeline &rarr;</Link>
                                     </div>
                                 </div>
                             ) : (

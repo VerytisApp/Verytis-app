@@ -98,14 +98,14 @@ const EmailAudit = ({ userRole }) => {
                                                 type="date"
                                                 value={startDate}
                                                 onChange={(e) => setStartDate(e.target.value)}
-                                                className="text-xs border border-slate-200 rounded px-2 py-0.5 text-slate-600 focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="text-xs border border-slate-200 rounded px-2 py-0.5 text-slate-600 focus:ring-blue-500 focus:border-blue-500"
                                             />
                                             <span className="text-slate-300">-</span>
                                             <input
                                                 type="date"
                                                 value={endDate}
                                                 onChange={(e) => setEndDate(e.target.value)}
-                                                className="text-xs border border-slate-200 rounded px-2 py-0.5 text-slate-600 focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="text-xs border border-slate-200 rounded px-2 py-0.5 text-slate-600 focus:ring-blue-500 focus:border-blue-500"
                                             />
                                         </div>
                                     )}
@@ -156,7 +156,7 @@ const EmailAudit = ({ userRole }) => {
                                         <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                                             <td className="px-6 py-3 font-mono text-slate-500">{new Date(email.sentAt).toLocaleString()}</td>
                                             <td className="px-6 py-3">
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${isSender ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${isSender ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
                                                     {isSender ? 'Sent' : 'Received'}
                                                 </span>
                                             </td>
@@ -242,10 +242,10 @@ const EmailAudit = ({ userRole }) => {
                 </header>
 
                 {/* Personal Audit - Always accessible */}
-                <Card className="overflow-hidden border-indigo-100">
-                    <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50/80 to-slate-50/50 flex justify-between items-center">
-                        <h3 className="text-xs font-bold uppercase tracking-wide text-indigo-900 flex items-center gap-2">
-                            <Lock className="w-3.5 h-3.5 text-indigo-400" />
+                <Card className="overflow-hidden border-blue-100">
+                    <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-blue-50/80 to-slate-50/50 flex justify-between items-center">
+                        <h3 className="text-xs font-bold uppercase tracking-wide text-blue-900 flex items-center gap-2">
+                            <Lock className="w-3.5 h-3.5 text-blue-400" />
                             My Personal Email Audit
                         </h3>
                         <div className="flex items-center gap-4">
@@ -303,7 +303,7 @@ const EmailAudit = ({ userRole }) => {
                                         <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                                             <td className="px-6 py-3 font-mono text-slate-500">{new Date(email.sentAt).toLocaleString()}</td>
                                             <td className="px-6 py-3">
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${isSender ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${isSender ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
                                                     {isSender ? 'Sent' : 'Received'}
                                                 </span>
                                             </td>
@@ -376,10 +376,10 @@ const EmailAudit = ({ userRole }) => {
             </div>
 
             {/* My Personal Audit - Admin/Manager can see their own audit too */}
-            <Card className="overflow-hidden border-indigo-100">
-                <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50/80 to-slate-50/50 flex justify-between items-center">
-                    <h3 className="text-xs font-bold uppercase tracking-wide text-indigo-900 flex items-center gap-2">
-                        <Lock className="w-3.5 h-3.5 text-indigo-400" />
+            <Card className="overflow-hidden border-blue-100">
+                <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-blue-50/80 to-slate-50/50 flex justify-between items-center">
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-blue-900 flex items-center gap-2">
+                        <Lock className="w-3.5 h-3.5 text-blue-400" />
                         My Personal Email Audit
                     </h3>
                     <div className="flex items-center gap-4">
@@ -437,7 +437,7 @@ const EmailAudit = ({ userRole }) => {
                                     <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="px-6 py-3 font-mono text-slate-500">{new Date(email.sentAt).toLocaleString()}</td>
                                         <td className="px-6 py-3">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${isSender ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${isSender ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
                                                 {isSender ? 'Sent' : 'Received'}
                                             </span>
                                         </td>

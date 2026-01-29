@@ -29,7 +29,7 @@ const ChannelDetail = ({ userRole }) => {
         return (
             <div className="text-center py-12">
                 <p className="text-slate-500">Channel not found</p>
-                <Link to="/channels" className="text-indigo-600 hover:underline mt-2 inline-block">Back to Channels</Link>
+                <Link to="/channels" className="text-blue-600 hover:underline mt-2 inline-block">Back to Channels</Link>
             </div>
         );
     }
@@ -138,8 +138,8 @@ const ChannelDetail = ({ userRole }) => {
                                     const IconComponent = getActivityIcon(activity.iconType);
                                     return (
                                         <div key={activity.id} className="relative pl-9 flex items-start justify-between group">
-                                            <div className="absolute left-0 top-0.5 w-5 h-5 flex items-center justify-center bg-white border border-slate-200 rounded-full shadow-sm z-10 group-hover:border-indigo-300 transition-colors">
-                                                <IconComponent className="w-3 h-3 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                                            <div className="absolute left-0 top-0.5 w-5 h-5 flex items-center justify-center bg-white border border-slate-200 rounded-full shadow-sm z-10 group-hover:border-blue-300 transition-colors">
+                                                <IconComponent className="w-3 h-3 text-slate-400 group-hover:text-blue-600 transition-colors" />
                                             </div>
                                             <div>
                                                 <p className="text-xs font-medium text-slate-900">{activity.text}</p>
@@ -168,7 +168,7 @@ const ChannelDetail = ({ userRole }) => {
                             ))}
                         </div>
                         <div className="border-t border-slate-100 p-3 text-center bg-slate-50/50">
-                            <span className="text-[10px] font-bold text-slate-500 cursor-pointer hover:text-indigo-600 transition-colors uppercase tracking-wide">View All {channel.members} Members</span>
+                            <span className="text-[10px] font-bold text-slate-500 cursor-pointer hover:text-blue-600 transition-colors uppercase tracking-wide">View All {channel.members} Members</span>
                         </div>
                     </Card>
                 </div>

@@ -13,7 +13,7 @@ const UserDetail = () => {
         return (
             <div className="text-center py-12">
                 <p className="text-slate-500">User not found</p>
-                <Link to="/users" className="text-indigo-600 hover:underline mt-2 inline-block">Back to Users</Link>
+                <Link to="/users" className="text-blue-600 hover:underline mt-2 inline-block">Back to Users</Link>
             </div>
         );
     }
@@ -51,7 +51,7 @@ const UserDetail = () => {
                             <div className="flex items-center gap-3">
                                 <span className="text-slate-500 text-sm font-medium">{user.email}</span>
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${user.role === 'Admin' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                                    user.role === 'Manager' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                    user.role === 'Manager' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                                         'bg-slate-50 text-slate-600 border-slate-200'
                                     }`}>
                                     {user.role}
@@ -102,19 +102,19 @@ const UserDetail = () => {
                                                 key={idx}
                                                 onClick={() => isActive && setScopeModal({ isOpen: true, title: scope.title, teams: scopeTeams })}
                                                 className={`flex items-center justify-between p-2 rounded transition-all ${isActive
-                                                    ? 'bg-indigo-50/50 border border-indigo-100 cursor-pointer hover:bg-indigo-50 hover:shadow-sm hover:border-indigo-200'
+                                                    ? 'bg-blue-50/50 border border-blue-100 cursor-pointer hover:bg-blue-50 hover:shadow-sm hover:border-blue-200'
                                                     : 'bg-slate-50 border border-slate-100'
                                                     }`}
                                             >
                                                 <div className="flex items-start gap-3">
-                                                    <div className={`mt-0.5 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`}>
+                                                    <div className={`mt-0.5 ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
                                                         {idx === 0 && <Clock className="w-4 h-4" />}
                                                         {idx === 1 && <FileText className="w-4 h-4" />}
                                                         {idx === 2 && <Mail className="w-4 h-4" />}
                                                         {idx === 3 && <Download className="w-4 h-4" />}
                                                     </div>
                                                     <div>
-                                                        <div className={`text-xs font-bold ${isActive ? 'text-indigo-900' : 'text-slate-500'}`}>{scope.title}</div>
+                                                        <div className={`text-xs font-bold ${isActive ? 'text-blue-900' : 'text-slate-500'}`}>{scope.title}</div>
                                                         <div className="text-[10px] text-slate-500 mt-0.5">{scope.desc}</div>
                                                     </div>
                                                 </div>
@@ -232,7 +232,7 @@ const UserDetail = () => {
                             {userTeams.map(team => (
                                 <Link key={team.id} to={`/teams/${team.id}`} className="block p-4 hover:bg-slate-50 transition-colors group">
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{team.name}</span>
+                                        <span className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{team.name}</span>
                                         <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">{team.type}</span>
                                     </div>
                                     <p className="text-xs text-slate-500 truncate">{team.description}</p>
