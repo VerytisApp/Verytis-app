@@ -34,18 +34,18 @@ export const PlatformIcon = ({ platform }) => {
 export const Card = ({ children, className = "", onClick }) => (
     <div
         onClick={onClick}
-        className={`bg-white rounded-xl border border-slate-200 shadow-sm transition-all duration-200 ${onClick ? 'cursor-pointer hover:border-slate-300 hover:shadow-md' : ''} ${className}`}
+        className={`bg-white rounded-xl border border-indigo-50 shadow-sm transition-all duration-200 ${onClick ? 'cursor-pointer hover:border-indigo-200 hover:shadow-md hover:shadow-indigo-100' : ''} ${className}`}
     >
         {children}
     </div>
 );
 
 export const Button = ({ variant = 'primary', icon: Icon, children, onClick, className = "" }) => {
-    const baseStyle = "inline-flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed leading-tight";
+    const baseStyle = "inline-flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed leading-tight";
     const variants = {
-        primary: "bg-[#0F172A] text-white hover:bg-[#1E293B] shadow-sm ring-1 ring-inset ring-white/10",
-        secondary: "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 shadow-sm",
-        ghost: "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+        primary: "bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm shadow-indigo-500/30 ring-1 ring-inset ring-indigo-500",
+        secondary: "bg-white text-slate-700 border border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 shadow-sm",
+        ghost: "bg-transparent text-slate-500 hover:bg-indigo-50 hover:text-indigo-700",
         danger: "bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 shadow-sm"
     };
     return (
@@ -57,7 +57,7 @@ export const Button = ({ variant = 'primary', icon: Icon, children, onClick, cla
 };
 
 export const ToggleSwitch = ({ enabled, disabled, onClick }) => (
-    <div onClick={() => !disabled && onClick && onClick()} className={`w-8 h-4.5 flex items-center rounded-full p-0.5 transition-colors duration-300 ${enabled ? 'bg-[#0EA5E9]' : 'bg-slate-200'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+    <div onClick={() => !disabled && onClick && onClick()} className={`w-8 h-4.5 flex items-center rounded-full p-0.5 transition-colors duration-300 ${enabled ? 'bg-indigo-600' : 'bg-slate-200'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
         <div className={`bg-white w-3.5 h-3.5 rounded-full shadow-sm transform transition-transform duration-300 ${enabled ? 'translate-x-3.5' : 'translate-x-0'}`}></div>
     </div>
 );

@@ -72,7 +72,7 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                     {!isCollapsed && (
                         <button
                             onClick={() => onToggleCollapse(true)}
-                            className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                            className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                         >
                             <ChevronLeft className="w-4 h-4" />
                         </button>
@@ -94,8 +94,8 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                                 key={item.path}
                                 to={item.path}
                                 className={`w-full flex items-center transition-all duration-200 ${isCollapsed ? 'justify-center px-0' : 'justify-start px-3'} py-2.5 rounded-xl text-xs font-medium ${active
-                                    ? 'bg-slate-900 text-white shadow-lg'
-                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                                    : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
                                     }`}
                                 title={isCollapsed ? item.label : ''}
                             >
