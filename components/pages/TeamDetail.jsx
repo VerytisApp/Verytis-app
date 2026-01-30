@@ -1,5 +1,8 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { ChevronRight, Shield, FileText, Download, Hash, Mail, Link as LinkIcon, Plus, MoreHorizontal, Trash2, Users, MoreVertical } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon, ToggleSwitch, Modal } from '../ui';
 import { MOCK_TEAMS, MOCK_USERS, MOCK_CHANNELS, SCOPES_CONFIG, MOCK_CHANNEL_ACTIVITY } from '../../data/mockData';
@@ -33,7 +36,7 @@ const TeamDetail = ({ userRole }) => {
         return (
             <div className="text-center py-12">
                 <p className="text-slate-500">Team not found</p>
-                <Link to="/teams" className="text-blue-600 hover:underline mt-2 inline-block">Back to Teams</Link>
+                <Link href="/teams" className="text-blue-600 hover:underline mt-2 inline-block">Back to Teams</Link>
             </div>
         );
     }
@@ -45,7 +48,7 @@ const TeamDetail = ({ userRole }) => {
         <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
             <div className="space-y-4">
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    <Link to="/teams" className="cursor-pointer hover:text-slate-900 transition-colors">Teams</Link>
+                    <Link href="/teams" className="cursor-pointer hover:text-slate-900 transition-colors">Teams</Link>
                     <ChevronRight className="w-3 h-3" />
                     <span className="text-slate-900">{team.name}</span>
                 </div>
@@ -278,7 +281,7 @@ const TeamDetail = ({ userRole }) => {
 
                         {MOCK_CHANNELS.slice(0, team.channels).map(channel => (
                             <div key={channel.id} className="flex items-center justify-between px-5 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors group">
-                                <Link to={`/channels/${channel.id}`} className="flex items-center gap-3">
+                                <Link href={`/channels/${channel.id}`} className="flex items-center gap-3">
                                     <div className="p-1.5 bg-slate-50 rounded border border-slate-200">
                                         <PlatformIcon platform={channel.platform} />
                                     </div>
@@ -339,7 +342,7 @@ const TeamDetail = ({ userRole }) => {
                                         </div>
                                     ))}
                                     <div className="pt-2">
-                                        <Link to="/timeline" className="text-[10px] font-bold text-blue-600 hover:text-blue-800 uppercase tracking-wide">View Full Timeline &rarr;</Link>
+                                        <Link href="/timeline" className="text-[10px] font-bold text-blue-600 hover:text-blue-800 uppercase tracking-wide">View Full Timeline &rarr;</Link>
                                     </div>
                                 </div>
                             ) : (

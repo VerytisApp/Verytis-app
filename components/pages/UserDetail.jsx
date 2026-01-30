@@ -1,5 +1,8 @@
+'use client';
+
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { ChevronRight, Shield, FileText, Download, Mail, Activity, GitCommit, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon, ToggleSwitch, Modal } from '../ui';
 import { MOCK_USERS, MOCK_TEAMS, MOCK_CHANNELS, MOCK_RECENT_DECISIONS, SCOPES_CONFIG } from '../../data/mockData';
@@ -13,7 +16,7 @@ const UserDetail = () => {
         return (
             <div className="text-center py-12">
                 <p className="text-slate-500">User not found</p>
-                <Link to="/users" className="text-blue-600 hover:underline mt-2 inline-block">Back to Users</Link>
+                <Link href="/users" className="text-blue-600 hover:underline mt-2 inline-block">Back to Users</Link>
             </div>
         );
     }
@@ -36,7 +39,7 @@ const UserDetail = () => {
         <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
             <div className="space-y-4">
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    <Link to="/users" className="cursor-pointer hover:text-slate-900 transition-colors">Users</Link>
+                    <Link href="/users" className="cursor-pointer hover:text-slate-900 transition-colors">Users</Link>
                     <ChevronRight className="w-3 h-3" />
                     <span className="text-slate-900">{user.name}</span>
                 </div>
@@ -230,7 +233,7 @@ const UserDetail = () => {
                         </div>
                         <div className="divide-y divide-slate-100">
                             {userTeams.map(team => (
-                                <Link key={team.id} to={`/teams/${team.id}`} className="block p-4 hover:bg-slate-50 transition-colors group">
+                                <Link key={team.id} href={`/teams/${team.id}`} className="block p-4 hover:bg-slate-50 transition-colors group">
                                     <div className="flex items-center justify-between mb-1">
                                         <span className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{team.name}</span>
                                         <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">{team.type}</span>

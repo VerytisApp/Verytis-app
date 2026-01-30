@@ -1,5 +1,8 @@
+'use client';
+
 import { useState, useRef, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, MessageSquare, FileText, Users, Clock, Mail,
@@ -7,20 +10,24 @@ import {
 } from 'lucide-react';
 import IcareLogo from '../image/Gemini Generated Image (14).png';
 
-const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRole, onRoleChange }) => {
+const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRole, onRoleChange, user, onLogout }) => {
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-    // currentRole and onRoleChange are now passed as props from App.jsx
     const profileMenuRef = useRef(null);
-    const location = useLocation();
+    const pathname = usePathname();
 
-    // Define user personas for display
     const userPersonas = {
         Admin: { name: 'Sarah Jenkins', initials: 'SJ', role: 'Admin', color: 'from-blue-500 to-purple-600' },
         Manager: { name: 'David Chen', initials: 'DC', role: 'Manager', color: 'from-emerald-500 to-teal-600' },
         Member: { name: 'Elena Ross', initials: 'ER', role: 'Member', color: 'from-amber-500 to-orange-600' }
     };
 
-    const currentUser = userPersonas[currentRole];
+    // Use real user data if available, otherwise fall back to mock
+    const currentUser = user ? {
+        name: user.email?.split('@')[0] || 'User',
+        initials: (user.email?.substring(0, 2) || 'U').toUpperCase(),
+        role: currentRole,
+        color: userPersonas[currentRole]?.color || 'from-blue-500 to-purple-600'
+    } : userPersonas[currentRole];
 
     const allNavItems = [
         { path: '/', altPath: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Manager'] },
@@ -45,11 +52,10 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
     }, []);
 
     const isActive = (item) => {
-        const currentPath = location.pathname;
         if (item.altPath) {
-            return currentPath === item.path || currentPath === item.altPath || currentPath.startsWith(item.path + '/');
+            return pathname === item.path || pathname === item.altPath || pathname.startsWith(item.path + '/');
         }
-        return currentPath === item.path || currentPath.startsWith(item.path + '/');
+        return pathname === item.path || pathname.startsWith(item.path + '/');
     };
 
     return (
@@ -60,15 +66,14 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
             {/* Logo Section */}
             <div className={`py-4 ${isCollapsed ? '' : 'px-3'}`}>
                 <div className={`flex items-center ${isCollapsed ? 'justify-center w-full' : 'justify-between px-3'}`}>
-                    <NavLink
-                        to="/"
+                    <Link
+                        href="/"
                         className="cursor-pointer hover:scale-105 transition-transform"
                         onClick={() => isCollapsed && onToggleCollapse(false)}
                     >
-                        <img src={IcareLogo} alt="ICARE" className="w-10 h-10 object-contain" />
-                    </NavLink>
+                        <img src={IcareLogo.src || IcareLogo} alt="ICARE" className="w-10 h-10 object-contain" />
+                    </Link>
 
-                    {/* Close button - only when expanded */}
                     {!isCollapsed && (
                         <button
                             onClick={() => onToggleCollapse(true)}
@@ -82,7 +87,6 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
 
             {/* Navigation */}
             <div className="px-3 py-2 flex-1">
-                {/* Menu label */}
                 <div className={`text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-3 transition-all duration-200 ${isCollapsed ? 'opacity-0 h-0 mb-0' : 'opacity-100'}`}>
                     Menu
                 </div>
@@ -90,9 +94,9 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                     {navItems.map(item => {
                         const active = isActive(item);
                         return (
-                            <NavLink
+                            <Link
                                 key={item.path}
-                                to={item.path}
+                                href={item.path}
                                 className={`w-full flex items-center transition-all duration-200 ${isCollapsed ? 'justify-center px-0' : 'justify-start px-3'} py-2.5 rounded-xl text-xs font-medium ${active
                                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
                                     : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'
@@ -100,17 +104,16 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                                 title={isCollapsed ? item.label : ''}
                             >
                                 <item.icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-white' : 'text-slate-400'}`} />
-                                {/* Label */}
                                 <span className={`ml-3 whitespace-nowrap transition-all duration-200 ${isCollapsed ? 'opacity-0 w-0 ml-0' : 'opacity-100'}`}>
                                     {item.label}
                                 </span>
-                            </NavLink>
+                            </Link>
                         );
                     })}
                 </nav>
             </div>
 
-            {/* Role Switcher - Dev Tool */}
+            {/* Role Switcher */}
             {!isCollapsed && (
                 <div className="px-6 py-2 mb-2">
                     <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Dev: Switch Role</div>
@@ -169,7 +172,10 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                                 </div>
                             </div>
                             <div className="h-px bg-slate-100 my-1" />
-                            <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg text-left font-medium">
+                            <button
+                                onClick={onLogout}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg text-left font-medium"
+                            >
                                 <LogOut className="w-3.5 h-3.5" />
                                 Log Out
                             </button>
@@ -182,7 +188,6 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                         <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${currentUser.color} flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-lg`}>
                             {currentUser.initials}
                         </div>
-                        {/* User info - only when expanded */}
                         {!isCollapsed && (
                             <div className="text-xs">
                                 <p className="font-bold text-slate-900 truncate w-24">{currentUser.name}</p>
@@ -191,7 +196,6 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                         )}
                     </div>
 
-                    {/* Menu button - only when expanded */}
                     {!isCollapsed && (
                         <button
                             onClick={() => setProfileMenuOpen(!profileMenuOpen)}

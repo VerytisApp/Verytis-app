@@ -1,11 +1,14 @@
-import { useParams, Link, useNavigate } from 'react-router-dom';
+'use client';
+
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ChevronRight, Clock, Download, CheckCircle, GitCommit, UserPlus, FileText } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon } from '../ui';
 import { MOCK_CHANNELS, MOCK_USERS, MOCK_RECENT_DECISIONS, MOCK_CHANNEL_ACTIVITY, MOCK_TEAMS } from '../../data/mockData';
 
 const ChannelDetail = ({ userRole }) => {
     const { channelId } = useParams();
-    const navigate = useNavigate();
+    const router = useRouter();
     const channel = MOCK_CHANNELS.find(c => c.id.toString() === channelId);
     // Find parent team to check scopes
     const parentTeam = channel ? MOCK_TEAMS.find(t => t.name === channel.team) : null;
@@ -29,7 +32,7 @@ const ChannelDetail = ({ userRole }) => {
         return (
             <div className="text-center py-12">
                 <p className="text-slate-500">Channel not found</p>
-                <Link to="/channels" className="text-blue-600 hover:underline mt-2 inline-block">Back to Channels</Link>
+                <Link href="/channels" className="text-blue-600 hover:underline mt-2 inline-block">Back to Channels</Link>
             </div>
         );
     }
@@ -38,7 +41,7 @@ const ChannelDetail = ({ userRole }) => {
         <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
             <div className="space-y-4">
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    <Link to="/channels" className="cursor-pointer hover:text-slate-900 transition-colors">Channels</Link>
+                    <Link href="/channels" className="cursor-pointer hover:text-slate-900 transition-colors">Channels</Link>
                     <ChevronRight className="w-3 h-3" />
                     <span className="text-slate-900">{channel.name}</span>
                 </div>
@@ -68,7 +71,7 @@ const ChannelDetail = ({ userRole }) => {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="secondary" icon={Clock} onClick={() => navigate(`/timeline/${channel.id}`)}>View Timeline</Button>
+                        <Button variant="secondary" icon={Clock} onClick={() => router.push(`/timeline/${channel.id}`)}>View Timeline</Button>
                         {canExport && <Button variant="secondary" icon={Download}>Export</Button>}
                     </div>
                 </div>

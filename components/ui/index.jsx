@@ -1,3 +1,5 @@
+'use client';
+
 import { Slack, Users, Mail, Hash } from 'lucide-react';
 
 export const StatusBadge = ({ status }) => {

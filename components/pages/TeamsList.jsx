@@ -1,6 +1,8 @@
+'use client';
+
 import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { Plus, MoreHorizontal, Shield, FileText, Download, Pencil, Users, Archive, Trash2, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { Card, Button, Modal } from '../ui';
 import { MOCK_TEAMS, MOCK_USERS, MOCK_CHANNELS, SCOPES_CONFIG } from '../../data/mockData';
 
@@ -102,7 +104,7 @@ const TeamsList = ({ userRole }) => {
                                 <tr key={team.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="px-6 py-4">
                                         <Link
-                                            to={`/teams/${team.id}`}
+                                            href={`/teams/${team.id}`}
                                             className="block cursor-pointer"
                                         >
                                             <span className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition-colors">{team.name}</span>

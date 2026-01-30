@@ -1,6 +1,8 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { Plus, Upload, MoreVertical, Pencil, Key, Ban, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { Card, Button, StatusBadge, Modal } from '../ui';
 import { MOCK_USERS } from '../../data/mockData';
 
@@ -117,13 +119,13 @@ const UsersAndRoles = () => {
                             <tr key={user.id} className="hover:bg-slate-50/80 transition-colors">
                                 <td className="px-6 py-3.5">
                                     <div className="flex items-center gap-3">
-                                        <Link to={`/users/${user.id}`} className="block">
+                                        <Link href={`/users/${user.id}`} className="block">
                                             <div className="w-8 h-8 rounded bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 shadow-sm hover:border-blue-300 hover:text-blue-600 transition-colors">
                                                 {user.initials}
                                             </div>
                                         </Link>
                                         <div>
-                                            <Link to={`/users/${user.id}`} className="block font-medium text-slate-900 hover:text-blue-600 transition-colors">
+                                            <Link href={`/users/${user.id}`} className="block font-medium text-slate-900 hover:text-blue-600 transition-colors">
                                                 {user.name}
                                             </Link>
                                             <div className="text-slate-500 text-xs">{user.email}</div>

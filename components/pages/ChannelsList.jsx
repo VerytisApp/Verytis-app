@@ -1,6 +1,8 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { Card, Button, StatusBadge, PlatformIcon, Modal } from '../ui';
 import { MOCK_CHANNELS, MOCK_TEAMS } from '../../data/mockData';
 
@@ -157,7 +159,7 @@ const ChannelsList = ({ userRole }) => {
                         {filteredChannels.length > 0 ? filteredChannels.map(channel => (
                             <tr key={channel.id} className="hover:bg-slate-50/50 transition-colors group">
                                 <td className="px-6 py-4">
-                                    <Link to={`/channels/${channel.id}`} className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                                    <Link href={`/channels/${channel.id}`} className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
                                         {channel.name}
                                     </Link>
                                 </td>

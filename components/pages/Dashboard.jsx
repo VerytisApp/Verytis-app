@@ -1,5 +1,6 @@
+'use client';
+
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
     Activity, AlertCircle, AlertTriangle, ArrowUpRight, Clock, Download,
     FileText, Mail, MessageSquare, Shield, Zap, Hash,
@@ -427,7 +428,6 @@ const AdminDashboard = () => {
 };
 
 const Dashboard = ({ userRole }) => {
-    const navigate = useNavigate();
     const [selectedChannel, setSelectedChannel] = useState('all');
 
     if (userRole === 'Admin') {
