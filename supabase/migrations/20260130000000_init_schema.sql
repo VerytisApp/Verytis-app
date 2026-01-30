@@ -10,7 +10,7 @@ create type team_type as enum ('operational', 'governance');
 create type team_role as enum ('lead', 'member');
 create type resource_type as enum ('channel', 'repo', 'folder');
 create type audit_level as enum ('full', 'metadata_only', 'actions_only');
-create type decision_status as enum ('validated', 'flagged'); -- Lightweight: only for "Green Checks"
+create type decision_status as enum ('validated', 'flagged');
 
 -- ORGANIZATIONS (Multi-tenancy)
 create table public.organizations (
@@ -108,7 +108,7 @@ create table public.monitored_resources (
   unique(integration_id, external_id)
 );
 
--- ACTIVITY LOGS (The Report - all actions)
+-- ACTIVITY LOGS (The Report)
 create table public.activity_logs (
   id uuid default uuid_generate_v4() primary key,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
@@ -121,11 +121,11 @@ create table public.activity_logs (
   metadata jsonb default '{}'::jsonb
 );
 
--- [A] DECISIONS (Lightweight table for fast "Green Checks" lookups)
+-- [A] DECISIONS (Lightweight table)
 create table public.decisions (
   id uuid default uuid_generate_v4() primary key,
   organization_id uuid references public.organizations(id) on delete cascade not null,
-  activity_log_id uuid references public.activity_logs(id) on delete set null, -- Link to source log
+  activity_log_id uuid references public.activity_logs(id) on delete set null,
   title text not null,
   status decision_status default 'validated',
   actor_id uuid references public.profiles(id) on delete set null,
@@ -159,10 +159,10 @@ create table public.weekly_team_reports (
   unique(team_id, week_start_date)
 );
 
--- [B] EMAIL METADATA (with organization_id for RLS perf + [C] UNIQUE constraint)
+-- [B] EMAIL METADATA (with organization_id for RLS + [C] UNIQUE)
 create table public.email_metadata (
   id uuid default uuid_generate_v4() primary key,
-  organization_id uuid references public.organizations(id) on delete cascade not null, -- [B] Added for RLS
+  organization_id uuid references public.organizations(id) on delete cascade not null,
   connection_id uuid references public.connections(id) on delete cascade not null,
   message_id text not null,
   sender text not null,
@@ -170,7 +170,7 @@ create table public.email_metadata (
   subject text,
   sent_at timestamp with time zone,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique(connection_id, message_id) -- [C] Prevent duplicate webhook events
+  unique(connection_id, message_id)
 );
 
 -- MONTHLY REPORTS (AI-generated)
@@ -188,7 +188,7 @@ create table public.monthly_reports (
   unique(organization_id, team_id, month)
 );
 
--- REPORT DELIVERIES (Track sent reports)
+-- REPORT DELIVERIES
 create table public.report_deliveries (
   id uuid default uuid_generate_v4() primary key,
   report_id uuid references public.monthly_reports(id) on delete cascade not null,
@@ -233,7 +233,7 @@ create policy "Org isolation for Logs" on public.activity_logs
 create policy "Org isolation for Decisions" on public.decisions
   for select using (organization_id = get_auth_org_id());
 
-create policy "Org isolation for Emails" on public.email_metadata -- [B] Fast RLS check
+create policy "Org isolation for Emails" on public.email_metadata
   for select using (organization_id = get_auth_org_id());
 
 create policy "Users can view own profile" on public.profiles
@@ -246,19 +246,20 @@ create policy "Users can view own deliveries" on public.report_deliveries
   for select using (recipient_id = auth.uid());
 
 -- PERFORMANCE: Indexes
+-- Log retrieval (Dashboard feeds)
 create index idx_activity_logs_org_date on public.activity_logs(organization_id, created_at desc);
 create index idx_activity_logs_actor on public.activity_logs(actor_id);
 create index idx_activity_logs_resource on public.activity_logs(resource_id);
-create index idx_decisions_org_status on public.decisions(organization_id, status); -- [A] Fast decision lookups
-create index idx_email_metadata_org on public.email_metadata(organization_id); -- [B] RLS perf
+
+-- JSONB Search Optimization (GIN Indexes)
+create index idx_activity_logs_metadata on public.activity_logs using gin (metadata);
+create index idx_email_metadata_recipients on public.email_metadata using gin (recipients);
+create index idx_connections_metadata on public.connections using gin (metadata);
+
+-- Lookup Performance
 create index idx_profiles_org on public.profiles(organization_id);
 create index idx_connections_user on public.connections(user_id);
+create index idx_decisions_org_status on public.decisions(organization_id, status);
 create index idx_monitored_external_id on public.monitored_resources(external_id);
 create index idx_monthly_reports_org_month on public.monthly_reports(organization_id, month desc);
 create index idx_report_deliveries_recipient on public.report_deliveries(recipient_id);
-
--- FUTURE-PROOF: GIN indexes for JSONB searches
-create index idx_email_recipients_gin on public.email_metadata using gin (recipients);
-create index idx_activity_metadata_gin on public.activity_logs using gin (metadata);
-create index idx_connections_scopes_gin on public.connections using gin (scopes);
-
