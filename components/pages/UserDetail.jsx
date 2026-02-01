@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Shield, FileText, Download, Mail, Activity, GitCommit, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ChevronRight, Shield, FileText, Download, Mail, Activity, GitCommit, CheckCircle, XCircle, Clock, Fingerprint, Globe, Key } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon, ToggleSwitch, Modal } from '../ui';
 import { MOCK_USERS, MOCK_TEAMS, MOCK_CHANNELS, MOCK_RECENT_DECISIONS, SCOPES_CONFIG } from '../../data/mockData';
 
@@ -201,23 +201,48 @@ const UserDetail = () => {
                     <Card>
                         <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/30">
                             <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900 flex items-center gap-2">
-                                <Activity className="w-3.5 h-3.5" /> Connected Apps
+                                <Fingerprint className="w-3.5 h-3.5 text-blue-600" /> Passport ID
                             </h3>
                         </div>
-                        <div className="p-5 grid grid-cols-2 gap-4">
+                        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                             {[
-                                { name: 'Slack', status: 'Connected', icon: PlatformIcon },
-                                { name: 'Microsoft Teams', status: 'Connected', icon: PlatformIcon },
-                                { name: 'Outlook', status: 'Disconnected', icon: PlatformIcon },
-                                { name: 'Gmail', status: 'Connected', icon: PlatformIcon }
+                                { name: 'Slack', status: 'Connected', id: 'U-SLK-9921', sync: '1 min ago', color: 'bg-[#4A154B]' },
+                                { name: 'Microsoft Teams', status: 'Connected', id: 'U-MSF-5542', sync: '5 mins ago', color: 'bg-[#6264A7]' },
+                                { name: 'Outlook', status: 'Revoked', id: 'U-MSF-0012', sync: '3 days ago', color: 'bg-[#0078D4]' },
+                                { name: 'Gmail', status: 'Connected', id: 'U-GGL-1120', sync: '2 hours ago', color: 'bg-[#EA4335]' }
                             ].map((app, idx) => (
-                                <div key={idx} className="flex items-center gap-3 p-3 rounded border border-slate-100 bg-slate-50/50">
-                                    <PlatformIcon platform={app.name} />
-                                    <div>
-                                        <div className="text-xs font-bold text-slate-900">{app.name}</div>
-                                        <div className={`text-[10px] font-medium ${app.status === 'Connected' ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                <div key={idx} className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-all hover:border-blue-200">
+                                    {/* Abstract Background Decoration */}
+                                    <div className={`absolute -right-4 -top-4 w-16 h-16 rounded-full opacity-[0.08] group-hover:opacity-[0.15] transition-opacity ${app.color}`}></div>
+
+                                    <div className="flex justify-between items-start mb-3 relative z-10">
+                                        <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 group-hover:bg-white transition-colors">
+                                            <PlatformIcon platform={app.name} />
+                                        </div>
+                                        <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wide ${app.status === 'Connected' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-400 border border-slate-100'
+                                            }`}>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${app.status === 'Connected' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
                                             {app.status}
                                         </div>
+                                    </div>
+
+                                    <div className="relative z-10">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <h4 className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition-colors">{app.name}</h4>
+                                            {app.status === 'Connected' && <Shield className="w-3 h-3 text-slate-300" />}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono bg-slate-50 w-fit px-1.5 py-0.5 rounded border border-slate-100">
+                                            <Key className="w-3 h-3 text-slate-400" />
+                                            {app.id}
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-3 pt-2 border-t border-slate-50 flex justify-between items-center relative z-10">
+                                        <div className="flex items-center gap-1.5 text-[9px] text-slate-400 font-medium">
+                                            <Globe className="w-3 h-3" />
+                                            Auth Scopes: Read
+                                        </div>
+                                        <span className="text-[9px] text-slate-400">{app.sync}</span>
                                     </div>
                                 </div>
                             ))}
