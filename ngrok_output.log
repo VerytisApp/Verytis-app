@@ -1,0 +1,16 @@
+t=2026-02-02T13:15:26+0100 lvl=info msg="no configuration paths supplied"
+t=2026-02-02T13:15:26+0100 lvl=info msg="using configuration at default config path" path="/Users/tychiqueesteve/Library/Application Support/ngrok/ngrok.yml"
+t=2026-02-02T13:15:26+0100 lvl=info msg="open config file" path="/Users/tychiqueesteve/Library/Application Support/ngrok/ngrok.yml" err=nil
+t=2026-02-02T13:15:26+0100 lvl=info msg="FIPS 140 mode" enabled=false
+t=2026-02-02T13:15:26+0100 lvl=info msg="starting web service" obj=web addr=127.0.0.1:4040 allow_hosts=[]
+t=2026-02-02T13:15:28+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-02-02T13:15:28+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-02-02T13:15:28+0100 lvl=info msg="update available" obj=updater
+t=2026-02-02T13:15:28+0100 lvl=info msg="started tunnel" obj=tunnels name=command_line addr=http://localhost:3000 url=https://aperiodically-preinventive-ella.ngrok-free.dev
+t=2026-02-02T13:16:23+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=9f043a5c595e clientid=fe7874dc7d4b5c0e7608a6ddcc3dec64
+t=2026-02-02T13:16:23+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=d4a7f112f604 err="session closed"
+t=2026-02-02T13:16:33+0100 lvl=eror msg="failed to reconnect session" obj=tunnels.session err="failed to send authentication request: failed to fetch CRL. errors encountered: timed out fetching CRL"
+t=2026-02-02T13:16:34+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-02-02T13:16:34+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-02-02T13:21:41+0100 lvl=info msg=start pg=/api/tunnels id=ca98a98aa59b8e9f
+t=2026-02-02T13:21:41+0100 lvl=info msg=end pg=/api/tunnels id=ca98a98aa59b8e9f status=200 dur=465.542µs

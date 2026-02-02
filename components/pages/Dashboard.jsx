@@ -341,8 +341,8 @@ const AdminDashboard = () => {
                         <div className="flex justify-between text-[8px] text-slate-400 px-1 font-mono uppercase mb-1">
                             <span>Morn</span><span>Noon</span><span>Eve</span>
                         </div>
-                        {['M', 'T', 'W', 'T', 'F'].map(day => (
-                            <div key={day} className="flex items-center gap-2">
+                        {['M', 'T', 'W', 'T', 'F'].map((day, i) => (
+                            <div key={i} className="flex items-center gap-2">
                                 <span className="text-[9px] font-bold text-slate-400 w-3">{day}</span>
                                 <div className="flex-1 grid grid-cols-12 gap-0.5 h-4">
                                     {[...Array(12)].map((_, i) => (

@@ -155,7 +155,7 @@ const TeamsList = ({ userRole }) => {
                                             </div>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 text-slate-500">{new Date(team.created).toLocaleDateString()}</td>
+                                    <td className="px-6 py-4 text-slate-500" suppressHydrationWarning>{new Date(team.created).toLocaleDateString()}</td>
 
                                     {userRole !== 'Member' && (
                                         <td className="px-6 py-4 text-right relative action-menu">

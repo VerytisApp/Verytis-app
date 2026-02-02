@@ -154,7 +154,7 @@ const EmailAudit = ({ userRole }) => {
                                     const isSender = email.sender === currentUserEmail;
                                     return (
                                         <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-6 py-3 font-mono text-slate-500">{new Date(email.sentAt).toLocaleString()}</td>
+                                            <td className="px-6 py-3 font-mono text-slate-500" suppressHydrationWarning>{new Date(email.sentAt).toLocaleString()}</td>
                                             <td className="px-6 py-3">
                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${isSender ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
                                                     {isSender ? 'Sent' : 'Received'}
@@ -301,7 +301,7 @@ const EmailAudit = ({ userRole }) => {
                                     const isSender = email.sender === currentUserEmail;
                                     return (
                                         <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-6 py-3 font-mono text-slate-500">{new Date(email.sentAt).toLocaleString()}</td>
+                                            <td className="px-6 py-3 font-mono text-slate-500" suppressHydrationWarning>{new Date(email.sentAt).toLocaleString()}</td>
                                             <td className="px-6 py-3">
                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${isSender ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
                                                     {isSender ? 'Sent' : 'Received'}
@@ -435,7 +435,7 @@ const EmailAudit = ({ userRole }) => {
                                 const isSender = email.sender === currentUserEmail;
                                 return (
                                     <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-6 py-3 font-mono text-slate-500">{new Date(email.sentAt).toLocaleString()}</td>
+                                        <td className="px-6 py-3 font-mono text-slate-500" suppressHydrationWarning>{new Date(email.sentAt).toLocaleString()}</td>
                                         <td className="px-6 py-3">
                                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${isSender ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
                                                 {isSender ? 'Sent' : 'Received'}
@@ -604,7 +604,7 @@ const EmailAudit = ({ userRole }) => {
                                 <tbody className="divide-y divide-slate-100">
                                     {filteredAccountEmails.length > 0 ? filteredAccountEmails.map((email, idx) => (
                                         <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-6 py-3 font-mono text-slate-500">{new Date(email.sentAt).toLocaleString()}</td>
+                                            <td className="px-6 py-3 font-mono text-slate-500" suppressHydrationWarning>{new Date(email.sentAt).toLocaleString()}</td>
                                             <td className="px-6 py-3 font-medium text-slate-700">{email.sender}</td>
                                             <td className="px-6 py-3 text-slate-600 truncate max-w-[150px]">{email.recipients.join(', ')}</td>
                                             <td className="px-6 py-3 text-slate-600 truncate max-w-[200px]" title={email.subject}>{email.subject}</td>
@@ -689,7 +689,7 @@ const EmailAudit = ({ userRole }) => {
                                     </div>
                                     <div className="text-right">
                                         <div className="text-xs font-bold text-slate-900">REF-AUD-2023-1027</div>
-                                        <div className="text-[10px] text-slate-500">{new Date().toLocaleDateString()}</div>
+                                        <div className="text-[10px] text-slate-500" suppressHydrationWarning>{new Date().toLocaleDateString()}</div>
                                     </div>
                                 </div>
 
@@ -698,7 +698,7 @@ const EmailAudit = ({ userRole }) => {
                                         <div key={idx} className="border border-slate-200 rounded p-3 text-xs">
                                             <div className="grid grid-cols-2 gap-y-1 mb-2">
                                                 <div className="flex gap-2"><span className="text-slate-500 w-16">Sender:</span> <span className="font-mono text-slate-900">{email.sender}</span></div>
-                                                <div className="flex gap-2"><span className="text-slate-500 w-16">Date:</span> <span className="font-mono text-slate-900">{new Date(email.sentAt).toLocaleString()}</span></div>
+                                                <div className="flex gap-2"><span className="text-slate-500 w-16">Date:</span> <span className="font-mono text-slate-900" suppressHydrationWarning>{new Date(email.sentAt).toLocaleString()}</span></div>
                                                 <div className="flex gap-2 col-span-2"><span className="text-slate-500 w-16">Subject:</span> <span className="font-medium text-slate-900">{email.subject}</span></div>
                                                 <div className="flex gap-2 col-span-2"><span className="text-slate-500 w-16">Message ID:</span> <span className="font-mono text-slate-400">{email.messageId}</span></div>
                                             </div>

@@ -30,7 +30,7 @@ function DashboardContent({ children }) {
             <Modal
                 isOpen={activeModal === 'integrations'}
                 onClose={() => setActiveModal(null)}
-                title="Integrations & Permissions"
+                title="Passport ID Société"
             >
                 <IntegrationsSettings />
             </Modal>

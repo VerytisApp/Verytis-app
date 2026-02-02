@@ -173,7 +173,9 @@ const ChannelsList = ({ userRole }) => {
                                     <StatusBadge status={channel.status} />
                                 </td>
                                 <td className="px-6 py-4 text-slate-600 font-mono">{channel.decisions}</td>
-                                <td className="px-6 py-4 text-slate-500">{new Date(channel.lastActive).toLocaleString()}</td>
+                                <td className="px-6 py-4 text-slate-500" suppressHydrationWarning>
+                                    {new Date(channel.lastActive).toLocaleString()}
+                                </td>
                                 {userRole === 'Admin' && (
                                     <td className="px-6 py-4 text-right relative action-menu">
                                         <button

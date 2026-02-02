@@ -142,13 +142,15 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                             transition={{ duration: 0.15 }}
                             className="absolute bottom-full left-4 right-4 mb-2 bg-white rounded-xl shadow-2xl ring-1 ring-slate-900/5 p-1 z-50"
                         >
-                            <button
-                                onClick={() => { onModalOpen('integrations'); setProfileMenuOpen(false); }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg text-left font-medium"
-                            >
-                                <Settings className="w-3.5 h-3.5" />
-                                Integrations
-                            </button>
+                            {currentRole === 'Admin' && (
+                                <button
+                                    onClick={() => { onModalOpen('integrations'); setProfileMenuOpen(false); }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg text-left font-medium"
+                                >
+                                    <Settings className="w-3.5 h-3.5" />
+                                    Integrations
+                                </button>
+                            )}
                             <button
                                 onClick={() => { onModalOpen('account'); setProfileMenuOpen(false); }}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg text-left font-medium"
