@@ -213,8 +213,20 @@ export async function POST(req) {
 
         if (body.type === 'event_callback') {
             const event = body.event;
+            const eventId = body.event_id;
 
-            console.log(`🔔 Event: ${event.type} | User: ${event.user} | Text: ${event.text}`);
+            // Deduplicate events - Slack may retry if response is slow
+            // Use a simple in-memory cache (resets on server restart, but good enough for retries)
+            if (global.processedEvents?.has(eventId)) {
+                console.log(`⏭️ Skipping duplicate event: ${eventId}`);
+                return NextResponse.json({ status: 'already_processed' });
+            }
+            if (!global.processedEvents) global.processedEvents = new Set();
+            global.processedEvents.add(eventId);
+            // Clean old events after 5 minutes
+            setTimeout(() => global.processedEvents?.delete(eventId), 300000);
+
+            console.log(`🔔 Event: ${event.type} | User: ${event.user} | EventID: ${eventId}`);
 
             // 1. JOIN CHANNEL
             if (event.type === 'member_joined_channel') {
@@ -224,11 +236,19 @@ export async function POST(req) {
             }
 
             // 2. MESSAGES & MENTIONS
-            // On gère 'message' ET 'app_mention' pour être sûr de capter les "@Verytis help"
-            if ((event.type === 'message' || event.type === 'app_mention') && !event.subtype) {
+            // Handle regular messages, app mentions, and file shares
+            const isFileShare = event.subtype === 'file_share';
+            const isRegularMessage = !event.subtype;
+
+            if ((event.type === 'message' || event.type === 'app_mention') && (isRegularMessage || isFileShare)) {
 
                 // Ignorer les bots
                 if (event.bot_id) return NextResponse.json({ status: 'ignored_bot' });
+
+                // Log file info for debugging
+                if (event.files && event.files.length > 0) {
+                    console.log(`📎 Files detected: ${event.files.map(f => f.name).join(', ')}`);
+                }
 
                 // DÉTECTION COMMANDE D'AIDE (Hyper permissive)
                 const textLower = event.text ? event.text.toLowerCase() : "";
@@ -296,33 +316,66 @@ export async function POST(req) {
                 const attachments = await handleFiles(event.files);
 
                 let finalActionType = type;
-                if (!isVerified) {
+
+                // If files are attached and no specific action emoji, classify as FILE_SHARED
+                if (attachments.length > 0 && type === 'DISCUSSION') {
+                    finalActionType = 'FILE_SHARED';
+                } else if (!isVerified) {
                     finalActionType = (type === 'DISCUSSION') ? 'DISCUSSION_ANONYMOUS' : 'ATTEMPTED_ACTION_ANONYMOUS';
                 }
 
-                if (content || attachments.length > 0) {
+                // Only log if it's an action, file share, or verified discussion
+                const shouldLog = finalActionType !== 'DISCUSSION' && finalActionType !== 'DISCUSSION_ANONYMOUS';
+
+                if (shouldLog && (content || attachments.length > 0)) {
+                    // Build summary based on action type
+                    let summary = content;
+                    if (finalActionType === 'FILE_SHARED') {
+                        const fileNames = attachments.map(a => a.name).join(', ');
+                        summary = content || `Shared: ${fileNames}`;
+                    }
+
+                    // Get Slack user name for anonymous users
+                    let slackUserName = null;
+                    if (!isVerified) {
+                        try {
+                            const slackInfoRes = await fetch(`https://slack.com/api/users.info?user=${slackUserId}`, {
+                                headers: { 'Authorization': `Bearer ${SLACK_BOT_TOKEN}` }
+                            });
+                            const slackInfo = await slackInfoRes.json();
+                            if (slackInfo.ok && slackInfo.user) {
+                                slackUserName = slackInfo.user.real_name || slackInfo.user.name || slackUserId;
+                            }
+                        } catch (e) {
+                            console.error("Error fetching Slack user name:", e);
+                        }
+                    }
+
                     await supabase.from('activity_logs').insert({
                         actor_id: userId,
                         action_type: finalActionType,
-                        summary: content,
+                        summary: summary,
                         metadata: {
                             slack_channel: event.channel,
                             ts: event.ts,
                             attachments: attachments,
-                            is_anonymous: !isVerified
+                            is_anonymous: !isVerified,
+                            slack_user_id: slackUserId,
+                            slack_user_name: slackUserName
                         }
                     });
 
-                    console.log(`💾 Logged: [${finalActionType}]`);
+                    console.log(`💾 Logged: [${finalActionType}] - ${attachments.length} files - User: ${slackUserName || userId || 'Unknown'}`);
 
-                    if (finalActionType !== 'DISCUSSION' && finalActionType !== 'DISCUSSION_ANONYMOUS') {
-                        if (isVerified) {
-                            await reactToMessage(event.channel, event.ts, 'white_check_mark');
+                    // React to confirm logging
+                    if (isVerified) {
+                        if (finalActionType === 'FILE_SHARED') {
+                            await reactToMessage(event.channel, event.ts, 'file_folder');
                         } else {
-                            await sendSlackMessage(event.channel, ":detective: Action enregistrée mais *non vérifiée*. Veuillez lier votre compte Verytis.", event.ts);
+                            await reactToMessage(event.channel, event.ts, 'white_check_mark');
                         }
-                    } else if (type === 'DISCUSSION' && isVerified) {
-                        await reactToMessage(event.channel, event.ts, 'eyes');
+                    } else {
+                        await sendSlackMessage(event.channel, ":detective: Action logged but *not verified*. Please link your Verytis account.", event.ts);
                     }
                 }
             }

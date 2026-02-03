@@ -2,11 +2,25 @@ import { NextResponse } from 'next/server';
 import { WebClient } from '@slack/web-api';
 
 export async function GET() {
-    // In a real app, retrieve the token from DB based on current user's org.
-    const token = process.env.SLACK_BOT_TOKEN;
+    // 1. Retrieve Token from DB ("Test Corp" Context)
+    const TEST_ORG_ID = '5db477f6-c893-4ec4-9123-b12160224f70';
+
+    const { createClient } = require('@supabase/supabase-js');
+    const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data: integration } = await supabase.from('integrations')
+        .select('settings')
+        .eq('organization_id', TEST_ORG_ID)
+        .eq('provider', 'slack')
+        .single();
+
+    const token = integration?.settings?.bot_token;
 
     if (!token) {
-        return NextResponse.json({ error: 'Not configured' }, { status: 401 });
+        return NextResponse.json({ error: 'No Slack access token found for this organization' }, { status: 401 });
     }
 
     const client = new WebClient(token);

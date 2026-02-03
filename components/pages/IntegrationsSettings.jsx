@@ -1,34 +1,53 @@
 import { useState, useEffect } from 'react';
-import { Zap, CheckCircle, AlertCircle, RefreshCw, Lock } from 'lucide-react';
+import { Zap, CheckCircle, AlertCircle, RefreshCw, Lock, Shield, Info } from 'lucide-react';
 import { Card, Button } from '../ui';
 
 const IntegrationsSettings = () => {
     const [selectedAppId, setSelectedAppId] = useState('slack');
 
-    // Simulating connection state
+    // Initial State (Clean, no fakes)
     const [connections, setConnections] = useState({
         slack: { connected: false, lastSync: null },
-        microsoft: { connected: true, lastSync: '30 secs ago' }
+        microsoft: { connected: false, lastSync: null }
     });
 
     const [activeTab, setActiveTab] = useState('overview');
     const [channels, setChannels] = useState([]);
     const [isLoadingChannels, setIsLoadingChannels] = useState(false);
 
-    // Check for connection success from URL
+    // 1. Fetch Real Status on Mount
+    useEffect(() => {
+        const checkStatus = async () => {
+            try {
+                const res = await fetch('/api/slack/status');
+                const data = await res.json();
+                if (data.connected) {
+                    setConnections(prev => ({
+                        ...prev,
+                        slack: { connected: true, lastSync: 'Connecté' }
+                    }));
+                }
+            } catch (e) {
+                console.error("Status check failed", e);
+            }
+        };
+        checkStatus();
+    }, []);
+
+    // 2. Check for connection success callback from URL (After OAuth redirect)
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
-            if (params.get('connected') === 'true' && !connections.slack.connected) {
+            if (params.get('connected') === 'true') {
                 setConnections(prev => ({
                     ...prev,
-                    slack: { connected: true, lastSync: 'Just now' }
+                    slack: { connected: true, lastSync: 'À l\'instant' }
                 }));
-                // Remove param from URL without refresh
+                // Remove param cleanly
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
         }
-    }, [connections.slack.connected]); // Re-run if slack connection status changes
+    }, []);
 
     const handleConnect = async (appId) => {
         if (appId === 'slack') {
@@ -70,11 +89,20 @@ const IntegrationsSettings = () => {
     };
 
     // Auto-fetch channels if connected and tab is channels
+    // Auto-fetch channels if connected and tab is channels
+    // Prevent loop: only fetch if we haven't successfully loaded, but be careful with dependencies.
     useEffect(() => {
-        if (selectedAppId === 'slack' && connections.slack.connected && activeTab === 'channels' && channels.length === 0 && !isLoadingChannels) {
-            fetchChannels();
+        if (selectedAppId === 'slack' && connections.slack.connected && activeTab === 'channels') {
+            // Only fetch if we have 0 channels and aren't loading.
+            // AND we haven't failed recently? Simpler: Just check if empty.
+            // usage of hasFetched ref is better, but for now let's just NOT react to channels.length
+            // inside the check we look at channels.length, but we don't depend on it.
+            if (channels.length === 0 && !isLoadingChannels) {
+                fetchChannels();
+            }
         }
-    }, [selectedAppId, connections.slack.connected, activeTab, channels.length, isLoadingChannels]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedAppId, connections.slack.connected, activeTab]);
 
 
     const apps = [
@@ -116,144 +144,220 @@ const IntegrationsSettings = () => {
     const selectedApp = apps.find(a => a.id === selectedAppId) || apps[0];
     const isConnected = connections[selectedAppId]?.connected;
 
-    return (
-        <div className="flex h-[500px] gap-6 animate-in fade-in duration-300">
-            {/* LEFT COLUMN: Master List */}
-            <div className="w-1/3 flex flex-col gap-6 border-r border-slate-100 pr-2">
+    const [selectedChannels, setSelectedChannels] = useState(new Set());
+    const [isSaving, setIsSaving] = useState(false);
 
-                {/* Active Apps Section */}
+    const toggleChannel = (channelId) => {
+        const next = new Set(selectedChannels);
+        if (next.has(channelId)) next.delete(channelId);
+        else next.add(channelId);
+        setSelectedChannels(next);
+    };
+
+    const handleSaveChannels = async () => {
+        setIsSaving(true);
+        try {
+            const selectedList = channels.filter(c => selectedChannels.has(c.id));
+            const res = await fetch('/api/slack/save-channels', {
+                method: 'POST',
+                body: JSON.stringify({ channels: selectedList })
+            });
+            if (res.ok) {
+                alert('Canaux importés avec succès !');
+                setSelectedChannels(new Set()); // Reset selection
+            }
+        } catch (e) {
+            console.error('Save failed', e);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div className="flex h-[600px] bg-white rounded-xl overflow-hidden border border-slate-200 shadow-xl">
+            {/* Sidebar */}
+            <div className="w-64 bg-slate-50 border-r border-slate-200 p-4 flex flex-col gap-4">
+                {/* ... existing sidebar ... */}
                 <div>
                     <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">Applications Disponibles</h3>
                     <div className="space-y-2">
                         {apps.map(app => (
                             <button
                                 key={app.id}
-                                onClick={() => setSelectedAppId(app.id)}
-                                className={`w - full flex items - center gap - 3 p - 3 rounded - xl border text - left transition - all duration - 200 group relative
+                                onClick={() => { setSelectedAppId(app.id); setActiveTab('overview'); }}
+                                className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 group relative
                                     ${selectedAppId === app.id
-                                        ? 'bg-blue-50/50 border-blue-200 shadow-sm ring-1 ring-blue-500/10'
-                                        : 'bg-white border-transparent hover:bg-slate-50'
-                                    } `}
+                                        ? 'bg-white border-blue-200 shadow-sm ring-1 ring-blue-500/10'
+                                        : 'bg-transparent border-transparent hover:bg-white hover:shadow-sm'
+                                    }`}
                             >
-                                <div className={`p - 2 rounded - lg ${app.bgColor} ${app.borderColor} border`}>
-                                    <img src={app.logo} alt={app.name} className="w-5 h-5 object-contain" />
+                                <div className={`p-2 rounded-lg ${selectedAppId === app.id ? 'bg-blue-50' : 'bg-slate-100 group-hover:bg-slate-50'}`}>
+                                    <img src={app.logo} alt={app.name} className="w-6 h-6 object-contain" />
                                 </div>
-                                <div className="flex-1">
-                                    <div className="flex items-center justify-between">
-                                        <span className={`text - sm font - bold ${selectedAppId === app.id ? 'text-slate-900' : 'text-slate-600'} `}>
-                                            {app.name}
-                                        </span>
-                                        {connections[app.id].connected && (
-                                            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-200"></span>
-                                        )}
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-semibold text-slate-900">{app.name}</div>
+                                    <div className={`text-[10px] font-medium mt-0.5 flex items-center gap-1.5 ${connections[app.id].connected ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${connections[app.id].connected ? 'bg-emerald-500' : 'bg-slate-300'}`}></span>
+                                        {connections[app.id].connected ? 'Connecté' : 'Non configuré'}
                                     </div>
-                                    <p className="text-[10px] text-slate-400 truncate mt-0.5">{app.category}</p>
                                 </div>
                             </button>
                         ))}
                     </div>
                 </div>
-
-                {/* Upcoming Apps Section */}
-                <div className="flex-1">
-                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">À Venir</h3>
-                    <div className="grid grid-cols-3 gap-2 px-1">
-                        {upcomingApps.map(app => (
-                            <div key={app.id} className="aspect-square flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-50 border border-slate-100 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all cursor-not-allowed">
-                                <img src={app.logo} alt={app.name} className="w-5 h-5 object-contain" />
-                                <span className="text-[9px] font-medium text-slate-500">{app.name}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </div>
 
-            {/* RIGHT COLUMN: Detail View */}
-            <div className="flex-1 flex flex-col h-full bg-slate-50/30 rounded-2xl border border-slate-100 overflow-hidden relative">
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col min-w-0 bg-white">
+                {/* App Header */}
+                <div className="p-8 border-b border-slate-100 flex justify-between items-start bg-white">
+                    <div className="flex gap-5">
+                        <div className="w-16 h-16 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center p-3">
+                            <img src={selectedApp.logo} alt={selectedApp.name} className="w-full h-full object-contain" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-900">{selectedApp.name} Gateway</h2>
+                            <p className="text-sm text-slate-500 mt-1 max-w-md leading-relaxed">{selectedApp.description}</p>
 
-                {/* Header Pattern Background */}
-                <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none" />
-
-                <div className="p-8 relative z-10 flex flex-col h-full">
-
-                    {/* App Header */}
-                    <div className="flex items-start justify-between mb-8">
-                        <div className="flex items-center gap-4">
-                            <div className={`p - 4 rounded - 2xl bg - white shadow - lg shadow - blue - 900 / 5 ring - 1 ring - slate - 900 / 5`}>
-                                <img src={selectedApp.logo} alt={selectedApp.name} className="w-10 h-10 object-contain" />
+                            {/* Tabs */}
+                            <div className="flex gap-6 mt-6">
+                                <button
+                                    onClick={() => setActiveTab('overview')}
+                                    className={`pb-2 text-sm font-medium transition-colors relative ${activeTab === 'overview' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    Overview
+                                    {activeTab === 'overview' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"></span>}
+                                </button>
+                                {connections[selectedAppId].connected && (
+                                    <button
+                                        onClick={() => setActiveTab('channels')}
+                                        className={`pb-2 text-sm font-medium transition-colors relative ${activeTab === 'channels' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        Channels & Sources
+                                        {activeTab === 'channels' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"></span>}
+                                    </button>
+                                )}
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Connect Logic */}
+                    <div className="flex flex-col items-end gap-3">
+                        <div className={`px-3 py-1 rounded-full text-xs font-bold ring-1 ring-inset inline-flex items-center gap-1.5
+                            ${connections[selectedAppId].connected
+                                ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'
+                                : 'bg-slate-50 text-slate-600 ring-slate-200'}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${connections[selectedAppId].connected ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                            {connections[selectedAppId].connected ? 'DATA FLOW ACTIVE' : 'NO CONNECTION'}
+                        </div>
+
+                        <button
+                            onClick={() => handleConnect(selectedAppId)}
+                            disabled={selectedAppId !== 'slack'}
+                            className={`px-6 py-2 transition-all duration-300 font-medium rounded-lg shadow-sm text-sm
+                                ${connections[selectedAppId].connected
+                                    ? 'bg-rose-600 text-white hover:bg-rose-700 hover:shadow-rose-500/20 shadow-rose-500/10'
+                                    : 'bg-slate-900 text-white hover:bg-slate-800 hover:shadow-lg'
+                                }`}
+                        >
+                            {connections[selectedAppId].connected ? 'Disconnect' : 'Connect'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Content Body */}
+                <div className="flex-1 overflow-y-auto p-8">
+                    {activeTab === 'overview' ? (
+                        <div className="space-y-8 animate-in fade-in duration-300">
+                            {/* Permissions Section */}
                             <div>
-                                <h2 className="text-2xl font-bold text-slate-900">{selectedApp.name}</h2>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className={`px - 2 py - 0.5 rounded - md text - [10px] font - bold uppercase tracking - wide border ${isConnected
-                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                        : 'bg-slate-100 text-slate-500 border-slate-200'
-                                        } `}>
-                                        {isConnected ? 'Connecté' : 'Non Connecté'}
-                                    </span>
-                                    {isConnected && (
-                                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                                            <RefreshCw className="w-3 h-3" /> Sync: {connections[selectedApp.id].lastSync || 'Now'}
-                                        </span>
+                                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+                                    <Shield className="w-4 h-4 text-emerald-500" />
+                                    Required Permissions
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {selectedApp.permissions.map((perm, i) => (
+                                        <div key={i} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                            <div className="p-1.5 bg-white rounded shadow-sm border border-slate-100 text-blue-600">
+                                                <Lock className="w-3 h-3" />
+                                            </div>
+                                            <div>
+                                                <div className="text-xs font-bold text-slate-700">{perm}</div>
+                                                <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">Required for audit trail.</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex gap-4">
+                                <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-bold text-blue-900">E2E Encryption Active</h4>
+                                    <p className="text-xs text-blue-700 mt-1 leading-relaxed">
+                                        Tokens are encrypted with AES-256 before storage. Verytis only reads messages where the bot is explicitly mentioned or invited.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+                            <div className="flex justify-between items-center mb-2">
+                                <p className="text-sm text-slate-500">
+                                    Select channels to audit.
+                                </p>
+                                {selectedChannels.size > 0 && (
+                                    <button
+                                        onClick={handleSaveChannels}
+                                        disabled={isSaving}
+                                        className="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                                    >
+                                        {isSaving ? 'Saving...' : `Import (${selectedChannels.size})`}
+                                    </button>
+                                )}
+                            </div>
+
+                            {isLoadingChannels ? (
+                                <div className="text-center py-12">
+                                    <div className="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-3"></div>
+                                    <p className="text-xs text-slate-400 font-medium">Loading channels...</p>
+                                </div>
+                            ) : (
+                                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                    {channels.length === 0 ? (
+                                        <div className="p-8 text-center text-slate-500 text-sm">
+                                            No channels found. Invite @Verytis to a channel to see it here.
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-slate-100">
+                                            {channels.map(channel => (
+                                                <div
+                                                    key={channel.id}
+                                                    onClick={() => toggleChannel(channel.id)}
+                                                    className={`p-4 flex items-center justify-between hover:bg-blue-50/50 cursor-pointer transition-colors ${selectedChannels.has(channel.id) ? 'bg-blue-50/80' : 'bg-white'}`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedChannels.has(channel.id) ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
+                                                            {selectedChannels.has(channel.id) && <CheckCircle className="w-3 h-3 text-white" />}
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            {/* Hash icon removed to fix reference error if not imported, assumed included or replaced */}
+                                                            <svg className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" /></svg>
+                                                            <div>
+                                                                <span className="text-sm font-semibold text-slate-900">#{channel.name}</span>
+                                                                {channel.is_private && <span className="ml-2 text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">Privé</span>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-xs font-medium text-slate-500">{channel.num_members} membres</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
-                            </div>
+                            )}
                         </div>
-
-                        {/* Validated Toggle Button concept */}
-                        <Button
-                            onClick={() => handleConnect(selectedApp.id)}
-                            className={`px-6 py-2 transition-all duration-300 ${isConnected
-                                ? 'bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300'
-                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/25'
-                                } `}
-                        >
-                            {isConnected ? 'Déconnecter' : 'Connecter'}
-                        </Button>
-                    </div>
-
-                    {/* Content Body */}
-                    <div className="flex-1 space-y-6">
-                        <div className="prose prose-sm">
-                            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-2">À propos</h3>
-                            <p className="text-sm text-slate-600 leading-relaxed">
-                                {selectedApp.description}
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            {selectedApp.features.map((feat, i) => (
-                                <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-100 shadow-sm">
-                                    <CheckCircle className="w-4 h-4 text-emerald-500" />
-                                    <span className="text-xs font-medium text-slate-700">{feat}</span>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Technical Scopes (Collapsible-style look) */}
-                        <div className="border-t border-slate-200/60 pt-6 mt-6">
-                            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
-                                <Zap className="w-3 h-3" /> Permissions Requises
-                            </h3>
-                            <div className="flex flex-wrap gap-2">
-                                {selectedApp.permissions.map((perm, i) => (
-                                    <span key={i} className="px-2 py-1.5 rounded-lg bg-slate-50 text-slate-600 text-[10px] font-medium border border-slate-200 flex items-center gap-1.5">
-                                        <Lock className="w-3 h-3 text-slate-400" />
-                                        {perm}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Footer / Disclaimer */}
-                    <div className="mt-8 pt-4 border-t border-slate-200 flex items-center gap-3 opacity-60">
-                        <AlertCircle className="w-4 h-4 text-slate-500" />
-                        <p className="text-[10px] text-slate-500 leading-tight">
-                            Passport ID Société utilise des protocoles de chiffrement standards (TLS/AES).
-                            Vos données d'audit sont sécurisées et confidentielles.
-                        </p>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>

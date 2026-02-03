@@ -33,8 +33,45 @@ export async function GET(req) {
             return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=${data.error}`);
         }
 
-        // TODO: In a real app, save data.access_token and data.team.id to your database here.
-        // For now, we simulate success and redirect back to dashboard with a query param.
+        // SAVE TO DB (Passport ID Societe)
+        const TEST_ORG_ID = '5db477f6-c893-4ec4-9123-b12160224f70'; // Test Corp
+
+        const { createClient } = require('@supabase/supabase-js');
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+
+        // We use 'upsert' assuming verification logic usually prevents duplicates, 
+        // but since unique constraint is (organization_id, provider), this is safe.
+        // Wait, init_schema calls it (organization_id, provider) ? No, schema says unique(organization_id, provider) ? 
+        // Let's check schema: unqiue(integration_id, external_id) is monitored_resources.
+        // integrations table doesn't have a unique constraint on (org, provider) in init_schema.sql provided earlier! 
+        // It has unique on ID. 
+        // I will assume for now we want to UPDATE if one exists for this provider, but without constraint it might dupe.
+        // I will check if one exists first.
+
+        const { data: existingInt } = await supabase.from('integrations')
+            .select('id')
+            .eq('organization_id', TEST_ORG_ID)
+            .eq('provider', 'slack')
+            .single();
+
+        if (existingInt) {
+            await supabase.from('integrations').update({
+                settings: { bot_token: data.access_token, team_id: data.team.id },
+                name: data.team.name,
+                external_id: data.team.id
+            }).eq('id', existingInt.id);
+        } else {
+            await supabase.from('integrations').insert({
+                organization_id: TEST_ORG_ID,
+                provider: 'slack',
+                name: data.team.name,
+                external_id: data.team.id,
+                settings: { bot_token: data.access_token, team_id: data.team.id }
+            });
+        }
 
         return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?connected=true&app=slack`);
 

@@ -11,18 +11,56 @@ const Timeline = ({ userRole }) => {
     const router = useRouter();
     const [selectedChannelId, setSelectedChannelId] = useState(channelId || null);
     const [filterType, setFilterType] = useState('all');
+    const [events, setEvents] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [channels, setChannels] = useState([]);
 
     useEffect(() => {
         setSelectedChannelId(channelId || null);
     }, [channelId]);
 
+    // Fetch real channels from API
+    useEffect(() => {
+        const fetchChannels = async () => {
+            try {
+                const res = await fetch('/api/resources/list');
+                if (res.ok) {
+                    const data = await res.json();
+                    setChannels(data.resources || []);
+                }
+            } catch (e) {
+                console.error('Error fetching channels:', e);
+            }
+        };
+        fetchChannels();
+    }, []);
+
+    // Fetch real events when channel is selected
+    useEffect(() => {
+        const fetchEvents = async () => {
+            if (!selectedChannelId) return;
+
+            setLoading(true);
+            try {
+                const res = await fetch(`/api/activity?channelId=${selectedChannelId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setEvents(data.events || []);
+                }
+            } catch (e) {
+                console.error('Error fetching events:', e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchEvents();
+    }, [selectedChannelId]);
+
     // Role-based logic helpers
     const canViewScope = userRole !== 'Member';
 
-    // Simulate channel filtering for Members (e.g., they only see channels they are part of)
-    // For mock purposes, we'll just show all, relying on the 'Scope' visibility restriction as the main requested feature.
-    // If strict channel filtering is needed: const visibleChannels = userRole === 'Member' ? MOCK_CHANNELS.slice(0, 2) : MOCK_CHANNELS;
-    const visibleChannels = MOCK_CHANNELS;
+    // Use real channels instead of mock
+    const visibleChannels = channels.length > 0 ? channels : MOCK_CHANNELS;
 
     // STATE: Selection Screen
     if (!selectedChannelId) {
@@ -46,27 +84,22 @@ const Timeline = ({ userRole }) => {
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
-                                        <PlatformIcon platform={channel.platform} />
+                                        <img
+                                            src={`https://www.google.com/s2/favicons?domain=${channel.platform || 'slack'}.com&sz=32`}
+                                            alt={channel.platform}
+                                            className="w-5 h-5"
+                                        />
                                     </div>
                                     <div className="overflow-hidden">
-                                        <h3 className="font-bold text-slate-900 text-sm truncate">{channel.name}</h3>
-                                        <p className="text-[10px] text-slate-500 truncate font-medium">{channel.team}</p>
+                                        <h3 className="font-bold text-slate-900 text-sm truncate">#{channel.name}</h3>
+                                        <p className="text-[10px] text-slate-500 truncate font-medium">{channel.team || 'General'}</p>
                                     </div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4 mt-4 pt-4 border-t border-slate-50">
-                                {canViewScope && (
-                                    <>
-                                        <div className="flex flex-col">
-                                            <span className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Scope</span>
-                                            <span className="text-[10px] font-bold text-slate-700">{channel.scope}</span>
-                                        </div>
-                                        <div className="w-px h-6 bg-slate-100 mx-auto"></div>
-                                    </>
-                                )}
                                 <div className="flex flex-col text-right ml-auto">
                                     <span className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Last Active</span>
-                                    <span className="text-[10px] font-bold text-slate-700">{new Date(channel.lastActive).toLocaleDateString()}</span>
+                                    <span className="text-[10px] font-bold text-slate-700">{channel.lastActive ? new Date(channel.lastActive).toLocaleDateString() : '-'}</span>
                                 </div>
                             </div>
                         </Card>
@@ -77,22 +110,18 @@ const Timeline = ({ userRole }) => {
     }
 
     // STATE: Timeline View
-    const selectedChannel = MOCK_CHANNELS.find(c => c.id.toString() === selectedChannelId.toString());
+    const selectedChannel = visibleChannels.find(c => c.id.toString() === selectedChannelId.toString()) || { name: 'Channel', platform: 'slack' };
     const parentTeam = selectedChannel ? MOCK_TEAMS.find(t => t.name === selectedChannel.team) : null;
 
     // Export permission logic
-    // Admin: Always allow
-    // Manager: Allow only if their team has 'export' scope
-    // Member: Never allow
     const canExport = userRole === 'Admin' || (userRole === 'Manager' && parentTeam?.scopes?.includes('export'));
 
-    const filteredEvents = MOCK_TIMELINE_EVENTS.filter(event => {
-        if (event.channelId.toString() !== selectedChannelId.toString()) return false;
-        if (filterType !== 'all') {
-            if (filterType === 'decisions' && event.type !== 'decision') return false;
-            if (filterType === 'system' && !['system', 'doc_metadata', 'member'].includes(event.type)) return false;
-        }
-        return true;
+    // Filter events
+    const filteredEvents = events.filter(event => {
+        if (filterType === 'all') return true;
+        if (filterType === 'decisions' && event.type === 'decision') return true;
+        if (filterType === 'system' && ['system', 'anonymous'].includes(event.type)) return true;
+        return false;
     });
 
     const groupedEvents = filteredEvents.reduce((groups, event) => {
@@ -105,9 +134,10 @@ const Timeline = ({ userRole }) => {
     const getEventIcon = (type) => {
         switch (type) {
             case 'decision': return <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />;
+            case 'comment': return <Activity className="w-3.5 h-3.5 text-blue-500" />;
+            case 'file': return <FileText className="w-3.5 h-3.5 text-orange-500" />;
             case 'system': return <Settings className="w-3.5 h-3.5 text-slate-500" />;
-            case 'doc_metadata': return <FileText className="w-3.5 h-3.5 text-blue-500" />;
-            case 'member': return <UserPlus className="w-3.5 h-3.5 text-blue-500" />;
+            case 'anonymous': return <UserPlus className="w-3.5 h-3.5 text-amber-500" />;
             default: return <Activity className="w-3.5 h-3.5 text-slate-400" />;
         }
     };
@@ -158,12 +188,20 @@ const Timeline = ({ userRole }) => {
             <div className="relative min-h-[400px] pt-4">
                 <div className="absolute left-[19px] top-0 bottom-0 w-px bg-slate-200" />
 
-                {Object.keys(groupedEvents).length === 0 ? (
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                        <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mb-3"></div>
+                        <p className="text-xs font-medium">Loading events...</p>
+                    </div>
+                ) : Object.keys(groupedEvents).length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                         <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center mb-3">
                             <FilterX className="w-6 h-6 opacity-50" />
                         </div>
-                        <p className="text-xs font-bold uppercase tracking-wide">No events found for this filter</p>
+                        <p className="text-xs font-bold uppercase tracking-wide">No events recorded yet</p>
+                        <p className="text-[10px] mt-1 max-w-xs text-center">
+                            Send messages with action emojis (✅❌🔁✏️💬) in Slack to start logging events.
+                        </p>
                     </div>
                 ) : (
                     <div className="space-y-8">
