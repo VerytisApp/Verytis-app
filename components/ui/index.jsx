@@ -3,6 +3,7 @@
 import { Slack, Users, Mail, Hash } from 'lucide-react';
 
 export const StatusBadge = ({ status }) => {
+    const safeStatus = status || 'inactive';
     const styles = {
         active: 'bg-emerald-50 text-emerald-700 border-emerald-200 ring-emerald-500/10',
         paused: 'bg-amber-50 text-amber-700 border-amber-200 ring-amber-500/10',
@@ -15,8 +16,8 @@ export const StatusBadge = ({ status }) => {
         'connection error': 'bg-rose-50 text-rose-700 border-rose-200 ring-rose-500/10'
     };
     return (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide border ring-1 ring-inset ${styles[status.toLowerCase()] || styles.inactive}`}>
-            {status}
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide border ring-1 ring-inset ${styles[safeStatus.toLowerCase()] || styles.inactive}`}>
+            {safeStatus}
         </span>
     );
 };
@@ -67,10 +68,10 @@ export const ToggleSwitch = ({ enabled, disabled, onClick }) => (
 export const Modal = ({ isOpen, onClose, title, children, maxWidth = "max-w-4xl" }) => {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300" onClick={onClose} />
-            <div className={`relative w-full ${maxWidth} max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl ring-1 ring-slate-900/5 animate-in fade-in zoom-in-95 duration-200`}>
-                <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white/90 backdrop-blur-md rounded-t-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 min-h-screen">
+            <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-[2px] transition-opacity duration-300" onClick={onClose} />
+            <div className={`relative w-full ${maxWidth} max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl ring-1 ring-slate-900/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200`}>
+                <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white/95 backdrop-blur-md rounded-t-xl">
                     <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                         <span className="sr-only">Close</span>

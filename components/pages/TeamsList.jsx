@@ -1,22 +1,62 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Plus, MoreHorizontal, Shield, FileText, Download, Pencil, Users, Archive, Trash2, X } from 'lucide-react';
 import { Card, Button, Modal } from '../ui';
-import { MOCK_TEAMS, MOCK_USERS, MOCK_CHANNELS, SCOPES_CONFIG } from '../../data/mockData';
+import { SCOPES_CONFIG } from '../../data/mockData';
 
 const TeamsList = ({ userRole }) => {
-    const [teams, setTeams] = useState(MOCK_TEAMS);
+    const [teams, setTeams] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [modalConfig, setModalConfig] = useState({ type: null, team: null });
     const [showAddMember, setShowAddMember] = useState(false);
+
+    // Data State
+    const [availableUsers, setAvailableUsers] = useState([]);
+    const [availableChannels, setAvailableChannels] = useState([]);
 
     // Wizard State
     const [currentStep, setCurrentStep] = useState(1);
     const [teamFormData, setTeamFormData] = useState({
         name: '', description: '', type: 'Operational', members: [], scopes: [], channels: []
     });
+
+    // Fetch Initial Data
+    useEffect(() => {
+        const fetchAllData = async () => {
+            setIsLoading(true);
+            try {
+                const [teamsRes, usersRes, channelsRes] = await Promise.all([
+                    fetch('/api/teams'),
+                    fetch('/api/users'),
+                    fetch('/api/resources/list')
+                ]);
+
+                if (teamsRes.ok) {
+                    const data = await teamsRes.json();
+                    setTeams(data.teams);
+                }
+
+                if (usersRes.ok) {
+                    const data = await usersRes.json();
+                    setAvailableUsers(data.users || []);
+                }
+
+                if (channelsRes.ok) {
+                    const data = await channelsRes.json();
+                    setAvailableChannels((data.resources || []).filter(r => r.type === 'channel'));
+                }
+
+            } catch (error) {
+                console.error('Failed to fetch data:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchAllData();
+    }, []);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -43,6 +83,7 @@ const TeamsList = ({ userRole }) => {
     const confirmDelete = () => {
         setTeams(teams.filter(t => t.id !== modalConfig.team.id));
         setModalConfig({ type: null, team: null });
+        // TODO: Call API to delete
     };
 
     // Logic to determine role in a specific team (Mocking)
@@ -59,6 +100,10 @@ const TeamsList = ({ userRole }) => {
     const displayedTeams = userRole === 'Admin' ? teams :
         userRole === 'Manager' ? teams.filter(t => t.name === 'Engineering & Product' || t.name === 'Finance & Legal') :
             teams.filter(t => t.name === 'Finance & Legal'); // Member
+
+    if (isLoading) {
+        return <div className="p-12 text-center text-slate-500">Loading teams...</div>;
+    }
 
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
@@ -98,7 +143,7 @@ const TeamsList = ({ userRole }) => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {displayedTeams.map(team => {
+                        {displayedTeams.length > 0 ? displayedTeams.map(team => {
                             const role = getTeamRole(team.name);
                             return (
                                 <tr key={team.id} className="hover:bg-slate-50/50 transition-colors group">
@@ -145,17 +190,23 @@ const TeamsList = ({ userRole }) => {
                                             </div>
                                         ) : (
                                             <div className="flex gap-1.5">
-                                                {team.scopes.map(scope => (
+                                                {/* Mock scopes if undefined */}
+                                                {(team.scopes || []).map(scope => (
                                                     <div key={scope} className="p-1 rounded bg-blue-50 border border-blue-100 text-blue-600" title={scope}>
                                                         {scope === 'audit' && <Shield className="w-3 h-3" />}
                                                         {scope === 'docs' && <FileText className="w-3 h-3" />}
                                                         {scope === 'export' && <Download className="w-3 h-3" />}
                                                     </div>
                                                 ))}
+                                                {(!team.scopes || team.scopes.length === 0) && (
+                                                    <div className="p-1 rounded bg-slate-50 border border-slate-200 text-slate-400" title="No scopes">
+                                                        <Shield className="w-3 h-3 opacity-50" />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 text-slate-500" suppressHydrationWarning>{new Date(team.created).toLocaleDateString()}</td>
+                                    <td className="px-6 py-4 text-slate-500" suppressHydrationWarning>{new Date(team.created_at || team.created || Date.now()).toLocaleDateString()}</td>
 
                                     {userRole !== 'Member' && (
                                         <td className="px-6 py-4 text-right relative action-menu">
@@ -171,7 +222,7 @@ const TeamsList = ({ userRole }) => {
                                                         <MoreHorizontal className="w-4 h-4" />
                                                     </button>
                                                     {activeDropdown === team.id && (
-                                                        <div className="absolute right-8 top-8 w-48 bg-white rounded-lg shadow-xl border border-slate-200 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                                                        <div className="absolute right-8 top-8 w-48 bg-white rounded-lg shadow-xl border border-slate-200 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right text-left">
                                                             <div className="py-1">
                                                                 <button onClick={() => handleAction('edit', team)} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                                                                     <Pencil className="w-3.5 h-3.5 text-slate-400" /> Edit Team
@@ -199,7 +250,13 @@ const TeamsList = ({ userRole }) => {
                                     )}
                                 </tr>
                             );
-                        })}
+                        }) : (
+                            <tr>
+                                <td colSpan={userRole === 'Admin' ? "8" : "7"} className="px-6 py-12 text-center text-slate-400">
+                                    No teams found. Create one to get started.
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </Card>
@@ -273,18 +330,21 @@ const TeamsList = ({ userRole }) => {
                                         <select
                                             className="flex-1 px-3 py-1.5 border border-slate-300 rounded-md text-sm"
                                             onChange={(e) => {
-                                                if (e.target.value && !teamFormData.members.find(m => m.id === parseInt(e.target.value))) {
-                                                    const user = MOCK_USERS.find(u => u.id === parseInt(e.target.value));
-                                                    setTeamFormData({
-                                                        ...teamFormData,
-                                                        members: [...teamFormData.members, { ...user, role: 'Member' }] // Default role Member
-                                                    });
+                                                const userId = e.target.value;
+                                                if (userId && !teamFormData.members.find(m => m.id === userId)) {
+                                                    const user = availableUsers.find(u => u.id === userId);
+                                                    if (user) {
+                                                        setTeamFormData({
+                                                            ...teamFormData,
+                                                            members: [...teamFormData.members, { ...user, role: 'Member' }] // Default role Member
+                                                        });
+                                                    }
                                                 }
                                                 e.target.value = "";
                                             }}
                                         >
                                             <option value="">Select a user to add...</option>
-                                            {MOCK_USERS.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                            {availableUsers.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
                                         </select>
                                     </div>
                                     <div className="border border-slate-200 rounded-md max-h-32 overflow-y-auto bg-slate-50 min-h-[80px] p-2 space-y-1">
@@ -349,7 +409,9 @@ const TeamsList = ({ userRole }) => {
                             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                                 <p className="text-xs text-slate-500">Select channels to link to this team. Decisions made in these channels will be audited.</p>
                                 <div className="space-y-2 max-h-[300px] overflow-y-auto border border-slate-200 rounded-md">
-                                    {MOCK_CHANNELS.map(channel => (
+                                    {availableChannels.length === 0 ? (
+                                        <p className="text-xs text-center text-slate-400 py-4">No available public channels found.</p>
+                                    ) : availableChannels.map(channel => (
                                         <label key={channel.id} className={`flex items-center justify-between p-3 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 ${teamFormData.channels.includes(channel.id) ? 'bg-blue-50/50' : ''}`}>
                                             <div className="flex items-center gap-3">
                                                 <input
@@ -372,23 +434,53 @@ const TeamsList = ({ userRole }) => {
                             </div>
                         )}
 
-                        {/* Navigation Buttons */}
                         <div className="flex justify-between pt-4 border-t border-slate-100">
-                            {currentStep > 1 ? (
-                                <Button variant="ghost" onClick={() => setCurrentStep(curr => curr - 1)}>Back</Button>
-                            ) : (
-                                <Button variant="ghost" onClick={() => setModalConfig({ type: null, team: null })}>Cancel</Button>
-                            )}
+                            <div className="flex gap-2">
+                                {currentStep > 1 ? (
+                                    <Button variant="ghost" onClick={() => setCurrentStep(curr => curr - 1)}>Back</Button>
+                                ) : (
+                                    <Button variant="ghost" onClick={() => setModalConfig({ type: null, team: null })}>Cancel</Button>
+                                )}
+                            </div>
 
-                            {currentStep < 3 ? (
-                                <Button variant="primary" onClick={() => setCurrentStep(curr => curr + 1)} disabled={currentStep === 1 && !teamFormData.name}>Next Step</Button>
-                            ) : (
-                                <Button variant="primary" onClick={() => {
-                                    // Submit logic (mock)
-                                    setModalConfig({ type: null, team: null });
-                                    // Here we would normally add the team to the list
-                                }}>Create Team</Button>
-                            )}
+                            <div className="flex gap-2">
+                                {currentStep < 3 ? (
+                                    <Button variant="primary" onClick={() => setCurrentStep(curr => curr + 1)} disabled={currentStep === 1 && !teamFormData.name}>Next Step</Button>
+                                ) : (
+                                    <Button variant="primary" onClick={async () => {
+                                        try {
+                                            const res = await fetch('/api/teams', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    name: teamFormData.name,
+                                                    description: teamFormData.description,
+                                                    type: teamFormData.type,
+                                                    members: teamFormData.members,
+                                                    channels: teamFormData.channels
+                                                })
+                                            });
+
+                                            if (res.ok) {
+                                                const { team: newTeam } = await res.json();
+                                                const viewTeam = {
+                                                    ...newTeam,
+                                                    members: 0,
+                                                    channels: 0,
+                                                    scopes: teamFormData.scopes, // scopes not saved to DB yet
+                                                    status: 'Active',
+                                                    created_at: newTeam.created_at
+                                                };
+                                                setTeams([viewTeam, ...teams]);
+                                                setModalConfig({ type: null, team: null });
+                                            }
+                                        } catch (e) {
+                                            console.error("Failed to create team", e);
+                                            alert("Error creating team");
+                                        }
+                                    }}>Create Team</Button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 ) : (
@@ -417,42 +509,19 @@ const TeamsList = ({ userRole }) => {
                 onClose={() => setModalConfig({ type: null, team: null })}
                 title={`Members: ${modalConfig.team?.name}`}
             >
-                <div>
-                    <div className="flex justify-between items-center mb-4">
-                        <input type="text" placeholder="Search members..." className="px-3 py-1.5 border border-slate-300 rounded-md text-xs w-64" />
-                        <Button variant="secondary" icon={Plus} className="h-8" onClick={() => setShowAddMember(true)}>Add Member</Button>
+                <div className="p-6 text-center">
+                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Users className="w-6 h-6" />
                     </div>
-
-                    {showAddMember && (
-                        <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg animate-in fade-in slide-in-from-top-2">
-                            <label className="block text-xs font-semibold text-slate-700 mb-2">Select User to Add</label>
-                            <div className="flex gap-2">
-                                <select className="flex-1 px-3 py-1.5 border border-slate-300 rounded-md text-xs">
-                                    <option>Select a user...</option>
-                                    {MOCK_USERS.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                                </select>
-                                <Button variant="primary" className="h-8" onClick={() => setShowAddMember(false)}>Add</Button>
-                                <Button variant="ghost" className="h-8" onClick={() => setShowAddMember(false)}>Cancel</Button>
-                            </div>
-                        </div>
-                    )}
-                    <div className="border border-slate-200 rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
-                        <table className="w-full text-xs text-left">
-                            <tbody className="divide-y divide-slate-100">
-                                {MOCK_USERS.map(user => (
-                                    <tr key={user.id} className="hover:bg-slate-50">
-                                        <td className="px-4 py-2 font-medium text-slate-900">{user.name}</td>
-                                        <td className="px-4 py-2 text-slate-500">{user.email}</td>
-                                        <td className="px-4 py-2 text-right">
-                                            <button className="text-slate-400 hover:text-rose-600 transition-colors font-medium">Remove</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="flex justify-end pt-4">
-                        <Button variant="primary" onClick={() => setModalConfig({ type: null, team: null })}>Done</Button>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-1">Manage Members</h3>
+                    <p className="text-xs text-slate-500 mb-6">
+                        Detailed member management, including role assignments and removals, is available in the Team Details page.
+                    </p>
+                    <div className="flex justify-center gap-3">
+                        <Button variant="ghost" onClick={() => setModalConfig({ type: null, team: null })}>Cancel</Button>
+                        <Link href={`/teams/${modalConfig.team?.id}`}>
+                            <Button variant="primary">Go to Team Details</Button>
+                        </Link>
                     </div>
                 </div>
             </Modal>

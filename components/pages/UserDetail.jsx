@@ -9,30 +9,58 @@ import { MOCK_USERS, MOCK_TEAMS, MOCK_CHANNELS, MOCK_RECENT_DECISIONS, SCOPES_CO
 
 const UserDetail = () => {
     const { userId } = useParams();
-    const [user, setUser] = useState(MOCK_USERS.find(u => u.id.toString() === userId));
+    const [user, setUser] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [scopeModal, setScopeModal] = useState({ isOpen: false, title: '', teams: [] });
 
-    if (!user) {
+    useEffect(() => {
+        const fetchUser = async () => {
+            setIsLoading(true);
+            try {
+                const res = await fetch(`/api/users/${userId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setUser(data.user);
+                } else {
+                    setError('User not found');
+                }
+            } catch (err) {
+                console.error(err);
+                setError('Failed to load user');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        if (userId) fetchUser();
+    }, [userId]);
+
+    if (isLoading) return <div className="text-center py-12 text-slate-500">Loading profile...</div>;
+
+    if (error || !user) {
         return (
             <div className="text-center py-12">
-                <p className="text-slate-500">User not found</p>
+                <p className="text-slate-500">{error || 'User not found'}</p>
                 <Link href="/users" className="text-blue-600 hover:underline mt-2 inline-block">Back to Users</Link>
             </div>
         );
     }
 
-    // Mock relationships since data is limited
-    const userTeams = MOCK_TEAMS.slice(0, 2);
-    const userChannels = MOCK_CHANNELS.slice(0, 3);
-    const recentDecisions = MOCK_RECENT_DECISIONS.filter(d => d.author === user.initials);
+    // Mock relationships since data is limited for MVP phase of profile refactor
+    const userTeams = MOCK_TEAMS ? MOCK_TEAMS.slice(0, 2) : []; // Fallback if mock removed
+    const userChannels = MOCK_CHANNELS ? MOCK_CHANNELS.slice(0, 3) : [];
+    const recentDecisions = MOCK_RECENT_DECISIONS ? MOCK_RECENT_DECISIONS.filter(d => d.author === user.initials) : [];
 
-    const handleScopeToggle = (scopeTitle) => {
+    const handleScopeToggle = async (scopeTitle) => {
+        // Placeholder: Implementation would require updating user_permissions or similar table via API
+        // For now, optimistic update on local state
         const currentScopes = user.scopes || [];
         const newScopes = currentScopes.includes(scopeTitle)
             ? currentScopes.filter(s => s !== scopeTitle)
             : [...currentScopes, scopeTitle];
 
         setUser({ ...user, scopes: newScopes });
+        // TODO: Call API to persist
     };
 
     return (

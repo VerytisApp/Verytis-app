@@ -16,9 +16,9 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
     const pathname = usePathname();
 
     const userPersonas = {
-        Admin: { name: 'Sarah Jenkins', initials: 'SJ', role: 'Admin', color: 'from-blue-500 to-purple-600' },
-        Manager: { name: 'David Chen', initials: 'DC', role: 'Manager', color: 'from-emerald-500 to-teal-600' },
-        Member: { name: 'Elena Ross', initials: 'ER', role: 'Member', color: 'from-amber-500 to-orange-600' }
+        Admin: { name: 'Tychique Esteve', initials: 'TE', role: 'Admin', color: 'from-blue-500 to-purple-600' },
+        Manager: { name: 'Manager User', initials: 'MU', role: 'Manager', color: 'from-emerald-500 to-teal-600' },
+        Member: { name: 'Team Member', initials: 'TM', role: 'Member', color: 'from-amber-500 to-orange-600' }
     };
 
     // Use real user data if available, otherwise fall back to mock
@@ -158,21 +158,7 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                                 <Users className="w-3.5 h-3.5" />
                                 Security & Account
                             </button>
-                            <div className="h-px bg-slate-100 my-1" />
-                            <div className="px-3 py-1.5 ">
-                                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block mb-1">Current Role</span>
-                                <div className="flex gap-1">
-                                    {['Admin', 'Manager', 'Member'].map(role => (
-                                        <button
-                                            key={role}
-                                            onClick={() => { onRoleChange(role); }}
-                                            className={`text-[10px] px-1.5 py-0.5 rounded border ${currentRole === role ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200'}`}
-                                        >
-                                            {role}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+
                             <div className="h-px bg-slate-100 my-1" />
                             <button
                                 onClick={onLogout}
