@@ -37,7 +37,7 @@ export async function GET(req) {
             members: team.team_members?.[0]?.count || 0,
             channels: team.monitored_resources?.[0]?.count || 0,
             created_at: team.created_at,
-            audit_scope: { policy: true, logs: true } // Mock or derived from settings
+            scopes: team.settings?.scopes || []
         }));
 
         return NextResponse.json({ teams: formattedTeams });
@@ -55,7 +55,9 @@ export async function POST(req) {
 
     try {
         const body = await req.json();
-        const { name, description, type, organization_id, members, channels } = body;
+        const { name, description, type, organization_id, members, channels, scopes } = body;
+
+        console.log('Creating team with:', { name, type, members: members?.length, channels: channels?.length, scopes });
 
         // Basic validation
         if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -67,6 +69,11 @@ export async function POST(req) {
             orgId = '5db477f6-c893-4ec4-9123-b12160224f70';
         }
 
+        // Prepare settings with scopes
+        const settings = {
+            scopes: scopes || []
+        };
+
         // 1. Create Team
         const { data: team, error: teamError } = await supabase
             .from('teams')
@@ -74,7 +81,8 @@ export async function POST(req) {
                 name,
                 description,
                 type: type || 'operational',
-                organization_id: orgId
+                organization_id: orgId,
+                settings
             }])
             .select()
             .single();
@@ -85,17 +93,32 @@ export async function POST(req) {
 
         // 2. Add Members (if any)
         if (members && members.length > 0) {
-            const membersToInsert = members.map(member => ({
-                team_id: teamId,
-                user_id: member.id, // Ensure frontend sends { id: uuid, role: ... } or just user object
-                role: member.role || 'Member'
-            }));
+            console.log('Adding members:', members);
+            const membersToInsert = members.map(member => {
+                // Map role: 'Manager' -> 'lead', anything else -> 'member'
+                let role = (member.role || 'member').toLowerCase();
+                if (role === 'manager') role = 'lead';
+
+                return {
+                    team_id: teamId,
+                    user_id: member.id,
+                    role
+                };
+            });
+
+            console.log('Members to insert:', membersToInsert);
 
             const { error: membersError } = await supabase
                 .from('team_members')
                 .insert(membersToInsert);
 
-            if (membersError) console.error("Error adding members:", membersError);
+            if (membersError) {
+                console.error("Error adding members:", membersError);
+            } else {
+                console.log(`✅ Successfully added ${membersToInsert.length} members`);
+            }
+        } else {
+            console.log('No members to add');
         }
 
         // 3. Link Channels (if any)

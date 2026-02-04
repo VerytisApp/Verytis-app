@@ -1,23 +1,39 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Upload, MoreVertical, Pencil, Key, Ban, Trash2, Mail } from 'lucide-react';
+import { Plus, Upload, MoreVertical, Pencil, Key, Ban, Trash2, Mail, Shield, Hash, FileText, Download, Users } from 'lucide-react';
 import Link from 'next/link';
 import { Card, Button, StatusBadge, Modal } from '../ui';
-import { MOCK_USERS } from '../../data/mockData';
+import { SCOPES_CONFIG } from '../../data/mockData';
 
 const UsersAndRoles = () => {
     const [users, setUsers] = useState([]);
+    const [teams, setTeams] = useState([]); // Teams for manager assignment
     const [isLoading, setIsLoading] = useState(true);
     const [activeDropdown, setActiveDropdown] = useState(null);
-    const [modalConfig, setModalConfig] = useState({ type: null, user: null });
+    const [modalConfig, setModalConfig] = useState({ type: null, user: null, inviteStatus: 'idle' });
+    const [inviteFormData, setInviteFormData] = useState({ name: '', email: '', role: 'member', teamId: '', scopes: [] });
+    const [editFormData, setEditFormData] = useState({ id: '', name: '', role: '', teamId: '' });
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 20;
 
-    // Fetch Users
+    // Fetch Users and Teams
     useEffect(() => {
         fetchUsers();
+        fetchTeams();
     }, []);
+
+    const fetchTeams = async () => {
+        try {
+            const res = await fetch('/api/teams');
+            if (res.ok) {
+                const data = await res.json();
+                setTeams(data.teams || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch teams:', error);
+        }
+    };
 
     const fetchUsers = async () => {
         setIsLoading(true);
@@ -52,28 +68,51 @@ const UsersAndRoles = () => {
     const handleAction = (type, user) => {
         setActiveDropdown(null);
         setModalConfig({ type, user });
+        if (type === 'edit') {
+            setEditFormData({
+                id: user.id,
+                name: user.name,
+                role: user.role,
+                teamId: '' // Reset teamId selection
+            });
+        }
     };
 
     // Handlers using API
     const handleUpdateUser = async () => {
-        const name = document.getElementById('edit-user-name').value;
-        const role = document.getElementById('edit-user-role').value;
-        // Email usually can't be changed easily without re-verification in auth systems, skipping for now or assumed readonly for essential ID.
+        const { id, name, role, teamId } = editFormData;
+        const originalRole = modalConfig.user?.role?.toLowerCase();
+
+        // Validation: Upgrade to Manager requires Team
+        if (originalRole === 'member' && role === 'manager' && !teamId) {
+            alert('Please assign a team for the new Manager.');
+            return;
+        }
 
         try {
-            const res = await fetch(`/api/users/${modalConfig.user.id}`, {
+            const res = await fetch(`/api/users/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, role })
+                body: JSON.stringify({
+                    name,
+                    role,
+                    // Send teamId for upgrades
+                    assignTeamId: (originalRole === 'member' && role === 'manager') ? teamId : undefined,
+                    // Signal downgrade intent
+                    isDowngrade: (originalRole === 'manager' && role === 'member')
+                })
             });
 
             if (res.ok) {
-                fetchUsers(); // Refresh list
                 setModalConfig({ type: null, user: null });
+                fetchUsers(); // Refresh list
             } else {
                 alert('Failed to update user');
             }
-        } catch (e) { console.error(e); alert('Error updating user'); }
+        } catch (e) {
+            console.error(e);
+            alert('Error updating user');
+        }
     };
 
     const handleDeactivate = async () => {
@@ -108,28 +147,39 @@ const UsersAndRoles = () => {
 
     const handleInviteUser = async (e) => {
         e.preventDefault();
-        const email = document.getElementById('invite-email')?.value;
-        const name = document.getElementById('invite-name')?.value;
-        const role = document.getElementById('invite-role')?.value;
+        const { email, name, role, teamId, scopes } = inviteFormData;
 
         if (!email) return;
+
+        // Validation: Managers must be assigned to a team
+        if (role === 'manager' && !teamId) {
+            alert('Please assign a team for the new Manager.');
+            return;
+        }
 
         setModalConfig(prev => ({ ...prev, inviteStatus: 'sending' }));
 
         try {
-            // Artificial delay to make the "Sending..." state visible and feel processed
+            // Artificial delay
             await new Promise(resolve => setTimeout(resolve, 800));
 
             const res = await fetch('/api/users/invite', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, name, role })
+                body: JSON.stringify({
+                    email,
+                    name,
+                    role,
+                    // Pass team details if manager
+                    teamId: role === 'manager' ? teamId : undefined,
+                    scopes: role === 'manager' ? scopes : []
+                })
             });
 
             if (res.ok) {
-                // Determine success, but don't close modal yet. Show success message.
                 setModalConfig(prev => ({ ...prev, inviteStatus: 'success' }));
-                // We'll fetch users when they close or click "Done" in the success view
+                // Reset form
+                setInviteFormData({ name: '', email: '', role: 'member', teamId: '', scopes: [] });
             } else {
                 const data = await res.json();
                 alert(data.error || 'Failed to invite user');
@@ -271,24 +321,75 @@ const UsersAndRoles = () => {
                 <div className="space-y-4">
                     <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
-                        <input type="text" id="edit-user-name" defaultValue={modalConfig.user?.name} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                        <input
+                            type="text"
+                            value={editFormData.name}
+                            onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                        />
                     </div>
-                    {/* Accessing email is usually restricted or complex in edit, disabled for now */}
                     <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address (Read Only)</label>
                         <input type="email" value={modalConfig.user?.email} disabled className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-slate-100 text-slate-500" />
                     </div>
                     <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">Role</label>
-                        <select id="edit-user-role" defaultValue={modalConfig.user?.role} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm">
+                        <select
+                            value={editFormData.role}
+                            onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                        >
                             <option value="admin">Admin</option>
                             <option value="manager">Manager</option>
                             <option value="member">Member</option>
                         </select>
                     </div>
+
+                    {/* Downgrade Warning */}
+                    {modalConfig.user?.role === 'manager' && editFormData.role === 'member' && (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-xs animate-in fade-in slide-in-from-top-1">
+                            <p className="font-bold flex items-center gap-1">
+                                <span className="text-lg">⚠️</span> Warning: Removing Manager Rights
+                            </p>
+                            <p className="mt-1 leading-relaxed">
+                                This user currently manages teams. Changing their role to 'Member' will remove them as a lead from their teams.
+                            </p>
+                            {modalConfig.user?.managedTeams?.length > 0 && (
+                                <div className="mt-2 pl-2 border-l-2 border-amber-200">
+                                    <p className="font-semibold mb-1">Affected Teams:</p>
+                                    <ul className="list-disc pl-4 space-y-0.5">
+                                        {modalConfig.user.managedTeams.map(t => (
+                                            <li key={t.id}>{t.name}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Upgrade Logic */}
+                    {modalConfig.user?.role === 'member' && editFormData.role === 'manager' && (
+                        <div className="pt-2 border-t border-slate-100 animate-in fade-in slide-in-from-top-1">
+                            <div className="bg-blue-50 p-3 rounded-md border border-blue-100">
+                                <label className="block text-xs font-bold text-blue-900 mb-1.5">Assign to Team <span className="text-rose-500">*</span></label>
+                                <select
+                                    value={editFormData.teamId}
+                                    onChange={(e) => setEditFormData({ ...editFormData, teamId: e.target.value })}
+                                    className="w-full px-3 py-2 border border-blue-200 rounded-md text-sm focus:ring-2 focus:ring-blue-200"
+                                >
+                                    <option value="">Select a team...</option>
+                                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                </select>
+                                <p className="text-[10px] text-blue-600 mt-1.5">Managers must be assigned to a team.</p>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex justify-end pt-4 gap-2">
                         <Button variant="ghost" onClick={() => setModalConfig({ type: null, user: null })}>Cancel</Button>
-                        <Button variant="primary" onClick={handleUpdateUser}>Save Changes</Button>
+                        <Button variant="primary" onClick={handleUpdateUser} className={editFormData.role === 'member' && modalConfig.user?.role === 'manager' ? '!bg-amber-600 hover:!bg-amber-700' : ''}>
+                            {editFormData.role === 'member' && modalConfig.user?.role === 'manager' ? 'Confirm Downgrade' : 'Save Changes'}
+                        </Button>
                     </div>
                 </div>
             </Modal>
@@ -337,12 +438,14 @@ const UsersAndRoles = () => {
                                 <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">Full Name</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <div className="w-4 h-4 text-slate-400 font-bold flex items-center justify-center text-[10px]">Aa</div>
+                                        <Users className="w-4 h-4 text-slate-400" />
                                     </div>
                                     <input
                                         type="text"
-                                        id="invite-name"
-                                        placeholder="e.g. Sarah Jenkins"
+                                        required
+                                        placeholder="John Doe"
+                                        value={inviteFormData.name}
+                                        onChange={(e) => setInviteFormData({ ...inviteFormData, name: e.target.value })}
                                         className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
                                     />
                                 </div>
@@ -356,9 +459,10 @@ const UsersAndRoles = () => {
                                     </div>
                                     <input
                                         type="email"
-                                        id="invite-email"
                                         required
                                         placeholder="name@company.com"
+                                        value={inviteFormData.email}
+                                        onChange={(e) => setInviteFormData({ ...inviteFormData, email: e.target.value })}
                                         className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
                                     />
                                 </div>
@@ -371,7 +475,8 @@ const UsersAndRoles = () => {
                                         <Key className="w-4 h-4 text-slate-400" />
                                     </div>
                                     <select
-                                        id="invite-role"
+                                        value={inviteFormData.role}
+                                        onChange={(e) => setInviteFormData({ ...inviteFormData, role: e.target.value })}
                                         className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none appearance-none"
                                     >
                                         <option value="member">Member (Standard Access)</option>
@@ -383,6 +488,55 @@ const UsersAndRoles = () => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Manager Specific Fields */}
+                            {inviteFormData.role === 'manager' && (
+                                <div className="space-y-4 pt-4 mt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-2">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Shield className="w-4 h-4 text-blue-600" />
+                                        <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Manager Assignment</h4>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Assign to Team <span className="text-rose-500">*</span></label>
+                                        <select
+                                            value={inviteFormData.teamId}
+                                            onChange={(e) => setInviteFormData({ ...inviteFormData, teamId: e.target.value })}
+                                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
+                                            required={inviteFormData.role === 'manager'}
+                                        >
+                                            <option value="">Select a team...</option>
+                                            {teams.map(team => (
+                                                <option key={team.id} value={team.id}>{team.name}</option>
+                                            ))}
+                                        </select>
+                                        {teams.length === 0 && <p className="text-[10px] text-amber-600 mt-1">No teams available. Create a team first.</p>}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-2">Audit Scope</label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {SCOPES_CONFIG.map((scope) => (
+                                                <label key={scope.key} className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-colors ${inviteFormData.scopes.includes(scope.title) ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={inviteFormData.scopes.includes(scope.title)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) setInviteFormData({ ...inviteFormData, scopes: [...inviteFormData.scopes, scope.title] });
+                                                            else setInviteFormData({ ...inviteFormData, scopes: inviteFormData.scopes.filter(s => s !== scope.title) });
+                                                        }}
+                                                        className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    <div>
+                                                        <div className="text-[11px] font-bold text-slate-900">{scope.title}</div>
+                                                        <div className="text-[10px] text-slate-500 leading-tight">{scope.desc}</div>
+                                                    </div>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="pt-2">

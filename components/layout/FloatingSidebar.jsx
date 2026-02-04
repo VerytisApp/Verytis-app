@@ -6,14 +6,47 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, MessageSquare, FileText, Users, Clock, Mail,
-    Settings, LogOut, MoreVertical, Layers, ChevronLeft
+    Settings, LogOut, MoreVertical, Layers, ChevronLeft, Shield
 } from 'lucide-react';
 import IcareLogo from '../image/Gemini Generated Image (14).png';
+import { useRole } from '@/lib/providers';
 
 const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRole, onRoleChange, user, onLogout }) => {
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const profileMenuRef = useRef(null);
     const pathname = usePathname();
+
+    const { currentUser: contextUser, setCurrentUser: setContextUser } = useRole();
+    const [users, setUsers] = useState([]);
+    const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+    useEffect(() => {
+        setIsLoadingUsers(true);
+        fetch('/api/users')
+            .then(res => res.json())
+            .then(data => {
+                if (data.users) setUsers(data.users);
+            })
+            .catch(err => console.error("Failed to load users", err))
+            .finally(() => setIsLoadingUsers(false));
+    }, []);
+
+    const handleUserSwitch = (e) => {
+        const userId = e.target.value;
+        const selectedUser = users.find(u => u.id === userId);
+        if (selectedUser) {
+            // Map API user to Context User format
+            setContextUser({
+                id: selectedUser.id,
+                name: selectedUser.full_name || selectedUser.email,
+                email: selectedUser.email,
+                role: selectedUser.role ? (selectedUser.role.charAt(0).toUpperCase() + selectedUser.role.slice(1)) : 'Member',
+                avatar: selectedUser.avatar_url,
+                initials: (selectedUser.full_name || selectedUser.email).substring(0, 2).toUpperCase(),
+                color: 'from-blue-500 to-purple-600' // Default color
+            });
+        }
+    };
 
     const userPersonas = {
         Admin: { name: 'Tychique Esteve', initials: 'TE', role: 'Admin', color: 'from-blue-500 to-purple-600' },
@@ -22,12 +55,14 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
     };
 
     // Use real user data if available, otherwise fall back to mock
-    const currentUser = user ? {
+    // Use Context User -> Real User -> Mock Fallback
+    const effectiveUser = contextUser || (user ? {
         name: user.email?.split('@')[0] || 'User',
         initials: (user.email?.substring(0, 2) || 'U').toUpperCase(),
         role: currentRole,
         color: userPersonas[currentRole]?.color || 'from-blue-500 to-purple-600'
-    } : userPersonas[currentRole];
+    } : userPersonas['Admin']);
+
 
     const allNavItems = [
         { path: '/', altPath: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Manager'] },
@@ -114,20 +149,26 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
             </div>
 
             {/* Role Switcher */}
+            {/* User Switcher (Dev Mode) */}
             {!isCollapsed && (
                 <div className="px-6 py-2 mb-2">
-                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Dev: Switch Role</div>
-                    <div className="flex gap-1 p-1 bg-slate-100 rounded-lg">
-                        {['Admin', 'Manager', 'Member'].map(role => (
-                            <button
-                                key={role}
-                                onClick={() => onRoleChange(role)}
-                                className={`flex-1 py-1 px-2 rounded-md text-[9px] font-bold transition-all ${currentRole === role ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                {role.charAt(0)}
-                            </button>
-                        ))}
+                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex justify-between items-center">
+                        Dev: Switch Account
+                        {isLoadingUsers && <span className="text-[8px] animate-pulse">Loading...</span>}
                     </div>
+
+                    <select
+                        className="w-full text-[10px] font-medium bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2 text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20"
+                        onChange={handleUserSwitch}
+                        value={contextUser?.id || ''}
+                    >
+                        <option value="" disabled>Select user...</option>
+                        {users.map(u => (
+                            <option key={u.id} value={u.id}>
+                                {u.full_name || u.email} ({u.role})
+                            </option>
+                        ))}
+                    </select>
                 </div>
             )}
 
@@ -152,6 +193,13 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                                 </button>
                             )}
                             <button
+                                onClick={() => { onModalOpen('passport'); setProfileMenuOpen(false); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg text-left font-medium"
+                            >
+                                <Shield className="w-3.5 h-3.5" />
+                                Passport ID
+                            </button>
+                            <button
                                 onClick={() => { onModalOpen('account'); setProfileMenuOpen(false); }}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg text-left font-medium"
                             >
@@ -173,13 +221,13 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
 
                 <div className={`flex items-center ${isCollapsed ? 'justify-center w-full' : 'justify-between px-3'}`}>
                     <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
-                        <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${currentUser.color} flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-lg`}>
-                            {currentUser.initials}
+                        <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${effectiveUser.color} flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-lg`}>
+                            {effectiveUser.initials}
                         </div>
                         {!isCollapsed && (
                             <div className="text-xs">
-                                <p className="font-bold text-slate-900 truncate w-24">{currentUser.name}</p>
-                                <p className="text-[10px] text-slate-500 font-medium">{currentUser.role}</p>
+                                <p className="font-bold text-slate-900 truncate w-24">{effectiveUser.name}</p>
+                                <p className="text-[10px] text-slate-500 font-medium">{effectiveUser.role}</p>
                             </div>
                         )}
                     </div>

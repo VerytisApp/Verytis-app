@@ -59,31 +59,27 @@ export default function OnboardingPage() {
         setSaving(true);
 
         try {
-            const supabase = createClient(
-                process.env.NEXT_PUBLIC_SUPABASE_URL,
-                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-            );
-
-            // 1. Update password
-            const { error: passwordError } = await supabase.auth.updateUser({
-                password: formData.password
-            });
-
-            if (passwordError) throw passwordError;
-
-            // 2. Update profile in database
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({
+            // Call the onboarding API endpoint
+            const response = await fetch('/api/onboarding', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: user.id,
                     full_name: formData.full_name,
                     job_title: formData.job_title,
-                    status: 'active'
+                    password: formData.password
                 })
-                .eq('id', user.id);
+            });
 
-            if (profileError) throw profileError;
+            const data = await response.json();
 
-            // 3. Redirect to dashboard
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to complete onboarding');
+            }
+
+            // Success - redirect to dashboard
             router.push('/');
 
         } catch (err) {

@@ -67,6 +67,30 @@ export async function PATCH(req, { params }) {
 
         if (error) throw error;
 
+        // 1. Upgrade Case: Assign to Team as Lead
+        if (body.assignTeamId) {
+            const { error: teamError } = await supabase
+                .from('team_members')
+                .upsert({
+                    team_id: body.assignTeamId,
+                    user_id: userId,
+                    role: 'lead'
+                }, { onConflict: 'team_id,user_id' }); // Upsert updates role if already member
+
+            if (teamError) console.error("Error assigning manager to team:", teamError);
+        }
+
+        // 2. Downgrade Case: Revoke Lead Status (set to member) from ALL teams
+        if (body.isDowngrade) {
+            const { error: teamError } = await supabase
+                .from('team_members')
+                .update({ role: 'member' })
+                .eq('user_id', userId)
+                .eq('role', 'lead');
+
+            if (teamError) console.error("Error revoking manager roles:", teamError);
+        }
+
         return NextResponse.json({ user: data });
     } catch (error) {
         console.error('Error updating user:', error);

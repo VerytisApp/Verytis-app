@@ -30,7 +30,7 @@ export async function GET(req, { params }) {
             .from('team_members')
             .select(`
                 *,
-                user:public.profiles(*)
+                profiles!user_id(*)
             `)
             .eq('team_id', teamId);
 
@@ -39,7 +39,10 @@ export async function GET(req, { params }) {
         // Fetch Channels (Monitored Resources linked to this team)
         const { data: channels, error: channelsError } = await supabase
             .from('monitored_resources')
-            .select('*')
+            .select(`
+                *,
+                integrations (provider)
+            `)
             .eq('team_id', teamId);
 
         if (channelsError) throw channelsError;
@@ -52,18 +55,18 @@ export async function GET(req, { params }) {
         const fullTeam = {
             ...team,
             members: members.map(m => ({
-                id: m.user.id,
-                name: m.user.full_name || m.user.email,
-                email: m.user.email,
+                id: m.profiles?.id || m.user_id,
+                name: m.profiles?.full_name || m.profiles?.email || 'Unknown',
+                email: m.profiles?.email || '',
                 role: m.role, // 'lead' or 'member'
-                avatar: m.user.avatar_url,
+                avatar: m.profiles?.avatar_url || '',
                 joined_at: m.joined_at
             })),
             channels: channels.map(c => ({
                 id: c.id,
                 name: c.name,
-                platform: 'slack', // Assuming mainly slack for now, or derive from type
-                decisionsConfig: c.metadata?.decisions_count || 12, // Mock or metadata
+                platform: c.integrations?.provider || (c.type === 'slack_channel' ? 'slack' : 'teams'),
+                decisionsConfig: c.metadata?.decisions_count || 0,
                 external_id: c.external_id
             })),
             scopes,

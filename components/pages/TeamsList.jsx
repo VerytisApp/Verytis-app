@@ -20,7 +20,7 @@ const TeamsList = ({ userRole }) => {
     // Wizard State
     const [currentStep, setCurrentStep] = useState(1);
     const [teamFormData, setTeamFormData] = useState({
-        name: '', description: '', type: 'Operational', members: [], scopes: [], channels: []
+        name: '', description: '', type: 'operational', members: [], scopes: [], channels: []
     });
 
     // Fetch Initial Data
@@ -122,7 +122,7 @@ const TeamsList = ({ userRole }) => {
                     <Button variant="primary" icon={Plus} onClick={() => {
                         setModalConfig({ type: 'create', team: {} });
                         setCurrentStep(1);
-                        setTeamFormData({ name: '', description: '', type: 'Operational', members: [], scopes: [], channels: [] });
+                        setTeamFormData({ name: '', description: '', type: 'operational', members: [], scopes: [], channels: [] });
                     }}>Create Team</Button>
                 )}
             </header>
@@ -190,14 +190,21 @@ const TeamsList = ({ userRole }) => {
                                             </div>
                                         ) : (
                                             <div className="flex gap-1.5">
-                                                {/* Mock scopes if undefined */}
-                                                {(team.scopes || []).map(scope => (
-                                                    <div key={scope} className="p-1 rounded bg-blue-50 border border-blue-100 text-blue-600" title={scope}>
-                                                        {scope === 'audit' && <Shield className="w-3 h-3" />}
-                                                        {scope === 'docs' && <FileText className="w-3 h-3" />}
-                                                        {scope === 'export' && <Download className="w-3 h-3" />}
-                                                    </div>
-                                                ))}
+                                                {/* Map scope titles to icons */}
+                                                {(team.scopes || []).map(scopeTitle => {
+                                                    // Find the scope config by title
+                                                    const scopeConfig = SCOPES_CONFIG.find(s => s.title === scopeTitle);
+                                                    const scopeKey = scopeConfig?.key;
+
+                                                    return (
+                                                        <div key={scopeTitle} className="p-1 rounded bg-blue-50 border border-blue-100 text-blue-600" title={scopeTitle}>
+                                                            {scopeKey === 'audit' && <Shield className="w-3 h-3" />}
+                                                            {scopeKey === 'docs' && <FileText className="w-3 h-3" />}
+                                                            {scopeKey === 'email' && <Mail className="w-3 h-3" />}
+                                                            {scopeKey === 'export' && <Download className="w-3 h-3" />}
+                                                        </div>
+                                                    );
+                                                })}
                                                 {(!team.scopes || team.scopes.length === 0) && (
                                                     <div className="p-1 rounded bg-slate-50 border border-slate-200 text-slate-400" title="No scopes">
                                                         <Shield className="w-3 h-3 opacity-50" />
@@ -300,10 +307,8 @@ const TeamsList = ({ userRole }) => {
                                         onChange={(e) => setTeamFormData({ ...teamFormData, type: e.target.value })}
                                         className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
                                     >
-                                        <option value="Operational">Operational</option>
-                                        <option value="Governance">Governance</option>
-                                        <option value="Project">Project</option>
-                                        <option value="R&D">R&D</option>
+                                        <option value="operational">Operational</option>
+                                        <option value="governance">Governance</option>
                                     </select>
                                 </div>
                                 <div>
@@ -457,7 +462,8 @@ const TeamsList = ({ userRole }) => {
                                                     description: teamFormData.description,
                                                     type: teamFormData.type,
                                                     members: teamFormData.members,
-                                                    channels: teamFormData.channels
+                                                    channels: teamFormData.channels,
+                                                    scopes: teamFormData.scopes
                                                 })
                                             });
 

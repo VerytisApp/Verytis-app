@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(req) {
     const TEST_ORG_ID = '5db477f6-c893-4ec4-9123-b12160224f70'; // Hardcoded for MVP
@@ -15,21 +16,34 @@ export async function GET(req) {
     try {
         const { data: users, error } = await supabase
             .from('profiles')
-            .select('id, full_name, email, avatar_url, role, status, job_title')
+            .select(`
+                id, full_name, email, avatar_url, role, status, job_title,
+                team_members (
+                    role,
+                    teams (id, name)
+                )
+            `)
             .eq('organization_id', TEST_ORG_ID);
 
         if (error) throw error;
 
-        const formattedUsers = users.map(user => ({
-            id: user.id,
-            name: user.full_name || user.email.split('@')[0], // Fallback name
-            email: user.email,
-            avatar: user.avatar_url,
-            role: user.role || 'Member',
-            status: user.status || 'active',
-            job_title: user.job_title || '',
-            initials: (user.full_name || user.email).slice(0, 2).toUpperCase()
-        }));
+        const formattedUsers = users.map(user => {
+            const managedTeams = user.team_members
+                ?.filter(tm => tm.role === 'lead' && tm.teams)
+                .map(tm => tm.teams) || [];
+
+            return {
+                id: user.id,
+                name: user.full_name || user.email.split('@')[0], // Fallback name
+                email: user.email,
+                avatar: user.avatar_url,
+                role: user.role || 'Member',
+                status: user.status || 'active',
+                job_title: user.job_title || '',
+                initials: (user.full_name || user.email).slice(0, 2).toUpperCase(),
+                managedTeams // List of teams they manage
+            };
+        });
 
         return NextResponse.json({ users: formattedUsers });
     } catch (error) {

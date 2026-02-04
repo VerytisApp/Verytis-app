@@ -45,15 +45,21 @@ export async function GET(req, { params }) {
         }
 
         // 4. Get user info for each member
-        const members = [];
+        const tempMembers = [];
+        const emailsToCheck = [];
+
+        // 4. Get user info for each member
         for (const userId of membersResult.members.slice(0, 20)) { // Limit to 20 for performance
             try {
                 const userInfo = await client.users.info({ user: userId });
                 if (userInfo.user && !userInfo.user.is_bot) {
-                    members.push({
+                    const email = userInfo.user.profile?.email || null;
+                    if (email) emailsToCheck.push(email);
+
+                    tempMembers.push({
                         id: userInfo.user.id,
                         name: userInfo.user.real_name || userInfo.user.name,
-                        email: userInfo.user.profile?.email || null,
+                        email: email,
                         title: userInfo.user.profile?.title || 'Team Member',
                         avatar: userInfo.user.profile?.image_48 || null,
                         initials: (userInfo.user.real_name || userInfo.user.name || 'U')
@@ -61,14 +67,32 @@ export async function GET(req, { params }) {
                             .map(n => n[0])
                             .join('')
                             .toUpperCase()
-                            .slice(0, 2),
-                        isConnected: false // TODO: Check if user exists in profiles table
+                            .slice(0, 2)
                     });
                 }
             } catch (e) {
                 console.error('Error fetching user', userId, e.message);
             }
         }
+
+        // 5. Check "isConnected" status against Profiles table
+        let connectedEmails = new Set();
+        if (emailsToCheck.length > 0) {
+            const { data: profiles } = await supabase
+                .from('profiles')
+                .select('email')
+                .in('email', emailsToCheck);
+
+            if (profiles) {
+                profiles.forEach(p => connectedEmails.add(p.email));
+            }
+        }
+
+        // 6. Finalize members list
+        const members = tempMembers.map(m => ({
+            ...m,
+            isConnected: m.email && connectedEmails.has(m.email)
+        }));
 
         return NextResponse.json({
             members,

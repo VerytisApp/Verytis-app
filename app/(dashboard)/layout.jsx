@@ -5,11 +5,34 @@ import FloatingSidebar from '@/components/layout/FloatingSidebar';
 import { Modal } from '@/components/ui';
 import IntegrationsSettings from '@/components/pages/IntegrationsSettings';
 import AdminSecuritySettings from '@/components/pages/AdminSecuritySettings';
+import PassportIDSettings from '@/components/pages/PassportIDSettings';
 
 function DashboardContent({ children }) {
     const { currentRole, setCurrentRole } = useRole();
     const { activeModal, setActiveModal } = useModal();
     const { isSidebarCollapsed, setIsSidebarCollapsed } = useSidebar();
+
+    const handleRoleSwitch = async (role) => {
+        try {
+            const response = await fetch('/api/dev/switch-role', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role })
+            });
+
+            if (response.ok) {
+                // Reload the page to apply the new session
+                window.location.reload();
+            } else {
+                console.error('Failed to switch role');
+                // Fallback to just changing the role in state
+                setCurrentRole(role);
+            }
+        } catch (error) {
+            console.error('Role switch error:', error);
+            setCurrentRole(role);
+        }
+    };
 
     return (
         <>
@@ -18,7 +41,7 @@ function DashboardContent({ children }) {
                 onToggleCollapse={setIsSidebarCollapsed}
                 onModalOpen={setActiveModal}
                 currentRole={currentRole}
-                onRoleChange={setCurrentRole}
+                onRoleChange={handleRoleSwitch}
             />
 
             <main className={`${isSidebarCollapsed ? 'ml-24' : 'ml-56'} p-8 min-h-screen transition-all duration-300 ease-out`}>
@@ -41,6 +64,14 @@ function DashboardContent({ children }) {
                 title="Admin Security & Logs"
             >
                 <AdminSecuritySettings />
+            </Modal>
+
+            <Modal
+                isOpen={activeModal === 'passport'}
+                onClose={() => setActiveModal(null)}
+                title="My Passport ID"
+            >
+                <PassportIDSettings />
             </Modal>
         </>
     );

@@ -197,6 +197,42 @@ export async function POST(req) {
 
         if (profileError) throw profileError;
 
+        // 4. If Manager and Team provided, assign to team and update scopes
+        if (role === 'manager' && body.teamId) {
+            const teamId = body.teamId;
+            const scopes = body.scopes || [];
+
+            // Add member as Lead
+            const { error: memberError } = await supabase
+                .from('team_members')
+                .upsert([{
+                    team_id: teamId,
+                    user_id: newUserId,
+                    role: 'lead'
+                }], { onConflict: 'team_id,user_id' });
+
+            if (memberError) console.error("Error adding manager to team:", memberError);
+
+            // Update Team Scopes
+            if (scopes.length > 0) {
+                const { data: teamData } = await supabase
+                    .from('teams')
+                    .select('settings')
+                    .eq('id', teamId)
+                    .single();
+
+                const currentSettings = teamData?.settings || {};
+                const newSettings = { ...currentSettings, scopes: scopes };
+
+                const { error: scopeError } = await supabase
+                    .from('teams')
+                    .update({ settings: newSettings })
+                    .eq('id', teamId);
+
+                if (scopeError) console.error("Error updating team scopes:", scopeError);
+            }
+        }
+
         return NextResponse.json({
             user: profile,
             message: authAction === 'exists' ? 'User already exists.' : 'Invitation email sent via Custom SMTP'

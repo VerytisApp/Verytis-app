@@ -10,3 +10,4 @@ export { default as UsersAndRoles } from './UsersAndRoles';
 export { default as UserDetail } from './UserDetail';
 export { default as IntegrationsSettings } from './IntegrationsSettings';
 export { default as AdminSecuritySettings } from './AdminSecuritySettings';
+export { default as PassportIDSettings } from './PassportIDSettings';

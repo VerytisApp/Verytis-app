@@ -23,14 +23,21 @@ export const StatusBadge = ({ status }) => {
 };
 
 export const PlatformIcon = ({ platform }) => {
+    const getFavicon = (domain) => `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=64`;
+
     switch (platform.toLowerCase()) {
-        case 'slack': return <Slack className="w-3.5 h-3.5 text-[#4A154B]" />;
-        case 'teams': return <Users className="w-3.5 h-3.5 text-[#6264A7]" />;
-        case 'email':
-        case 'microsoft 365':
+        case 'slack':
+            return <img src={getFavicon('slack.com')} alt="Slack" className="w-4 h-4" />;
+        case 'teams':
+            return <img src={getFavicon('teams.microsoft.com')} alt="Teams" className="w-4 h-4" />;
         case 'google workspace':
+            return <img src={getFavicon('workspace.google.com')} alt="Google Workspace" className="w-4 h-4" />;
+        case 'microsoft 365':
+            return <img src={getFavicon('microsoft.com')} alt="Microsoft 365" className="w-4 h-4" />;
+        case 'email':
             return <Mail className="w-3.5 h-3.5 text-slate-600" />;
-        default: return <Hash className="w-3.5 h-3.5 text-slate-400" />;
+        default:
+            return <Hash className="w-3.5 h-3.5 text-slate-400" />;
     }
 };
 

@@ -142,6 +142,28 @@ const TeamDetail = ({ userRole }) => {
         }
     };
 
+    const handleChangeRole = async (userId, currentRole) => {
+        const newRole = currentRole === 'lead' ? 'member' : 'lead'; // Toggle
+        try {
+            const res = await fetch(`/api/teams/${teamId}/members`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, role: newRole })
+            });
+
+            if (res.ok) {
+                setTeam(prev => ({
+                    ...prev,
+                    members: prev.members.map(m => m.id === userId ? { ...m, role: newRole } : m)
+                }));
+                setActiveMemberDropdown(null);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Failed to change role');
+        }
+    };
+
     const handleLinkChannel = async (channelId) => {
         try {
             const res = await fetch(`/api/teams/${teamId}/channels`, {
@@ -149,11 +171,20 @@ const TeamDetail = ({ userRole }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ channelId })
             });
+
             if (res.ok) {
+                // Determine platform from availableChannels
                 const channel = availableChannels.find(c => c.id === channelId);
+                const platform = channel?.platform || 'slack'; // Fallback
+
                 setTeam(prev => ({
                     ...prev,
-                    channels: [...prev.channels, { ...channel }]
+                    channels: [...prev.channels, {
+                        id: channelId,
+                        name: channel?.name || 'Unknown',
+                        platform: platform,
+                        decisionsConfig: 0
+                    }]
                 }));
                 setIsLinkChannelModalOpen(false);
             }
@@ -264,14 +295,21 @@ const TeamDetail = ({ userRole }) => {
                     {canManageTeam && (
                         <div>
                             <div className="flex gap-1.5 mt-1">
-                                {selectedScopes.map(scopeTitle => (
-                                    <div key={scopeTitle} className="p-1.5 rounded bg-white border border-slate-200 text-slate-600 shadow-sm" title={scopeTitle}>
-                                        {scopeTitle === 'audit' && <Hash className="w-4 h-4" />}
-                                        {scopeTitle === 'docs' && <FileText className="w-4 h-4" />}
-                                        {scopeTitle === 'Email Audit' && <Mail className="w-4 h-4" />}
-                                        {scopeTitle === 'export' && <Download className="w-4 h-4" />}
-                                    </div>
-                                ))}
+                                {selectedScopes.map(scopeTitle => {
+                                    // Find config to get key
+                                    const scopeConfig = SCOPES_CONFIG.find(s => s.title === scopeTitle) || {};
+                                    // Normalize key check or use direct title check if inconsistent
+                                    const key = scopeConfig.key;
+
+                                    return (
+                                        <div key={scopeTitle} className="p-1.5 rounded bg-white border border-slate-200 text-slate-600 shadow-sm" title={scopeTitle}>
+                                            {(key === 'audit' || scopeTitle === 'Channel Audit') && <Hash className="w-4 h-4" />}
+                                            {(key === 'docs' || scopeTitle === 'Documentation Audit') && <FileText className="w-4 h-4" />}
+                                            {(key === 'email' || scopeTitle === 'Email Audit') && <Mail className="w-4 h-4" />}
+                                            {(key === 'export' || scopeTitle === 'Reports & Exports') && <Download className="w-4 h-4" />}
+                                        </div>
+                                    );
+                                })}
                                 {selectedScopes.length === 0 && <span className="text-[11px] text-slate-400">No active scopes</span>}
                             </div>
                             <span className="block text-[11px] text-slate-500 font-medium mt-2">Active Scopes</span>
@@ -351,10 +389,17 @@ const TeamDetail = ({ userRole }) => {
                                                         {activeMemberDropdown === user.id && (
                                                             <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-xl border border-slate-200 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                                                                 <div className="py-1">
-                                                                    <button className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                                                                        <Users className="w-3.5 h-3.5 text-slate-400" /> Change Role
-                                                                    </button>
-                                                                    <div className="h-px bg-slate-100 my-1"></div>
+                                                                    {userRole?.toLowerCase() === 'admin' && (
+                                                                        <>
+                                                                            <button
+                                                                                onClick={() => handleChangeRole(user.id, user.role)}
+                                                                                className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                                                            >
+                                                                                <Users className="w-3.5 h-3.5 text-slate-400" /> Change Role
+                                                                            </button>
+                                                                            <div className="h-px bg-slate-100 my-1"></div>
+                                                                        </>
+                                                                    )}
                                                                     <button onClick={() => handleRemoveMember(user.id)} className="w-full text-left px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2">
                                                                         <Trash2 className="w-3.5 h-3.5" /> Remove
                                                                     </button>

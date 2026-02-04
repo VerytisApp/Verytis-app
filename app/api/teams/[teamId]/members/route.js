@@ -66,3 +66,48 @@ export async function DELETE(req, { params }) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
+export async function PATCH(req, { params }) {
+    const { teamId } = await params;
+    const { userId, role } = await req.json();
+
+    if (!teamId || !userId || !role) {
+        return NextResponse.json({ error: 'Team ID, User ID, and Role are required' }, { status: 400 });
+    }
+
+    const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    try {
+        // 1. Update team member role
+        const { data: memberData, error: memberError } = await supabase
+            .from('team_members')
+            .update({ role: role })
+            .eq('team_id', teamId)
+            .eq('user_id', userId)
+            .select()
+            .single();
+
+        if (memberError) throw memberError;
+
+        // 2. Sync Global Profile Role
+        // Logic: "A manager is a manager because they manage a team"
+        // If promoted to 'lead' (Team Manager), upgrade global profile to 'manager' (if they are currently just a 'member')
+        if (role === 'lead') {
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({ role: 'manager' })
+                .eq('id', userId)
+                .eq('role', 'member'); // Only upgrade if currently 'member' (don't downgrade admins)
+
+            if (profileError) console.error("Error syncing global profile role:", profileError);
+        }
+
+        return NextResponse.json({ member: memberData });
+    } catch (error) {
+        console.error('Error updating member role:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
