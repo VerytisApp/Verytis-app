@@ -1,9 +1,10 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ChevronRight, Clock, Download, CheckCircle, GitCommit, UserPlus, FileText } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+import { ChevronRight, Clock, Download, CheckCircle, GitCommit, UserPlus, FileText, XCircle, RefreshCw, Edit2, Archive as ArchiveIcon } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon } from '../ui';
 import { MOCK_CHANNELS, MOCK_USERS, MOCK_RECENT_DECISIONS, MOCK_CHANNEL_ACTIVITY, MOCK_TEAMS } from '../../data/mockData';
 
@@ -93,26 +94,151 @@ const ChannelDetail = ({ userRole }) => {
     const [activities, setActivities] = useState([]);
     const [loadingActivities, setLoadingActivities] = useState(false);
 
-    // Fetch activities when channel is loaded
-    useEffect(() => {
-        const fetchActivities = async () => {
-            if (!channelId || channelId.length < 30) return; // Skip mock IDs
+    // Debug State
+    const [connectionStatus, setConnectionStatus] = useState('CONNECTING');
+    const [lastEvent, setLastEvent] = useState(null);
+    const [debugExpanded, setDebugExpanded] = useState(false);
 
-            setLoadingActivities(true);
+    // Defined via useCallback so it can be called by Realtime subscription
+    const fetchActivities = useCallback(async () => {
+        if (!channelId || channelId.length < 30) return; // Skip mock IDs
+
+        // Only set loading on initial fetch to avoid flickering on updates
+        if (activities.length === 0) setLoadingActivities(true);
+
+        try {
+            const res = await fetch(`/api/activity?channelId=${channelId}`, { cache: 'no-store' });
+            if (res.ok) {
+                const data = await res.json();
+                const sorted = (data.events || []).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                setActivities(sorted);
+            }
+        } catch (e) {
+            console.error('Error fetching activities:', e);
+        } finally {
+            setLoadingActivities(false);
+        }
+    }, [channelId]); // Removed 'activities.length' from dependency to avoid stale closures if needed, but here it's fine.
+
+    // Initial fetch
+    useEffect(() => {
+        fetchActivities();
+    }, [fetchActivities]);
+
+    // SSE Realtime Subscription (Server-Sent Events)
+    useEffect(() => {
+        if (!channelId || channelId.length < 30) {
+            setConnectionStatus('DISCONNECTED');
+            return;
+        }
+
+        console.log("🔌 Connecting to Activity Stream...");
+        setConnectionStatus('CONNECTING');
+        const eventSource = new EventSource(`/api/activity/stream?channelId=${channelId}`);
+
+        eventSource.onopen = () => {
+            console.log("✅ SSE Connected");
+            setConnectionStatus('OPEN');
+        };
+
+        eventSource.onmessage = (event) => {
             try {
-                const res = await fetch(`/api/activity?channelId=${channelId}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setActivities(data.events || []);
+                const data = JSON.parse(event.data);
+                if (data.type === 'new_activity' && data.log) {
+                    console.log("🔔 New Activity Received via Stream:", data.log);
+                    setLastEvent(data.log); // Debug info
+
+                    // Map raw DB log to UI format
+                    const log = data.log;
+                    let actorName = 'User X';
+                    let role = 'Not connected';
+
+                    if (log.actor_id && log.profiles?.full_name) {
+                        actorName = log.profiles.full_name;
+                        role = log.profiles.role || 'Member';
+                    }
+
+                    const newEvent = {
+                        id: log.id,
+                        timestamp: log.created_at,
+                        type: mapActionTypeUI(log.action_type),
+                        action: formatActionUI(log.action_type),
+                        target: log.summary || 'No description',
+                        actor: actorName,
+                        role: role,
+                        meta: log.metadata?.attachments?.length > 0 ? `${log.metadata.attachments.length} file(s)` : null,
+                        isAnonymous: log.metadata?.is_anonymous || false,
+                        channelId: log.metadata?.slack_channel || null
+                    };
+
+                    setActivities(prev => {
+                        // Avoid duplicates from overlap/reconnect
+                        if (prev.some(a => a.id === newEvent.id)) return prev;
+
+                        const updated = [newEvent, ...prev];
+                        // Force sort by timestamp descending (newest first)
+                        return updated.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    });
                 }
             } catch (e) {
-                console.error('Error fetching activities:', e);
-            } finally {
-                setLoadingActivities(false);
+                console.error("Error parsing SSE event:", e);
             }
         };
-        fetchActivities();
+
+        eventSource.onerror = (e) => {
+            console.error("SSE Error (retrying...):", e);
+            eventSource.close();
+            // Retry handled by browser if using native EventSource, but on error it might stop. 
+            // We could add logical reconnect here if needed.
+        };
+
+        return () => {
+            eventSource.close();
+        };
     }, [channelId]);
+
+    const refreshActivities = useCallback(async () => {
+        setLoadingActivities(true);
+        try {
+            const res = await fetch(`/api/activity?channelId=${channelId}`, { cache: 'no-store' });
+            if (res.ok) {
+                const data = await res.json();
+                const sorted = (data.events || []).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                setActivities(sorted);
+            }
+        } catch (e) {
+            console.error('Error refreshing activities:', e);
+        } finally {
+            setLoadingActivities(false);
+        }
+    }, [channelId]);
+
+    // Helper functions for mapping (duplicated from API for now to ensure consistency)
+    const mapActionTypeUI = (actionType) => {
+        switch (actionType) {
+            case 'APPROVE': case 'REJECT': case 'TRANSFER': case 'EDIT': case 'ARCHIVE': return 'decision';
+            case 'COMMENT': return 'comment';
+            case 'FILE_SHARED': return 'file';
+            case 'MEMBER_JOINED': case 'CHANNEL_CREATED': return 'system';
+            default: return 'system';
+        }
+    };
+
+    const formatActionUI = (actionType) => {
+        switch (actionType) {
+            case 'APPROVE': return 'Approval';
+            case 'REJECT': return 'Rejection';
+            case 'TRANSFER': return 'Transfer';
+            case 'EDIT': return 'Edit';
+            case 'ARCHIVE': return 'Archive';
+            case 'COMMENT': return 'Comment';
+            case 'FILE_SHARED': return 'File';
+            case 'MEMBER_JOINED': return 'Member joined';
+            case 'CHANNEL_CREATED': return 'Channel created';
+            case 'ATTEMPTED_ACTION_ANONYMOUS': return 'Unverified action';
+            default: return actionType;
+        }
+    };
 
     // Find parent team to check scopes (Mock logic mostly)
     const parentTeam = channel ? MOCK_TEAMS.find(t => t.name === channel.team) : null;
@@ -227,25 +353,37 @@ const ChannelDetail = ({ userRole }) => {
                                 </div>
                             ) : activities.filter(a => a.type === 'decision').length > 0 ? (
                                 <div className="divide-y divide-slate-100">
-                                    {activities.filter(a => a.type === 'decision').slice(0, 5).map(activity => (
-                                        <div key={activity.id} className="p-3 hover:bg-slate-50 transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center">
-                                                    <CheckCircle className="w-4 h-4 text-emerald-600" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-xs font-bold text-slate-900">{activity.action}</div>
-                                                    <div className="text-[10px] text-slate-500 truncate">{activity.target}</div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className="text-[10px] font-medium text-slate-600">{activity.actor}</div>
-                                                    <div className="text-[10px] text-slate-400">
-                                                        {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    {activities.filter(a => a.type === 'decision').slice(0, 5).map(activity => {
+                                        const styles = {
+                                            'Approval': { icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                                            'Rejection': { icon: XCircle, color: 'text-rose-600', bg: 'bg-rose-50' },
+                                            'Transfer': { icon: RefreshCw, color: 'text-purple-600', bg: 'bg-purple-50' },
+                                            'Edit': { icon: Edit2, color: 'text-blue-600', bg: 'bg-blue-50' },
+                                            'Archive': { icon: ArchiveIcon, color: 'text-slate-600', bg: 'bg-slate-50' }
+                                        };
+                                        const style = styles[activity.action] || styles['Approval'];
+                                        const Icon = style.icon;
+
+                                        return (
+                                            <div key={activity.id} className="p-3 hover:bg-slate-50 transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${style.bg}`}>
+                                                        <Icon className={`w-4 h-4 ${style.color}`} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-xs font-bold text-slate-900">{activity.action}</div>
+                                                        <div className="text-[10px] text-slate-500 truncate">{activity.target}</div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-[10px] font-medium text-slate-600">{activity.actor}</div>
+                                                        <div className="text-[10px] text-slate-400">
+                                                            {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="p-8 text-center text-slate-400 text-sm">
@@ -256,9 +394,17 @@ const ChannelDetail = ({ userRole }) => {
                     </div>
 
                     <div className="space-y-2">
-                        <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900">
-                            Activity Stream ({activities.length})
-                        </h3>
+                        <div className="flex justify-between items-end">
+                            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900">
+                                Activity Stream
+                            </h3>
+                            <button
+                                onClick={refreshActivities}
+                                className="text-[10px] text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                            >
+                                <RefreshCw className="w-3 h-3" /> Refresh
+                            </button>
+                        </div>
                         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                             {loadingActivities ? (
                                 <div className="p-6 text-center">
@@ -266,33 +412,48 @@ const ChannelDetail = ({ userRole }) => {
                                 </div>
                             ) : activities.length > 0 ? (
                                 <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
-                                    {activities.slice(0, 10).map(activity => (
-                                        <div key={activity.id} className="p-3 hover:bg-slate-50 transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-7 h-7 rounded-full flex items-center justify-center ${activity.type === 'decision' ? 'bg-emerald-50' :
-                                                    activity.type === 'file' ? 'bg-orange-50' :
-                                                        activity.type === 'comment' ? 'bg-blue-50' : 'bg-slate-100'
-                                                    }`}>
-                                                    {activity.type === 'decision' && <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />}
-                                                    {activity.type === 'file' && <FileText className="w-3.5 h-3.5 text-orange-500" />}
-                                                    {activity.type === 'comment' && <GitCommit className="w-3.5 h-3.5 text-blue-500" />}
-                                                    {activity.type === 'system' && <UserPlus className="w-3.5 h-3.5 text-slate-500" />}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-[11px] font-bold text-slate-800">{activity.action}</div>
-                                                    <div className="text-[10px] text-slate-500 truncate">{activity.target}</div>
-                                                </div>
-                                                <div className="text-right shrink-0">
-                                                    <div className="text-[10px] font-medium text-slate-600">{activity.actor}</div>
-                                                    <div className="text-[9px] text-slate-400">
-                                                        {new Date(activity.timestamp).toLocaleString([], {
-                                                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                                                        })}
+                                    {activities.slice(0, 10).map(activity => {
+                                        let style = { icon: UserPlus, color: 'text-slate-500', bg: 'bg-slate-100' };
+
+                                        if (activity.type === 'decision') {
+                                            const decisionStyles = {
+                                                'Approval': { icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                                                'Rejection': { icon: XCircle, color: 'text-rose-600', bg: 'bg-rose-50' },
+                                                'Transfer': { icon: RefreshCw, color: 'text-purple-600', bg: 'bg-purple-50' },
+                                                'Edit': { icon: Edit2, color: 'text-blue-600', bg: 'bg-blue-50' },
+                                                'Archive': { icon: ArchiveIcon, color: 'text-slate-600', bg: 'bg-slate-50' }
+                                            };
+                                            style = decisionStyles[activity.action] || decisionStyles['Approval'];
+                                        } else if (activity.type === 'file') {
+                                            style = { icon: FileText, color: 'text-orange-500', bg: 'bg-orange-50' };
+                                        } else if (activity.type === 'comment') {
+                                            style = { icon: GitCommit, color: 'text-blue-500', bg: 'bg-blue-50' };
+                                        }
+
+                                        const Icon = style.icon;
+
+                                        return (
+                                            <div key={activity.id} className="p-3 hover:bg-slate-50 transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center ${style.bg}`}>
+                                                        <Icon className={`w-3.5 h-3.5 ${style.color}`} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-[11px] font-bold text-slate-800">{activity.action}</div>
+                                                        <div className="text-[10px] text-slate-500 truncate">{activity.target}</div>
+                                                    </div>
+                                                    <div className="text-right shrink-0">
+                                                        <div className="text-[10px] font-medium text-slate-600">{activity.actor}</div>
+                                                        <div className="text-[9px] text-slate-400">
+                                                            {new Date(activity.timestamp).toLocaleString([], {
+                                                                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                                                            })}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="text-center text-slate-400 text-sm py-8">
@@ -361,6 +522,8 @@ const ChannelDetail = ({ userRole }) => {
                     </Card>
                 </div>
             </div>
+
+
         </div>
     );
 };

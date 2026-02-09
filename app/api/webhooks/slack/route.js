@@ -158,17 +158,34 @@ async function reactToMessage(channel, timestamp, emoji) {
 }
 
 function classifyMessage(text) {
-    // Nettoyage : suppression des mentions <@Uxxxx> pour lire la commande proprement
-    const cleanText = text ? text.replace(/<@[a-zA-Z0-9]+>/g, "").trim() : "";
+    if (!text) return { type: 'DISCUSSION', content: "" };
 
-    if (cleanText.startsWith('✅')) return { type: 'APPROVE', content: cleanText.substring(1).trim() };
-    if (cleanText.startsWith('❌')) return { type: 'REJECT', content: cleanText.substring(1).trim() };
-    if (cleanText.startsWith('🔁')) return { type: 'TRANSFER', content: cleanText.substring(1).trim() };
-    if (cleanText.startsWith('✏️')) return { type: 'EDIT', content: cleanText.substring(1).trim() };
-    if (cleanText.startsWith('💬')) return { type: 'COMMENT', content: cleanText.substring(1).trim() };
-    if (cleanText.startsWith('🗃️')) return { type: 'ARCHIVE', content: cleanText.substring(2).trim() };
+    // 1. Clean formatting (mentions, bold *, code `)
+    // We keep emojis but remove <@U123>
+    let clean = text.replace(/<@[a-zA-Z0-9]+>/g, "").trim();
 
-    return { type: 'DISCUSSION', content: cleanText };
+
+
+    // 2. Define Action Patterns (Regex for robustness)
+    // Support Unicode AND Slack shortcodes (e.g. :white_check_mark:)
+    // Also ignore optional "/" or "-" separators after emoji
+    const patterns = [
+        { type: 'APPROVE', regex: /(:white_check_mark:|✅|:check:|✔️|✓)\s*[\/\-]?\s*(.*)/i },
+        { type: 'REJECT', regex: /(:x:|❌|:cross_mark:|✖️)\s*[\/\-]?\s*(.*)/i },
+        { type: 'TRANSFER', regex: /(:repeat:|🔁|:arrows_counterclockwise:)\s*[\/\-]?\s*(.*)/i },
+        { type: 'EDIT', regex: /(:pencil2:|✏️|:pencil:|📝)\s*[\/\-]?\s*(.*)/i },
+        { type: 'COMMENT', regex: /(:speech_balloon:|💬|:thought_balloon:)\s*[\/\-]?\s*(.*)/i },
+        { type: 'ARCHIVE', regex: /(:card_file_box:|🗃️|:archive:)\s*[\/\-]?\s*(.*)/i }
+    ];
+
+    for (const p of patterns) {
+        const match = clean.match(p.regex);
+        if (match) {
+            return { type: p.type, content: match[2].trim() }; // match[2] captures the text after emoji
+        }
+    }
+
+    return { type: 'DISCUSSION', content: clean };
 }
 
 async function handleFiles(files) {

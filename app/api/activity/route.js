@@ -4,8 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
+    console.log("🚀 API Activity: Executing Optimized Query with DB Filtering");
     const { searchParams } = new URL(req.url);
-    const channelId = searchParams.get('channelId'); // Optional: filter by channel
+    const channelId = searchParams.get('channelId'); // This is the UUID from monitored_resources
 
     const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -13,6 +14,26 @@ export async function GET(req) {
     );
 
     try {
+        let targetSlackChannelId = null;
+
+        // 1. Resolve UUID -> Slack Channel ID (e.g., C0A36CT0GNN)
+        if (channelId) {
+            const { data: resource, error: resourceError } = await supabase
+                .from('monitored_resources')
+                .select('external_id')
+                .eq('id', channelId)
+                .single();
+
+            if (resourceError && resourceError.code !== 'PGRST116') {
+                console.error("Error resolving channel ID:", resourceError);
+            }
+
+            if (resource) {
+                targetSlackChannelId = resource.external_id;
+            }
+        }
+
+        // 2. Build Query
         let query = supabase
             .from('activity_logs')
             .select(`
@@ -28,48 +49,27 @@ export async function GET(req) {
                     role
                 )
             `)
-            // Exclude simple discussions - only show actions, system events, files
             .not('action_type', 'in', '("DISCUSSION","DISCUSSION_ANONYMOUS")')
             .order('created_at', { ascending: false })
             .limit(100);
 
-        // If channelId provided, filter by slack channel in metadata
-        if (channelId) {
-            const { data: resource } = await supabase
-                .from('monitored_resources')
-                .select('external_id')
-                .eq('id', channelId)
-                .single();
-
-            if (resource) {
-                // Use containment operator for JSONB filtering
-                query = query.contains('metadata', { slack_channel: resource.external_id });
-            }
+        // 3. Apply DB-level Filter if we have a target Slack ID
+        if (targetSlackChannelId) {
+            // Use arrow operator for JSONB to filter by text value
+            // Note: This requires the column to be indexed for performance in large DBs, 
+            // but is fine for now.
+            query = query.eq('metadata->>slack_channel', targetSlackChannelId);
         }
 
         const { data: logs, error } = await query;
 
         if (error) throw error;
 
-        // Filter: only include events that are actions, have attachments, or are system events
-        const filteredLogs = logs.filter(log => {
-            const actionType = log.action_type;
-            const hasAttachments = log.metadata?.attachments?.length > 0;
-
-            // Include if it's a real action (not discussion)
-            const isAction = ['APPROVE', 'REJECT', 'TRANSFER', 'EDIT', 'ARCHIVE', 'COMMENT'].includes(actionType);
-
-            // Include if it's a system event (member_joined, file_shared, etc.)
-            const isSystemEvent = ['MEMBER_JOINED', 'FILE_SHARED', 'CHANNEL_CREATED'].includes(actionType);
-
-            // Include anonymous attempted actions (for audit trail)
-            const isAttemptedAction = actionType === 'ATTEMPTED_ACTION_ANONYMOUS';
-
-            return isAction || isSystemEvent || isAttemptedAction || hasAttachments;
-        });
+        // No need for in-memory filtering of channels anymore
+        // We still keep the mapping logic
 
         // Map to UI format
-        const events = filteredLogs.map(log => {
+        const events = logs.map(log => {
             let actorName;
             let role;
 
@@ -98,7 +98,13 @@ export async function GET(req) {
             };
         });
 
-        return NextResponse.json({ events });
+        return NextResponse.json({ events }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
     } catch (err) {
         console.error('Error fetching activity logs:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });
