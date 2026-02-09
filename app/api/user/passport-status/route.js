@@ -33,10 +33,10 @@ export async function GET(req) {
             return NextResponse.json({ error: 'User not identified' }, { status: 401 });
         }
 
-        // 2. Fetch User Profile
+        // 2. Fetch User Profile (INCLUDING slack_user_id)
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('id, email, full_name, role, organization_id')
+            .select('id, email, full_name, role, organization_id, slack_user_id')
             .eq('id', targetUserId)
             .single();
 
@@ -44,45 +44,63 @@ export async function GET(req) {
             return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
         }
 
-        // 3. Check Slack Status (Auto-Match Logic)
-        // Check for active Slack integration
+        // 3. Get Integration Token
         const { data: orgIntegration } = await supabase
             .from('integrations')
             .select('*')
             .eq('organization_id', profile.organization_id || 'org_123')
             .eq('provider', 'slack')
-            //.eq('status', 'active') // Status column does not exist!
             .single();
 
         let slackStatus = { connected: false };
-        let debugInfo = { integrationFound: false };
+        let debugInfo = { mode: 'init' };
 
         // Check recursively for token in known locations
         const accessToken = orgIntegration?.access_token || orgIntegration?.settings?.bot_token || orgIntegration?.settings?.access_token;
 
-        if (accessToken) {
+        // --- STRATEGY A: DATABASE LINK (Confirmed Manual Link) ---
+        if (profile.slack_user_id) {
+            debugInfo.mode = 'database_link';
+            slackStatus = {
+                connected: true,
+                source: 'database_link',
+                slackId: profile.slack_user_id,
+                email: 'Linked Account', // Placeholder
+                lastSync: new Date().toISOString()
+            };
+
+            // Enhance with real data from Slack API if token available
+            if (accessToken) {
+                try {
+                    const slackRes = await fetch(`https://slack.com/api/users.info?user=${profile.slack_user_id}`, {
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+                    const slackData = await slackRes.json();
+
+                    if (slackData.ok && slackData.user) {
+                        slackStatus.email = slackData.user.profile.email;
+                        slackStatus.workspaceName = 'Slack Workspace';
+                        slackStatus.avatar = slackData.user.profile.image_48;
+                    }
+                } catch (e) {
+                    console.error("Slack Enrichment Error:", e);
+                }
+            }
+        }
+
+        // --- STRATEGY B: AUTO-DISCOVERY (Fallback) ---
+        else if (accessToken) {
+            debugInfo.mode = 'auto_discovery';
             try {
-                debugInfo.integrationFound = true;
-                debugInfo.hasToken = true;
-
-                // Determine token to use
-                const token = accessToken;
-
                 // Call Slack API to get member list
-                debugInfo.apiCallAttempted = true;
-
-                // Note: For production with large workspaces, pagination is required.
                 const slackResponse = await fetch('https://slack.com/api/users.list', {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
 
                 const slackData = await slackResponse.json();
-                debugInfo.apiCallSuccess = slackData.ok;
 
                 if (slackData.ok && slackData.members) {
                     const userEmail = profile.email.toLowerCase().trim();
-                    debugInfo.targetEmail = userEmail;
-                    debugInfo.memberCount = slackData.members.length;
 
                     // Find match
                     const match = slackData.members.find(m =>
@@ -91,12 +109,11 @@ export async function GET(req) {
 
                     if (match) {
                         slackStatus = {
-                            connected: true,
-                            lastSync: new Date().toISOString(),
-                            email: match.profile.email,
+                            connected: true, // It's "connected" in terms of visibility, but not linked in DB yet
                             source: 'auto_match_api',
                             slackId: match.id,
-                            workspaceName: 'Slack Workspace' // Could fetch team.info too
+                            email: match.profile.email,
+                            workspaceName: 'Slack Workspace'
                         };
                     } else {
                         slackStatus = {
@@ -106,14 +123,6 @@ export async function GET(req) {
                             userEmail: userEmail
                         };
                     }
-                } else {
-                    console.error('Slack API error:', slackData.error);
-                    slackStatus = {
-                        connected: false,
-                        reason: 'api_error',
-                        message: `Slack API Error: ${slackData.error}`
-                    };
-                    debugInfo.apiError = slackData.error;
                 }
             } catch (apiError) {
                 console.error('Slack API call failed:', apiError);
@@ -122,15 +131,12 @@ export async function GET(req) {
                     reason: 'network_error',
                     message: `Network Error: ${apiError.message}`
                 };
-                debugInfo.networkError = apiError.message;
             }
         } else {
-            debugInfo.integrationFound = !!orgIntegration;
-            debugInfo.hasToken = false;
             slackStatus = {
                 connected: false,
                 reason: 'no_integration_token',
-                message: "Organization has not connected Slack, or integration is inactive."
+                message: "No Slack integration found."
             };
         }
 

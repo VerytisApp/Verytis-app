@@ -247,9 +247,29 @@ export async function POST(req) {
 
             // 1. JOIN CHANNEL
             if (event.type === 'member_joined_channel') {
-                console.log("👋 SENDING WELCOME (Join Event)");
-                await sendSlackMessage(event.channel, WELCOME_BLOCKS);
-                return NextResponse.json({ status: 'welcome_sent' });
+                // Fetch Bot ID to determine if it's the bot joining or a user
+                let botId = null;
+                try {
+                    const authRes = await fetch('https://slack.com/api/auth.test', {
+                        headers: { 'Authorization': `Bearer ${SLACK_BOT_TOKEN}` }
+                    });
+                    const authData = await authRes.json();
+                    if (authData.ok) botId = authData.user_id;
+                } catch (e) { console.error("Auth test failed:", e); }
+
+                const isBotJoining = event.user === botId;
+                console.log(`👋 Join Event: User ${event.user} (Bot: ${botId})`);
+
+                if (isBotJoining) {
+                    // Bot joined -> Public Hello
+                    console.log("🤖 Bot joined channel -> Sending PUBLIC Welcome");
+                    await sendSlackMessage(event.channel, WELCOME_BLOCKS);
+                } else {
+                    // User joined -> Private DM
+                    console.log("👤 User joined -> Sending PRIVATE Welcome (DM)");
+                    await sendSlackMessage(event.user, WELCOME_BLOCKS);
+                }
+                return NextResponse.json({ status: 'welcome_processed' });
             }
 
             // 2. MESSAGES & MENTIONS
@@ -271,6 +291,7 @@ export async function POST(req) {
                 const textLower = event.text ? event.text.toLowerCase() : "";
                 if (textLower.includes('help') || textLower.includes('aide')) {
                     console.log("🆘 WELCOME TRIGGERED BY HELP COMMAND");
+                    // Answer in same channel (public or private)
                     await sendSlackMessage(event.channel, WELCOME_BLOCKS);
                     return NextResponse.json({ status: 'help_sent' });
                 }
@@ -320,8 +341,8 @@ export async function POST(req) {
                                 isVerified = true;
                                 console.log(`✨ MAGIC LINK SUCCESS: ${email} is now linked to ${slackUserId}`);
 
-                                // Petit notif de bienvenue pour confirmer le lien
-                                await sendSlackMessage(event.channel, `👋 Compte lié avec succès ! Je vous ai reconnu via votre email *${email}*. Vos actions sont maintenant certifiées.`);
+                                // Notification de succès en DM (Message Privé)
+                                await sendSlackMessage(slackUserId, `👋 Compte lié avec succès ! Je vous ai reconnu via votre email *${email}*. Vos actions sont maintenant certifiées.`);
                             }
                         }
                     } catch (e) {

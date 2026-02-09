@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Download, Activity, CheckCircle, Settings, FileText, UserPlus, FilterX } from 'lucide-react';
+import { ArrowLeft, Download, Activity, CheckCircle, Settings, FileText, UserPlus, FilterX, XCircle, RefreshCw, Edit2, GitCommit, Archive as ArchiveIcon } from 'lucide-react';
 import { Card, Button, PlatformIcon } from '../ui';
 import { MOCK_CHANNELS, MOCK_TIMELINE_EVENTS, MOCK_TEAMS } from '../../data/mockData';
 
@@ -131,15 +131,30 @@ const Timeline = ({ userRole }) => {
         return groups;
     }, {});
 
-    const getEventIcon = (type) => {
-        switch (type) {
-            case 'decision': return <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />;
-            case 'comment': return <Activity className="w-3.5 h-3.5 text-blue-500" />;
-            case 'file': return <FileText className="w-3.5 h-3.5 text-orange-500" />;
-            case 'system': return <Settings className="w-3.5 h-3.5 text-slate-500" />;
-            case 'anonymous': return <UserPlus className="w-3.5 h-3.5 text-amber-500" />;
-            default: return <Activity className="w-3.5 h-3.5 text-slate-400" />;
+    const getEventIcon = (event) => {
+        let style = { icon: Activity, color: 'text-slate-400' };
+
+        if (event.type === 'decision') {
+            const decisionStyles = {
+                'Approval': { icon: CheckCircle, color: 'text-emerald-600' },
+                'Rejection': { icon: XCircle, color: 'text-rose-600' },
+                'Transfer': { icon: RefreshCw, color: 'text-purple-600' },
+                'Edit': { icon: Edit2, color: 'text-blue-600' },
+                'Archive': { icon: ArchiveIcon, color: 'text-slate-600' }
+            };
+            style = decisionStyles[event.action] || decisionStyles['Approval'];
+        } else if (event.type === 'file') {
+            style = { icon: FileText, color: 'text-orange-500' };
+        } else if (event.type === 'comment') {
+            style = { icon: GitCommit, color: 'text-blue-500' };
+        } else if (event.type === 'system') {
+            style = { icon: Settings, color: 'text-slate-500' };
+        } else if (event.type === 'anonymous') {
+            style = { icon: UserPlus, color: 'text-amber-500' };
         }
+
+        const Icon = style.icon;
+        return <Icon className={`w-3.5 h-3.5 ${style.color}`} />;
     };
 
     return (
@@ -215,7 +230,7 @@ const Timeline = ({ userRole }) => {
                                     {events.map(event => (
                                         <div key={event.id} className="relative pl-10 group">
                                             <div className="absolute left-3 top-3.5 w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm z-10 group-hover:border-slate-400 transition-colors">
-                                                {getEventIcon(event.type)}
+                                                {getEventIcon(event)}
                                             </div>
                                             <Card className="p-3 hover:shadow-md transition-shadow group-hover:border-slate-300">
                                                 <div className="flex justify-between items-start">

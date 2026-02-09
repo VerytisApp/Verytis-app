@@ -12,6 +12,11 @@ const PassportIDSettings = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    // Manual Linking State
+    const [showLinkModal, setShowLinkModal] = useState(false);
+    const [slackEmailInput, setSlackEmailInput] = useState('');
+    const [linkStatus, setLinkStatus] = useState('idle'); // idle, sending, success, error
+
     // Sync Slack info to Context when status is loaded and connected
     useEffect(() => {
         if (passportStatus?.connections?.slack?.connected && passportStatus.connections.slack.slackId) {
@@ -106,8 +111,140 @@ const PassportIDSettings = () => {
         );
     }
 
+
+
+    const handleSendLink = async () => {
+        if (!slackEmailInput || !slackEmailInput.includes('@')) return;
+
+        setLinkStatus('sending');
+        try {
+            const res = await fetch('/api/user/link-slack-manual', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: currentUser.id,
+                    slackEmail: slackEmailInput
+                })
+            });
+
+            if (res.ok) {
+                setLinkStatus('success');
+                setTimeout(() => {
+                    setShowLinkModal(false);
+                    setLinkStatus('idle');
+                    setSlackEmailInput('');
+                }, 3000);
+            } else {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to send link');
+            }
+        } catch (e) {
+            console.error(e);
+            setLinkStatus('error');
+        }
+    };
+
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300 relative">
+            {/* LINK MODAL */}
+            {showLinkModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowLinkModal(false)} />
+                    <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-[440px] overflow-hidden ring-1 ring-slate-900/5 animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-start bg-slate-50/30">
+                            <div>
+                                <h3 className="font-bold text-lg text-slate-900">Link Slack Account</h3>
+                                <p className="text-xs text-slate-500 mt-1">Connect your workspace identity to Verytis.</p>
+                            </div>
+                            <button
+                                onClick={() => setShowLinkModal(false)}
+                                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 transition-colors -mr-2 -mt-2"
+                            >
+                                <XCircle className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-5">
+                            {linkStatus === 'success' ? (
+                                <div className="text-center py-6 space-y-4 animate-in zoom-in-95">
+                                    <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto ring-8 ring-emerald-50/50">
+                                        <CheckCircle className="w-8 h-8" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-lg font-bold text-slate-900">Check your inbox!</h4>
+                                        <p className="text-sm text-slate-500 mt-2 max-w-[280px] mx-auto leading-relaxed">
+                                            We sent a verification link to <br />
+                                            <strong className="text-slate-800">{slackEmailInput}</strong>
+                                        </p>
+                                    </div>
+                                    <div className="pt-2">
+                                        <p className="text-xs text-slate-400">Click the link in the email to complete setup.</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="space-y-4">
+                                        <p className="text-sm text-slate-600 leading-relaxed">
+                                            Enter the email address associated with your Slack account. We'll send a secure magic link to verify ownership.
+                                        </p>
+
+                                        <div className="space-y-2">
+                                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide">Slack Email Address</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="email"
+                                                    value={slackEmailInput}
+                                                    onChange={(e) => setSlackEmailInput(e.target.value)}
+                                                    placeholder="name@company.com"
+                                                    autoFocus
+                                                    className={`w-full p-3 pl-4 border rounded-xl text-sm outline-none transition-all shadow-sm ${linkStatus === 'error'
+                                                        ? 'border-rose-300 focus:ring-2 focus:ring-rose-100 bg-rose-50/30 text-rose-900 placeholder:text-rose-300'
+                                                        : 'border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 placeholder:text-slate-400'
+                                                        }`}
+                                                />
+                                            </div>
+                                            {linkStatus === 'error' && (
+                                                <p className="text-xs text-rose-600 font-medium flex items-center gap-1 animate-in slide-in-from-top-1">
+                                                    <XCircle className="w-3 h-3" />
+                                                    We couldn't reach that email. Please try again.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Footer Actions */}
+                        {linkStatus !== 'success' && (
+                            <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex justify-end gap-3">
+                                <button
+                                    onClick={() => setShowLinkModal(false)}
+                                    className="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSendLink}
+                                    disabled={!slackEmailInput || linkStatus === 'sending'}
+                                    className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
+                                >
+                                    {linkStatus === 'sending' ? (
+                                        <>
+                                            <RefreshCw className="w-4 h-4 animate-spin" />
+                                            Sending Link...
+                                        </>
+                                    ) : (
+                                        'Send Verification Link'
+                                    )}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -214,7 +351,13 @@ const PassportIDSettings = () => {
                                             </div>
                                         )}
                                         <div className="flex justify-end">
-                                            <button className="text-xs font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline">
+                                            <button
+                                                onClick={() => {
+                                                    console.log("Opening Link Modal");
+                                                    setShowLinkModal(true);
+                                                }}
+                                                className="text-xs font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline"
+                                            >
                                                 {status?.reason === 'email_mismatch' ? 'Link Account Manually' : 'Connect manually'} &rarr;
                                             </button>
                                         </div>
