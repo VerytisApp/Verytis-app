@@ -69,36 +69,38 @@ export async function GET(req) {
         // We still keep the mapping logic
 
         // Map to UI format
-        let actorName;
-        let role;
-        let email = null;
+        const events = logs.map(log => {
+            let actorName;
+            let role;
+            let email = null;
 
-        // Connected user (has actor_id and profile)
-        if (log.actor_id && log.profiles?.full_name) {
-            actorName = log.profiles.full_name;
-            role = log.profiles.role || 'Member';
-            email = log.profiles.email;
-        }
-        // Anonymous user (not connected to Verytis)
-        else {
-            actorName = log.metadata?.slack_user_name || 'User X';
-            role = 'Not connected';
-        }
+            // Connected user (has actor_id and profile)
+            if (log.actor_id && log.profiles?.full_name) {
+                actorName = log.profiles.full_name;
+                role = log.profiles.role || 'Member';
+                email = log.profiles.email;
+            }
+            // Anonymous user (not connected to Verytis)
+            else {
+                actorName = log.metadata?.slack_user_name || 'User X';
+                role = 'Not connected';
+            }
 
-        return {
-            id: log.id,
-            timestamp: log.created_at,
-            type: mapActionType(log.action_type),
-            action: formatAction(log.action_type),
-            target: log.summary || 'No description',
-            actor: actorName,
-            email: email,
-            role: role,
-            meta: log.metadata?.attachments?.length > 0 ? `${log.metadata.attachments.length} file(s)` : null,
-            isAnonymous: log.metadata?.is_anonymous || false,
-            channelId: log.metadata?.slack_channel || 'Unknown',
-            rawMetadata: log.metadata // Include full metadata for audit export (proofs, text, etc.)
-        };
+            return {
+                id: log.id,
+                timestamp: log.created_at,
+                type: mapActionType(log.action_type),
+                action: formatAction(log.action_type),
+                target: log.summary || 'No description',
+                actor: actorName,
+                email: email,
+                role: role,
+                meta: log.metadata?.attachments?.length > 0 ? `${log.metadata.attachments.length} file(s)` : null,
+                isAnonymous: log.metadata?.is_anonymous || false,
+                channelId: log.metadata?.slack_channel || 'Unknown',
+                rawMetadata: log.metadata // Include full metadata for audit export (proofs, text, etc.)
+            };
+        });
 
         return NextResponse.json({ events }, {
             headers: {
