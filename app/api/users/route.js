@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 10; // Cache for 10 seconds
 
 export async function GET(req) {
     const TEST_ORG_ID = '5db477f6-c893-4ec4-9123-b12160224f70'; // Hardcoded for MVP
@@ -17,7 +17,7 @@ export async function GET(req) {
         const { data: users, error } = await supabase
             .from('profiles')
             .select(`
-                id, full_name, email, avatar_url, role, status, job_title,
+                id, full_name, email, avatar_url, role, status, job_title, slack_user_id,
                 team_members (
                     role,
                     teams (id, name)
@@ -28,9 +28,13 @@ export async function GET(req) {
         if (error) throw error;
 
         const formattedUsers = users.map(user => {
-            const managedTeams = user.team_members
-                ?.filter(tm => tm.role === 'lead' && tm.teams)
-                .map(tm => tm.teams) || [];
+            const allTeams = user.team_members?.map(tm => ({
+                id: tm.teams.id,
+                name: tm.teams.name,
+                role: tm.role
+            })) || [];
+
+            const managedTeams = allTeams.filter(t => t.role === 'lead');
 
             return {
                 id: user.id,
@@ -41,11 +45,17 @@ export async function GET(req) {
                 status: user.status || 'active',
                 job_title: user.job_title || '',
                 initials: (user.full_name || user.email).slice(0, 2).toUpperCase(),
-                managedTeams // List of teams they manage
+                teams: allTeams, // All teams they belong to
+                managedTeams, // List of teams they manage
+                slackId: user.slack_user_id // Verification Status
             };
         });
 
-        return NextResponse.json({ users: formattedUsers });
+        return NextResponse.json({ users: formattedUsers }, {
+            headers: {
+                'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30'
+            }
+        });
     } catch (error) {
         console.error('Error fetching users:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });

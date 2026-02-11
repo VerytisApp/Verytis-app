@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import { ChevronRight, Clock, Download, CheckCircle, GitCommit, UserPlus, FileText, XCircle, RefreshCw, Edit2, Archive as ArchiveIcon } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon } from '../ui';
-import { MOCK_CHANNELS, MOCK_USERS, MOCK_RECENT_DECISIONS, MOCK_CHANNEL_ACTIVITY, MOCK_TEAMS } from '../../data/mockData';
 
 const ChannelDetail = ({ userRole }) => {
     const { channelId } = useParams();
@@ -30,13 +29,7 @@ const ChannelDetail = ({ userRole }) => {
             // No, let's just use a direct query via a new helper or just fetch all and find. 
             // Fetching all is inefficient ID lookup. 
 
-            // Allow mock ID lookup first (for legacy mocks if any)
-            const mock = MOCK_CHANNELS.find(c => c.id.toString() === channelId);
-            if (mock) {
-                setChannel(mock);
-                setLoading(false);
-                return;
-            }
+
 
             // Fetch from API (we will create a dedicated endpoint or just list and find for now)
             // For urgency, I will use /api/resources/list and find. 

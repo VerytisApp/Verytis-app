@@ -17,6 +17,12 @@ export async function GET(req, { params }) {
             .eq('id', userId)
             .single();
 
+        const { data: permissions } = await supabase
+            .from('user_permissions')
+            .select('permission_key')
+            .eq('user_id', userId)
+            .eq('is_enabled', true);
+
         if (error) throw error;
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
@@ -30,9 +36,9 @@ export async function GET(req, { params }) {
             status: user.status || 'Active',
             title: user.job_title || 'Team Member',
             initials: (user.full_name || user.email).slice(0, 2).toUpperCase(),
-            // Mock permissions for now until permissions table is fully utilized
+            // Permissions from DB
             auditEnabled: true,
-            scopes: []
+            scopes: permissions ? permissions.map(p => p.permission_key) : []
         };
 
         return NextResponse.json({ user: formattedUser });
@@ -57,6 +63,8 @@ export async function PATCH(req, { params }) {
         if (body.name) updates.full_name = body.name;
         if (body.role) updates.role = body.role.toLowerCase(); // Ensure enum match if case sensitive
         if (body.status) updates.status = body.status.toLowerCase();
+        // if (body.scopes) updates.scopes = body.scopes; // Removed: profiles table does not have scopes column
+        // Scopes are handled via user_permissions table below
 
         const { data, error } = await supabase
             .from('profiles')
@@ -67,15 +75,43 @@ export async function PATCH(req, { params }) {
 
         if (error) throw error;
 
-        // 1. Upgrade Case: Assign to Team as Lead
-        if (body.assignTeamId) {
+        // Handle Scopes Update (user_permissions)
+        if (body.scopes) {
+            // 1. Remove existing permissions for this user
+            const { error: deleteError } = await supabase
+                .from('user_permissions')
+                .delete()
+                .eq('user_id', userId);
+
+            if (deleteError) console.error("Error clearing old permissions:", deleteError);
+
+            // 2. Insert new permissions
+            if (body.scopes.length > 0) {
+                const newPermissions = body.scopes.map(scope => ({
+                    user_id: userId,
+                    permission_key: scope,
+                    is_enabled: true
+                }));
+
+                const { error: insertError } = await supabase
+                    .from('user_permissions')
+                    .insert(newPermissions);
+
+                if (insertError) console.error("Error inserting new permissions:", insertError);
+            }
+        }
+
+        // 1. Upgrade/Manager assignment: Assign to Team as Lead
+        // Support both old `assignTeamId` and new standard `teamId` from frontend
+        const targetTeamId = body.teamId || body.assignTeamId;
+        if (targetTeamId && body.role === 'manager') {
             const { error: teamError } = await supabase
                 .from('team_members')
                 .upsert({
-                    team_id: body.assignTeamId,
+                    team_id: targetTeamId,
                     user_id: userId,
                     role: 'lead'
-                }, { onConflict: 'team_id,user_id' }); // Upsert updates role if already member
+                }, { onConflict: 'team_id,user_id' });
 
             if (teamError) console.error("Error assigning manager to team:", teamError);
         }

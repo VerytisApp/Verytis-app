@@ -3,7 +3,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Shield, FileText, Slack, Users, CheckCircle, XCircle, UserCheck, Download, Table, FileSpreadsheet, X, Calendar, Search, Filter, Lock } from 'lucide-react';
 import { Card, Button, PlatformIcon, Modal } from '../ui';
-import { MOCK_CHANNELS, MOCK_CHANNEL_MEMBERS, MOCK_USERS, MOCK_TEAMS } from '../../data/mockData';
 import AuditLogo from '../image/LOGO.PNG-ICARE.svg';
 import SlackLogo from '../image/Slack Logo 2019.png';
 import TeamsLogo from '../image/Microsoft Teams Logo.webp';
@@ -16,6 +15,7 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
     const [realEvents, setRealEvents] = useState([]);
     const [realChannels, setRealChannels] = useState([]); // All available channels from DB
     const [realTeams, setRealTeams] = useState([]);
+    const [availableUsers, setAvailableUsers] = useState([]); // Verified Users from DB
     const [loadingEvents, setLoadingEvents] = useState(false);
 
     // Filter States
@@ -31,53 +31,36 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
 
     const [exportModal, setExportModal] = useState({ type: null, isOpen: false });
 
-    // Derived User: Use passed prop or fallback to mock
-    const currentUser = propUser || (MOCK_USERS.find(u => u.role === (userRole === 'Member' ? 'Employee' : userRole)) || MOCK_USERS[0]);
+    // Derived User: Use passed prop
+    const currentUser = propUser;
+
+    const hasAuditScope = userRole === 'Admin' || (userRole === 'Manager' && (currentUser?.scopes?.includes('Channel Audit') || currentUser?.scopes?.includes('Documentation Audit')));
 
     // Reset report type when role changes
     useEffect(() => {
-        if (userRole === 'Member') {
+        if (userRole === 'Member' || (userRole === 'Manager' && !hasAuditScope)) {
             setReportType('Full Channel Audit (Your Activity Only)');
         } else {
             setReportType('Full Channel Audit');
         }
-    }, [userRole]);
+    }, [userRole, hasAuditScope]);
 
-    // Manager Scope Check
-    const managerTeam = MOCK_TEAMS.find(t => t.name === 'Engineering & Product' || t.name === 'Finance & Legal'); // Mock team finder
-    // In a real app we would match currentUser.teamId
-    const hasAuditScope = userRole === 'Admin' || (userRole === 'Manager' && (currentUser.scopes?.includes('Channel Audit') || currentUser.scopes?.includes('Documentation Audit')));
 
-    // Filter channels based on selected platform
-    const allPlatformChannels = MOCK_CHANNELS.filter(c => c.platform.toLowerCase() === platform.toLowerCase());
+    // Compute available teams for the current user
+    const availableTeams = (() => {
+        if (userRole === 'Admin') return realTeams;
+        if (userRole === 'Manager' && currentUser?.teams && currentUser.teams.length > 0) {
+            return currentUser.teams;
+        }
+        // Fallback for Manager without teams or Member
+        return [];
+    })();
 
     // Filter logic for Manager and Admin (with Team selection)
     const getAvailableChannels = () => {
-        // "My Activity" mode: only show channels where the current user has events
+        // "My Activity" mode: Allow selection from all available channels (filtering of events happens later)
         if (reportType.includes('My Activity') || reportType.includes('Your Activity')) {
-            const myEmail = currentUser?.email?.toLowerCase() || '';
-            const myName = currentUser?.name?.toLowerCase() || '';
-
-            console.log("Debug - My Activity Filter:", { myName, myEmail, eventCount: realEvents.length });
-
-            // Find unique channelIds where the user is the actor
-            const myChannelIds = new Set();
-            realEvents.forEach(ev => {
-                const actorLower = (ev.actor || '').toLowerCase();
-                const emailLower = (ev.email || '').toLowerCase();
-                // relaxed match
-                const firstName = myName.split(' ')[0];
-                const matches = actorLower.includes(myName) ||
-                    (firstName && actorLower.includes(firstName)) ||
-                    actorLower === myEmail ||
-                    (myEmail && emailLower.includes(myEmail));
-
-                if (matches) {
-                    myChannelIds.add(ev.channelId);
-                }
-            });
-            console.log("Debug - Matches Found for Channels:", Array.from(myChannelIds));
-            return realChannels.filter(c => myChannelIds.has(c.id));
+            return realChannels;
         }
 
         if (userRole === 'Admin') {
@@ -86,10 +69,24 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
             return realChannels.filter(c => c.teamId && c.teamId.toString() === targetTeamId);
         }
 
+        if (userRole === 'Manager') {
+            // If Manager selects a specific team
+            if (selectedTeamId && selectedTeamId !== 'all') {
+                return realChannels.filter(c => c.teamId && c.teamId.toString() === selectedTeamId.toString());
+            }
+            // Otherwise, show channels from ALL teams they manage/belong to
+            if (availableTeams.length > 0) {
+                const myTeamIds = new Set(availableTeams.map(t => t.id));
+                return realChannels.filter(c => c.teamId && myTeamIds.has(c.teamId));
+            }
+            // If no teams found for manager, show none
+            return [];
+        }
+
         return realChannels;
     };
 
-    const availableChannels = getAvailableChannels();
+    const availableChannels = getAvailableChannels().filter(c => (c.platform || 'Slack').toLowerCase() === platform.toLowerCase());
 
     // Fetch Real Data on Mount
     useEffect(() => {
@@ -114,14 +111,22 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
 
                 // Build unique channel list from Resources immediately
                 const channelList = resources.map(r => ({
-                    id: r.external_id, // Use external_id as the filter key since logs use it usually
+                    id: r.external_id || r.id, // Fallback to UUID if external ID is missing
                     name: r.name || r.external_id,
                     team: r.teams?.name || 'Unassigned',
                     teamId: r.team_id,
-                    platform: 'Slack'
+                    platform: r.platform || 'Slack'
                 }));
                 console.log("Real Channels Set:", channelList);
                 setRealChannels(channelList);
+
+                // 3. Fetch Users for Audit Selection
+                const usersRes = await fetch('/api/users');
+                if (usersRes.ok) {
+                    const userData = await usersRes.json();
+                    console.log("DEBUG: Users Fetched:", userData);
+                    setAvailableUsers(userData.users || []);
+                }
 
                 if (logsData.events) {
                     // Create a map of External ID -> Resource
@@ -170,22 +175,20 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
             filtered = filtered.filter(e => selectedChannels.includes(e.channelId));
         }
 
-        // 3. Member Filter — only for "Selected Member Audit" modes
-        if (reportType.includes('Selected Member') && selectedMembers.length > 0) {
-            // Build a set of member names/emails from mock data for matching
-            const memberNames = new Set();
-            selectedMembers.forEach(memberId => {
-                const member = MOCK_CHANNEL_MEMBERS.find(m => m.id === memberId);
-                if (member) {
-                    memberNames.add(member.name.toLowerCase());
-                    if (member.email) memberNames.add(member.email.toLowerCase());
-                }
+        // 3. Member Filter — for "Selected Member" or "Team Member" audits
+        if (reportType.includes('Member') && !reportType.includes('My Activity') && selectedMembers.length > 0) {
+            const targets = new Set(selectedMembers.map(m => m.toLowerCase()));
+
+            // Add Names to targets (since logs might only have actor name)
+            selectedMembers.forEach(key => {
+                const u = availableUsers.find(user => user.email === key || user.id === key);
+                if (u && u.name) targets.add(u.name.toLowerCase());
             });
+
             filtered = filtered.filter(e => {
-                const actorLower = (e.actor || '').toLowerCase();
-                const emailLower = (e.email || '').toLowerCase();
-                return memberNames.has(actorLower) || memberNames.has(emailLower) ||
-                    [...memberNames].some(n => actorLower.includes(n));
+                const eEmail = (e.email || '').toLowerCase();
+                const eActor = (e.actor || '').toLowerCase();
+                return targets.has(eEmail) || targets.has(eActor);
             });
         }
 
@@ -222,26 +225,7 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
     const filteredEvents = filterEvents();
     // const availableChannels = realChannels; // Use real channels derived from logs - now using getAvailableChannels()
 
-    // Manager View blocked if no scope
-    if (userRole === 'Manager' && !hasAuditScope) {
-        return (
-            <div className="space-y-6 animate-in fade-in duration-300">
-                <header>
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Audit Documentation</h1>
-                    <p className="text-slate-500 mt-1 text-xs font-medium">Generate compliance reports for team channels.</p>
-                </header>
-                <Card className="p-12 text-center">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Lock className="w-8 h-8 text-slate-400" />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-900 mb-2">Audit Access Restricted</h3>
-                    <p className="text-sm text-slate-500 max-w-md mx-auto">
-                        Your account does not have the necessary "Audit" or "Documentation" scopes enabled to perform channel audits. Please contact your administrator.
-                    </p>
-                </Card>
-            </div>
-        );
-    }
+
 
     const handleChannelSelect = (channelName) => {
         if (selectedChannels.includes(channelName)) {
@@ -706,8 +690,8 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
                                 </div>
                             </div>
 
-                            {/* Team Selector (Admin Only - Hidden for Personal Audit) */}
-                            {userRole === 'Admin' && !reportType.includes('My Activity') && (
+                            {/* Team Selector (Admin and Manager only) */}
+                            {(userRole === 'Admin' || userRole === 'Manager') && (
                                 <div>
                                     <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Organization Team</label>
                                     <select
@@ -718,8 +702,12 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
                                         }}
                                         className="w-full bg-white border border-slate-200 rounded-md text-xs shadow-sm focus:border-slate-500 focus:ring-1 focus:ring-slate-500 py-2 px-3 outline-none font-medium"
                                     >
-                                        <option value="all">All Teams</option>
-                                        {realTeams.map(team => (
+                                        {userRole === 'Admin' ? (
+                                            <option value="all">All Teams</option>
+                                        ) : (
+                                            <option value="">Select a team (Optional)</option>
+                                        )}
+                                        {availableTeams.map(team => (
                                             <option key={team.id} value={team.id}>{team.name}</option>
                                         ))}
                                     </select>
@@ -772,71 +760,46 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
                                 )}
                             </div>
 
-                            {/* Channel Selector - always visible, adapts label to mode */}
+                            {/* Channel Selector - Checkbox List for ALL roles */}
                             <div>
                                 <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
                                     {reportType.includes('My Activity') || reportType.includes('Your Activity')
                                         ? 'My Channels'
-                                        : userRole === 'Member' ? 'Select Channel' : 'Authorized Channels'}
+                                        : 'Authorized Channels'}
                                 </label>
-                                {userRole === 'Member' ? (
-                                    <select
-                                        value={selectedChannelId}
-                                        onChange={(e) => {
-                                            setSelectedChannelId(e.target.value);
-                                            const channel = availableChannels.find(c => c.id.toString() === e.target.value);
-                                            if (channel) setSelectedChannels([channel.name]);
-                                        }}
-                                        className="w-full bg-white border border-slate-200 rounded-md text-xs shadow-sm focus:border-slate-500 focus:ring-1 focus:ring-slate-500 py-2 px-3 outline-none"
-                                    >
-                                        <option value="">Select a channel...</option>
-                                        {availableChannels.map(channel => (
-                                            <option key={channel.id} value={channel.id}>{channel.name} ({channel.team})</option>
-                                        ))}
-                                    </select>
-                                ) : (
-                                    <div className="max-h-32 overflow-y-auto border border-slate-200 rounded-md p-2 bg-slate-50">
-                                        {availableChannels.map(channel => (
-                                            <div key={channel.id} className="flex items-center gap-2 mb-1.5 last:mb-0">
-                                                <input
-                                                    type="checkbox"
-                                                    id={`chan-${channel.id}`}
-                                                    checked={selectedChannels.includes(channel.id)}
-                                                    onChange={() => handleChannelSelect(channel.id)}
-                                                    className="rounded text-slate-900 focus:ring-slate-500"
-                                                />
-                                                <label htmlFor={`chan-${channel.id}`} className="text-xs text-slate-700 cursor-pointer font-medium">
-                                                    {channel.name}
+                                <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-md p-2 bg-slate-50">
+                                    {availableChannels.map(channel => (
+                                        <div key={channel.id} className="flex items-center gap-2 mb-1.5 last:mb-0">
+                                            <input
+                                                type="checkbox"
+                                                id={`chan-${channel.id}`}
+                                                checked={selectedChannels.includes(channel.id)}
+                                                onChange={() => handleChannelSelect(channel.id)}
+                                                className="rounded text-slate-900 focus:ring-slate-500"
+                                            />
+                                            <label htmlFor={`chan-${channel.id}`} className="text-xs text-slate-700 cursor-pointer font-medium flex-1 truncate">
+                                                {channel.name}
+                                                {channel.team && channel.team !== 'Unassigned' && (
                                                     <span className="text-slate-400 ml-1 text-[10px]">({channel.team})</span>
-                                                </label>
-                                            </div>
-                                        ))}
-                                        {availableChannels.length === 0 && (
-                                            <p className="text-xs text-slate-400 p-1">
-                                                {loadingEvents ? 'Loading channels...' :
-                                                    (reportType.includes('My Activity') || reportType.includes('Your Activity'))
-                                                        ? 'No activity found matching your profile.'
-                                                        : 'No authorized channels found.'}
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
+                                                )}
+                                            </label>
+                                        </div>
+                                    ))}
+                                    {availableChannels.length === 0 && (
+                                        <p className="text-xs text-slate-400 p-1">
+                                            {loadingEvents ? 'Loading channels...' :
+                                                (reportType.includes('My Activity') || reportType.includes('Your Activity'))
+                                                    ? 'No channels found.'
+                                                    : 'No authorized channels found.'}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Member Selection Logic */}
                             {userRole !== 'Member' && reportType.includes('Member') && (() => {
-                                // Derive unique actors from real events
-                                const uniqueActors = [];
-                                const seen = new Set();
-                                realEvents.forEach(ev => {
-                                    const key = (ev.email || ev.actor || '').toLowerCase();
-                                    if (key && !seen.has(key)) {
-                                        seen.add(key);
-                                        uniqueActors.push({ id: key, name: ev.actor, email: ev.email || '' });
-                                    }
-                                });
-                                // Fallback to mock if no real actors
-                                const memberList = uniqueActors.length > 0 ? uniqueActors : MOCK_CHANNEL_MEMBERS;
+                                // Use Verified Users from DB instead of deriving from Events
+                                const memberList = availableUsers;
 
                                 return (
                                     <div className="animate-in fade-in zoom-in-95 duration-200">
@@ -844,22 +807,38 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
                                             Select Members to Audit
                                         </label>
                                         <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-md p-2 bg-slate-50">
-                                            {memberList.map(member => (
-                                                <div key={member.id} className="flex items-center gap-2 mb-1.5 last:mb-0">
-                                                    <input
-                                                        type="checkbox"
-                                                        id={`mem-${member.id}`}
-                                                        checked={selectedMembers.includes(member.id)}
-                                                        onChange={() => handleMemberSelect(member.id)}
-                                                        className="rounded text-slate-900 focus:ring-slate-500"
-                                                    />
-                                                    <label htmlFor={`mem-${member.id}`} className="text-xs text-slate-700 cursor-pointer flex items-center gap-1 font-medium">
-                                                        <UserCheck className="w-3 h-3 text-slate-400" /> {member.name}
-                                                        {member.email && <span className="text-[9px] text-slate-400 ml-1">({member.email})</span>}
-                                                    </label>
-                                                </div>
-                                            ))}
-                                            {memberList.length === 0 && <p className="text-xs text-slate-400 p-1">No members found in events.</p>}
+                                            {memberList.length > 0 ? memberList.map(member => {
+                                                const isConnected = !!member.slackId;
+                                                // Use email as key for filtering logs later, falling back to ID if needed
+                                                const selectionKey = member.email || member.id;
+
+                                                return (
+                                                    <div key={member.id} className="flex items-center gap-2 mb-1.5 last:mb-0">
+                                                        <input
+                                                            type="checkbox"
+                                                            id={`mem-${member.id}`}
+                                                            checked={selectedMembers.includes(selectionKey)}
+                                                            onChange={() => handleMemberSelect(selectionKey)}
+                                                            className="rounded text-slate-900 focus:ring-slate-500"
+                                                        />
+                                                        <label htmlFor={`mem-${member.id}`} className="text-xs text-slate-700 cursor-pointer flex items-center gap-1 font-medium flex-1">
+                                                            {/* Connection Status Indicator */}
+                                                            <div className="relative flex items-center justify-center w-3 h-3 mr-1" title={isConnected ? "Connected to App" : "Not Connected (App)"}>
+                                                                {isConnected ? (
+                                                                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm ring-1 ring-emerald-200"></div>
+                                                                ) : (
+                                                                    <XCircle className="w-3 h-3 text-rose-400 opacity-80" />
+                                                                )}
+                                                            </div>
+
+                                                            {member.name}
+                                                            {member.email && <span className="text-[9px] text-slate-400 ml-1">({member.email})</span>}
+                                                        </label>
+                                                    </div>
+                                                );
+                                            }) : (
+                                                memberList.length === 0 && <p className="text-xs text-slate-400 p-1">No verified members found. (Try refreshing page to load users)</p>
+                                            )}
                                         </div>
                                     </div>
                                 );

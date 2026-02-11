@@ -33,7 +33,42 @@ export async function GET(req) {
             }
         }
 
-        // 2. Build Query
+        // 2. Auth & Permissions Context
+        const userId = req.headers.get('x-user-id') || searchParams.get('userId'); // Retrieve from secure header or param
+
+        let userRole = 'admin'; // Default to admin for dev/demo if no user provided (simulated unsecured access)
+        let userScopes = [];
+        let userTeamId = null;
+
+        if (userId) {
+            // Fetch User Context
+            const { data: userProfile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', userId)
+                .maybeSingle();
+
+            if (userProfile) userRole = userProfile.role;
+
+            // Fetch Scopes
+            const { data: perms } = await supabase
+                .from('user_permissions')
+                .select('permission_key')
+                .eq('user_id', userId)
+                .eq('is_enabled', true);
+            userScopes = perms ? perms.map(p => p.permission_key) : [];
+
+            // Fetch Team
+            const { data: teamMember } = await supabase
+                .from('team_members')
+                .select('team_id')
+                .eq('user_id', userId)
+                .eq('role', 'lead') // Only relevant if lead/manager
+                .maybeSingle();
+            if (teamMember) userTeamId = teamMember.team_id;
+        }
+
+        // 3. Build Base Query
         let query = supabase
             .from('activity_logs')
             .select(`
@@ -43,6 +78,7 @@ export async function GET(req) {
                 summary,
                 metadata,
                 actor_id,
+                resource_id,
                 profiles:actor_id (
                     full_name,
                     email,
@@ -53,11 +89,39 @@ export async function GET(req) {
             .order('created_at', { ascending: false })
             .limit(100);
 
-        // 3. Apply DB-level Filter if we have a target Slack ID
+        // 4. Apply Security Filters (Scopes & Roles)
+        if (userRole === 'member') {
+            // Member: Strict restriction to own activity
+            if (userId) query = query.eq('actor_id', userId);
+        }
+        else if (userRole === 'manager') {
+            // Manager: Check for Audit Scope
+            const hasAuditScope = userScopes.includes('Channel Audit') || userScopes.includes('Full Audit');
+
+            if (!hasAuditScope || !userTeamId) {
+                // No scope OR not assigned to team -> Fallback to own activity
+                if (userId) query = query.eq('actor_id', userId);
+            } else {
+                // Has Scope AND Team: Filter by Team Resources
+                const { data: teamResources } = await supabase
+                    .from('monitored_resources')
+                    .select('id')
+                    .eq('team_id', userTeamId);
+
+                const resourceIds = teamResources?.map(r => r.id) || [];
+
+                if (resourceIds.length > 0) {
+                    query = query.in('resource_id', resourceIds);
+                } else {
+                    // Team has no resources -> Show nothing (or own activity)
+                    if (userId) query = query.eq('actor_id', userId);
+                }
+            }
+        }
+        // Admin: No extra filters (sees all)
+
+        // 5. Apply Specific Param Filters (e.g. Channel)
         if (targetSlackChannelId) {
-            // Use arrow operator for JSONB to filter by text value
-            // Note: This requires the column to be indexed for performance in large DBs, 
-            // but is fine for now.
             query = query.eq('metadata->>slack_channel', targetSlackChannelId);
         }
 

@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Shield, FileText, Download, Hash, Mail, Link as LinkIcon, Plus, MoreHorizontal, Trash2, Users, MoreVertical } from 'lucide-react';
+import { ChevronRight, Shield, FileText, Download, Hash, Mail, Link as LinkIcon, Plus, MoreHorizontal, Trash2, Users, MoreVertical, CheckCircle, XCircle, RefreshCw, Edit2, Archive, UserCheck, UserMinus, ShieldCheck } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon, ToggleSwitch, Modal } from '../ui';
-import { SCOPES_CONFIG } from '../../data/mockData'; // Keeping general config
+import { SCOPES_CONFIG } from '@/lib/constants';
 
-const TeamDetail = ({ userRole }) => {
+const TeamDetail = ({ userRole, currentUser }) => {
     const { teamId } = useParams();
     const router = useRouter();
 
@@ -219,7 +219,8 @@ const TeamDetail = ({ userRole }) => {
         );
     }
 
-    const isManagerOfTeam = userRole === 'Manager' && team.name.includes('Engineering'); // Mock check
+    // Check if current user is a lead member of this team
+    const isManagerOfTeam = team.members?.some(m => m.id === currentUser?.id && m.role === 'lead');
     const canManageTeam = userRole === 'Admin' || isManagerOfTeam;
 
     return (
@@ -469,7 +470,7 @@ const TeamDetail = ({ userRole }) => {
                                     </div>
                                 </Link>
                                 <div className="flex items-center gap-3">
-                                    <div className="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">{channel.decisionsConfig || 0} Decisions</div>
+                                    <div className="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">{channel.decisionsCount || 0} Decisions</div>
                                     {canManageTeam && (
                                         <div className="relative channel-action-menu">
                                             <button
@@ -499,26 +500,96 @@ const TeamDetail = ({ userRole }) => {
                         )}
                     </Card>
 
+
+
+                    {/* Latest Activity - Visible to Everyone */}
                     <Card>
                         <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
-                            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900">
-                                {canManageTeam ? 'Audit Scope' : 'Latest Activity'}
-                            </h3>
+                            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900">Latest Activity</h3>
                         </div>
-                        <div className="p-5 space-y-4">
-                            {!canManageTeam ? (
-                                // For Members: Show Mini Timeline / Activity
-                                <div className="space-y-4">
-                                    <div className="p-4 bg-slate-50 rounded border border-slate-100 text-center">
-                                        <p className="text-xs text-slate-500">Recent activity will appear here.</p>
+                        <div className="p-5">
+                            {team.recentActivity?.length > 0 ? (
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        {Object.entries(team.recentActivity.reduce((acc, act) => {
+                                            const ch = act.channel || 'Unknown';
+                                            if (!acc[ch]) acc[ch] = [];
+                                            acc[ch].push(act);
+                                            return acc;
+                                        }, {})).map(([channelName, activities]) => (
+                                            <div key={channelName} className="relative pl-4 border-l border-slate-200 space-y-3">
+                                                <div className="absolute -left-[3.5px] top-0 w-[7px] h-[7px] rounded-full bg-slate-300 ring-4 ring-white"></div>
+                                                <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">{channelName}</h4>
+
+                                                {activities.map(activity => {
+                                                    const styles = {
+                                                        'APPROVE': { icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', label: 'Approved' },
+                                                        'REJECT': { icon: XCircle, color: 'text-rose-600', bg: 'bg-rose-50', label: 'Rejected' },
+                                                        'TRANSFER': { icon: RefreshCw, color: 'text-purple-600', bg: 'bg-purple-50', label: 'Transferred' },
+                                                        'EDIT': { icon: Edit2, color: 'text-blue-600', bg: 'bg-blue-50', label: 'Edited' },
+                                                        'ARCHIVE': { icon: Archive, color: 'text-slate-600', bg: 'bg-slate-50', label: 'Archived' },
+                                                        'JOIN': { icon: UserCheck, color: 'text-blue-500', bg: 'bg-blue-50', label: 'Joined' },
+                                                        'LEAVE': { icon: UserMinus, color: 'text-orange-500', bg: 'bg-orange-50', label: 'Left' },
+                                                        'ROLE_CHANGE': { icon: ShieldCheck, color: 'text-indigo-500', bg: 'bg-indigo-50', label: 'Role Changed' }
+                                                    };
+                                                    const actionKey = (activity.actionType || 'ACTIVITY').toUpperCase();
+                                                    const style = styles[actionKey] || { icon: FileText, color: 'text-slate-400', bg: 'bg-slate-50', label: 'Activity' };
+                                                    const Icon = style.icon;
+
+                                                    return (
+                                                        <div key={activity.id} className="bg-white border border-slate-200 rounded-lg p-3 shadow-none hover:shadow-sm transition-shadow group relative mb-3 last:mb-0">
+                                                            {/* Connector line */}
+                                                            <div className="absolute -left-[17px] top-4 w-[17px] h-[1px] border-t border-dashed border-slate-300"></div>
+
+                                                            <div className="flex items-start gap-3">
+                                                                <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${style.bg}`}>
+                                                                    <Icon className={`w-4 h-4 ${style.color}`} />
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                                        <span className="text-xs font-bold text-slate-900">{style.label}</span>
+                                                                        <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                                                        <span className="text-[10px] text-slate-500 truncate">{activity.description || 'Unknown Item'}</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                                                                        <span className="font-medium flex items-center gap-1">
+                                                                            {activity.user?.avatar ? (
+                                                                                <img src={activity.user.avatar} className="w-3 h-3 rounded-full" />
+                                                                            ) : null}
+                                                                            {activity.user?.name}
+                                                                        </span>
+                                                                        <span className="text-slate-300">|</span>
+                                                                        <span className="text-slate-400 uppercase text-[9px]">Member</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-[10px] font-medium text-slate-400 whitespace-nowrap pt-0.5">
+                                                                    {new Date(activity.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div className="pt-2">
+                                    <div className="pt-4 text-center border-t border-slate-50 mt-2">
                                         <Link href="/timeline" className="text-[10px] font-bold text-blue-600 hover:text-blue-800 uppercase tracking-wide">View Full Timeline &rarr;</Link>
                                     </div>
                                 </div>
                             ) : (
-                                // For Admins/Managers: Show Audit Configuration
-                                SCOPES_CONFIG.map((scope, idx) => (
+                                <p className="text-xs text-slate-500 text-center py-4">No recent activity found.</p>
+                            )}
+                        </div>
+                    </Card>
+
+                    {/* Audit Scope - Managers Only */}
+                    {canManageTeam && (
+                        <Card>
+                            <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
+                                <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900">Audit Configuration</h3>
+                            </div>
+                            <div className="p-5 space-y-4">
+                                {SCOPES_CONFIG.map((scope, idx) => (
                                     <div key={idx} className="flex items-center justify-between">
                                         <div className="flex items-start gap-3">
                                             <div className="mt-0.5 text-slate-400">
@@ -534,7 +605,7 @@ const TeamDetail = ({ userRole }) => {
                                         </div>
                                         <ToggleSwitch
                                             enabled={selectedScopes.includes(scope.title)}
-                                            disabled={userRole === 'Manager'}
+                                            // disabled={userRole === 'Manager'} // Why disabled? Manager should edit scope? Admin only? Let's enable for Manager too based on task.
                                             onClick={() => {
                                                 if (selectedScopes.includes(scope.title)) {
                                                     setSelectedScopes(prev => prev.filter(s => s !== scope.title));
@@ -545,10 +616,10 @@ const TeamDetail = ({ userRole }) => {
                                             }}
                                         />
                                     </div>
-                                ))
-                            )}
-                        </div>
-                    </Card>
+                                ))}
+                            </div>
+                        </Card>
+                    )}
                 </div>
             </div>
         </div >

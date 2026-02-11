@@ -5,18 +5,50 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
+    const { searchParams } = new URL(req.url);
+    const userId = req.headers.get('x-user-id') || searchParams.get('userId');
+
     const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
         process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
     try {
-        // Fetch teams with member counts and channel counts
-        // Since Supabase doesn't support complex joins/counts easily in one go without views or RPC,
-        // we might do it in 2 steps or just fetch raw data.
+        let teamIdsToFilter = null;
+        let roleMap = {};
+        let userGlobalRole = 'member';
 
-        // Let's fetch teams first
-        const { data: teams, error } = await supabase
+        // AUTH & FILTER LOGIC
+        if (userId) {
+            // Get Global Role
+            const { data: user } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+            userGlobalRole = user?.role || 'member';
+
+            // If not admin, restrict to own teams and get roles
+            if (userGlobalRole !== 'admin') {
+                const { data: myTeams } = await supabase
+                    .from('team_members')
+                    .select('team_id, role')
+                    .eq('user_id', userId);
+
+                if (myTeams) {
+                    myTeams.forEach(t => roleMap[t.team_id] = t.role);
+                    teamIdsToFilter = myTeams.map(t => t.team_id);
+                } else {
+                    teamIdsToFilter = [];
+                }
+
+                // Optimization: If no teams, return early
+                if (teamIdsToFilter.length === 0) {
+                    return NextResponse.json({ teams: [] });
+                }
+            } else {
+                userGlobalRole = 'admin';
+            }
+        }
+
+        // QUERY
+        let query = supabase
             .from('teams')
             .select(`
                 *,
@@ -24,6 +56,12 @@ export async function GET(req) {
                 monitored_resources (count)
             `)
             .order('created_at', { ascending: false });
+
+        if (teamIdsToFilter !== null) {
+            query = query.in('id', teamIdsToFilter);
+        }
+
+        const { data: teams, error } = await query;
 
         if (error) throw error;
 
@@ -37,8 +75,18 @@ export async function GET(req) {
             members: team.team_members?.[0]?.count || 0,
             channels: team.monitored_resources?.[0]?.count || 0,
             created_at: team.created_at,
-            scopes: team.settings?.scopes || []
+            scopes: team.settings?.scopes || [],
+            currentUserRole: userGlobalRole === 'admin' ? 'Admin' : (roleMap[team.id] === 'lead' ? 'Manager' : (roleMap[team.id] ? 'Member' : 'None'))
         }));
+
+        // Sort teams: Manager first, then others
+        formattedTeams.sort((a, b) => {
+            const isManagerA = a.currentUserRole === 'Manager';
+            const isManagerB = b.currentUserRole === 'Manager';
+            if (isManagerA && !isManagerB) return -1;
+            if (!isManagerA && isManagerB) return 1;
+            return 0; // Keep original order (created_at)
+        });
 
         return NextResponse.json({ teams: formattedTeams });
     } catch (error) {

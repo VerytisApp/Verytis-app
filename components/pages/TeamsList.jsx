@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Plus, MoreHorizontal, Shield, FileText, Download, Pencil, Users, Archive, Trash2, X } from 'lucide-react';
 import { Card, Button, Modal } from '../ui';
-import { SCOPES_CONFIG } from '../../data/mockData';
+import { SCOPES_CONFIG } from '@/lib/constants';
 
-const TeamsList = ({ userRole }) => {
+const TeamsList = ({ userRole, currentUser }) => {
     const [teams, setTeams] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeDropdown, setActiveDropdown] = useState(null);
@@ -28,8 +28,9 @@ const TeamsList = ({ userRole }) => {
         const fetchAllData = async () => {
             setIsLoading(true);
             try {
+                const userIdParam = currentUser?.id ? `?userId=${currentUser.id}` : '';
                 const [teamsRes, usersRes, channelsRes] = await Promise.all([
-                    fetch('/api/teams'),
+                    fetch(`/api/teams${userIdParam}`),
                     fetch('/api/users'),
                     fetch('/api/resources/list')
                 ]);
@@ -55,8 +56,8 @@ const TeamsList = ({ userRole }) => {
                 setIsLoading(false);
             }
         };
-        fetchAllData();
-    }, []);
+        if (currentUser?.id || userRole === 'Admin') fetchAllData();
+    }, [currentUser, userRole]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -86,20 +87,8 @@ const TeamsList = ({ userRole }) => {
         // TODO: Call API to delete
     };
 
-    // Logic to determine role in a specific team (Mocking)
-    const getTeamRole = (teamName) => {
-        if (userRole === 'Admin') return 'Admin';
-        if (userRole === 'Member') return 'Member';
-        // For Manager (David Chen)
-        if (teamName === 'Engineering & Product') return 'Manager';
-        if (teamName === 'Finance & Legal') return 'Member';
-        return 'None';
-    };
-
-    // Filter teams for Member and Manager view
-    const displayedTeams = userRole === 'Admin' ? teams :
-        userRole === 'Manager' ? teams.filter(t => t.name === 'Engineering & Product' || t.name === 'Finance & Legal') :
-            teams.filter(t => t.name === 'Finance & Legal'); // Member
+    // Filter teams based on backend response (which handles roles)
+    const displayedTeams = teams;
 
     if (isLoading) {
         return <div className="p-12 text-center text-slate-500">Loading teams...</div>;
@@ -135,16 +124,19 @@ const TeamsList = ({ userRole }) => {
                             <th className="px-6 py-3 uppercase tracking-wide">Channels</th>
                             <th className="px-6 py-3 uppercase tracking-wide">Members</th>
                             {userRole !== 'Admin' && <th className="px-6 py-3 uppercase tracking-wide">Role</th>}
-                            <th className="px-6 py-3 uppercase tracking-wide">
-                                {userRole === 'Member' ? 'Status' : 'Audit Scope'}
-                            </th>
+                            {/* Audit Scope Column Removed */}
                             <th className="px-6 py-3 uppercase tracking-wide">Created</th>
                             {userRole !== 'Member' && <th className="px-6 py-3 text-right uppercase tracking-wide">Actions</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                         {displayedTeams.length > 0 ? displayedTeams.map(team => {
-                            const role = getTeamRole(team.name);
+                            // Use role from API response (normalized)
+                            let roleRaw = team.currentUserRole || 'Member';
+                            let role = 'Member';
+                            if (roleRaw.toLowerCase() === 'lead' || roleRaw.toLowerCase() === 'manager') role = 'Manager';
+                            else if (roleRaw.toLowerCase() === 'admin') role = 'Admin';
+
                             return (
                                 <tr key={team.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="px-6 py-4">
@@ -176,43 +168,7 @@ const TeamsList = ({ userRole }) => {
                                         </td>
                                     )}
 
-                                    <td className="px-6 py-4">
-                                        {userRole === 'Member' ? (
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase">
-                                                Active
-                                            </span>
-                                        ) : role === 'Member' && userRole === 'Manager' ? (
-                                            // Manager viewing a team as Member -> Crosses
-                                            <div className="flex gap-2 opacity-50 pl-1">
-                                                <X className="w-3.5 h-3.5 text-slate-400 opacity-60" />
-                                                <X className="w-3.5 h-3.5 text-slate-400 opacity-60" />
-                                                <X className="w-3.5 h-3.5 text-slate-400 opacity-60" />
-                                            </div>
-                                        ) : (
-                                            <div className="flex gap-1.5">
-                                                {/* Map scope titles to icons */}
-                                                {(team.scopes || []).map(scopeTitle => {
-                                                    // Find the scope config by title
-                                                    const scopeConfig = SCOPES_CONFIG.find(s => s.title === scopeTitle);
-                                                    const scopeKey = scopeConfig?.key;
-
-                                                    return (
-                                                        <div key={scopeTitle} className="p-1 rounded bg-blue-50 border border-blue-100 text-blue-600" title={scopeTitle}>
-                                                            {scopeKey === 'audit' && <Shield className="w-3 h-3" />}
-                                                            {scopeKey === 'docs' && <FileText className="w-3 h-3" />}
-                                                            {scopeKey === 'email' && <Mail className="w-3 h-3" />}
-                                                            {scopeKey === 'export' && <Download className="w-3 h-3" />}
-                                                        </div>
-                                                    );
-                                                })}
-                                                {(!team.scopes || team.scopes.length === 0) && (
-                                                    <div className="p-1 rounded bg-slate-50 border border-slate-200 text-slate-400" title="No scopes">
-                                                        <Shield className="w-3 h-3 opacity-50" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </td>
+                                    {/* Audit Scope Cell Removed */}
                                     <td className="px-6 py-4 text-slate-500" suppressHydrationWarning>{new Date(team.created_at || team.created || Date.now()).toLocaleDateString()}</td>
 
                                     {userRole !== 'Member' && (
@@ -259,7 +215,7 @@ const TeamsList = ({ userRole }) => {
                             );
                         }) : (
                             <tr>
-                                <td colSpan={userRole === 'Admin' ? "8" : "7"} className="px-6 py-12 text-center text-slate-400">
+                                <td colSpan={userRole === 'Admin' ? "7" : "6"} className="px-6 py-12 text-center text-slate-400">
                                     No teams found. Create one to get started.
                                 </td>
                             </tr>

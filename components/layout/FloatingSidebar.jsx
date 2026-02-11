@@ -43,7 +43,9 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                 role: selectedUser.role ? (selectedUser.role.charAt(0).toUpperCase() + selectedUser.role.slice(1)) : 'Member',
                 avatar: selectedUser.avatar_url,
                 initials: (selectedUser.full_name || selectedUser.email).substring(0, 2).toUpperCase(),
-                color: 'from-blue-500 to-purple-600' // Default color
+                color: 'from-blue-500 to-purple-600', // Default color
+                teams: selectedUser.teams || [],
+                managedTeams: selectedUser.managedTeams || []
             });
         }
     };

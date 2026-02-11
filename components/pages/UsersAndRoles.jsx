@@ -1,25 +1,40 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Upload, MoreVertical, Pencil, Key, Ban, Trash2, Mail, Shield, Hash, FileText, Download, Users } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import useSWR from 'swr';
+import { Plus, Upload, MoreVertical, MoreHorizontal, Pencil, Key, Ban, Trash2, Mail, Shield, Hash, FileText, Download, Users, Search, Clock, CheckCircle, XCircle, Slack as SlackIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Card, Button, StatusBadge, Modal } from '../ui';
-import { SCOPES_CONFIG } from '../../data/mockData';
+import { SCOPES_CONFIG } from '@/lib/constants';
 
 const UsersAndRoles = () => {
-    const [users, setUsers] = useState([]);
     const [teams, setTeams] = useState([]); // Teams for manager assignment
-    const [isLoading, setIsLoading] = useState(true);
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [modalConfig, setModalConfig] = useState({ type: null, user: null, inviteStatus: 'idle' });
     const [inviteFormData, setInviteFormData] = useState({ name: '', email: '', role: 'member', teamId: '', scopes: [] });
-    const [editFormData, setEditFormData] = useState({ id: '', name: '', role: '', teamId: '' });
+    const [editFormData, setEditFormData] = useState({ id: '', name: '', role: '', teamId: '', scopes: [] });
     const [currentPage, setCurrentPage] = useState(1);
+
+    // New State for Filtering & Tabs
+    const [searchQuery, setSearchQuery] = useState('');
+    const [activeTab, setActiveTab] = useState('active'); // 'active' | 'pending'
+
     const itemsPerPage = 20;
 
-    // Fetch Users and Teams
+    // SWR Fetcher
+    const fetcher = (url) => fetch(url).then(r => r.json());
+
+    // Fetch Users with SWR (auto-caching, revalidation)
+    const { data: usersData, error: usersError, isLoading: isLoadingUsers, mutate: mutateUsers } = useSWR('/api/users', fetcher, {
+        revalidateOnFocus: false,
+        dedupingInterval: 10000, // Cache for 10s
+    });
+
+    const users = usersData?.users || [];
+    const isLoading = isLoadingUsers;
+
+    // Fetch Teams
     useEffect(() => {
-        fetchUsers();
         fetchTeams();
     }, []);
 
@@ -35,24 +50,43 @@ const UsersAndRoles = () => {
         }
     };
 
-    const fetchUsers = async () => {
-        setIsLoading(true);
-        try {
-            const res = await fetch('/api/users');
-            if (res.ok) {
-                const data = await res.json();
-                setUsers(data.users);
-            }
-        } catch (error) {
-            console.error('Failed to fetch users:', error);
-        } finally {
-            setIsLoading(false);
-        }
+    const fetchUsers = () => {
+        mutateUsers(); // Trigger SWR revalidation
     };
 
+    // --- Search & Filter Logic ---
+    const processedUsers = useMemo(() => {
+        let filtered = users;
+
+        // 1. Tab Filtering (Active vs Pending)
+        if (activeTab === 'pending') {
+            filtered = filtered.filter(u => u.status === 'pending' || u.status === 'invited');
+        } else {
+            filtered = filtered.filter(u => u.status !== 'pending' && u.status !== 'invited');
+        }
+
+        // 2. Search Filtering
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(u =>
+                u.name.toLowerCase().includes(query) ||
+                u.email.toLowerCase().includes(query)
+            );
+        }
+
+        // 3. Sorting: Admin > Manager > Member
+        const roleOrder = { 'admin': 1, 'manager': 2, 'member': 3 };
+        return filtered.sort((a, b) => {
+            const roleA = roleOrder[a.role?.toLowerCase()] || 4;
+            const roleB = roleOrder[b.role?.toLowerCase()] || 4;
+            return roleA - roleB;
+        });
+
+    }, [users, activeTab, searchQuery]);
+
     // Pagination logic
-    const totalPages = Math.ceil(users.length / itemsPerPage);
-    const paginatedUsers = users.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    const totalPages = Math.ceil(processedUsers.length / itemsPerPage);
+    const paginatedUsers = processedUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -67,20 +101,21 @@ const UsersAndRoles = () => {
 
     const handleAction = (type, user) => {
         setActiveDropdown(null);
-        setModalConfig({ type, user });
         if (type === 'edit') {
             setEditFormData({
-                id: user.id,
-                name: user.name,
-                role: user.role,
-                teamId: '' // Reset teamId selection
+                id: user.id || '',
+                name: user.name || '',
+                role: user.role?.toLowerCase() || 'member',
+                teamId: user.managedTeams?.[0]?.id || '', // Pre-fill team if manager
+                scopes: user.scopes || [] // Pre-fill scopes
             });
         }
+        setModalConfig({ type, user });
     };
 
     // Handlers using API
     const handleUpdateUser = async () => {
-        const { id, name, role, teamId } = editFormData;
+        const { id, name, role, teamId, scopes } = editFormData;
         const originalRole = modalConfig.user?.role?.toLowerCase();
 
         // Validation: Upgrade to Manager requires Team
@@ -90,14 +125,14 @@ const UsersAndRoles = () => {
         }
 
         try {
-            const res = await fetch(`/api/users/${id}`, {
+            const res = await fetch(`/api/users/${editFormData.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    name,
-                    role,
-                    // Send teamId for upgrades
-                    assignTeamId: (originalRole === 'member' && role === 'manager') ? teamId : undefined,
+                    name: editFormData.name,
+                    role: editFormData.role,
+                    teamId: editFormData.role === 'manager' ? editFormData.teamId : undefined,
+                    scopes: editFormData.role === 'manager' ? editFormData.scopes : [],
                     // Signal downgrade intent
                     isDowngrade: (originalRole === 'manager' && role === 'member')
                 })
@@ -219,6 +254,46 @@ const UsersAndRoles = () => {
                     <Button variant="primary" icon={Plus} onClick={() => setModalConfig({ type: 'invite' })}>Invite User</Button>
                 </div>
             </header>
+
+            {/* --- Filters & Search --- */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4">
+                {/* Tabs */}
+                <div className="flex p-1 bg-slate-100 rounded-lg w-fit">
+                    <button
+                        onClick={() => setActiveTab('active')}
+                        className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'active' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        Active Members
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('pending')}
+                        className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-2 ${activeTab === 'pending' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        Pending Invitations
+                        {/* Count pending users */}
+                        {users.filter(u => u.status === 'pending' || u.status === 'invited').length > 0 && (
+                            <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full text-[10px]">
+                                {users.filter(u => u.status === 'pending' || u.status === 'invited').length}
+                            </span>
+                        )}
+                    </button>
+                </div>
+
+                {/* Search */}
+                <div className="relative w-full sm:w-64">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Search members..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all placeholder:text-slate-400"
+                    />
+                </div>
+            </div>
+
             <Card className="overflow-visible">
                 {isLoading ? (
                     <div className="p-12 text-center text-slate-500">Loading users...</div>
@@ -228,7 +303,7 @@ const UsersAndRoles = () => {
                             <tr>
                                 <th className="px-6 py-3 uppercase tracking-wide">User</th>
                                 <th className="px-6 py-3 uppercase tracking-wide">Role</th>
-                                <th className="px-6 py-3 uppercase tracking-wide">Auth. Channels</th>
+                                <th className="px-6 py-3 uppercase tracking-wide">Passport ID</th>
                                 <th className="px-6 py-3 uppercase tracking-wide">Email Audit</th>
                                 <th className="px-6 py-3 uppercase tracking-wide">Status</th>
                                 <th className="px-6 py-3 text-right uppercase tracking-wide">Actions</th>
@@ -257,9 +332,17 @@ const UsersAndRoles = () => {
                                             {user.role}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-3.5 text-slate-600 font-mono text-xs">
-                                        {/* Mock channel count for list view if not expensive to join, or just 0 */}
-                                        {user.channels || 0} Channels
+                                    <td className="px-6 py-3.5">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setModalConfig({ type: 'passport', user });
+                                            }}
+                                            className="h-8 w-12 flex items-center justify-center rounded border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm"
+                                            title="View Digital Passport"
+                                        >
+                                            <MoreHorizontal className="w-5 h-5 text-slate-500" />
+                                        </button>
                                     </td>
                                     <td className="px-6 py-3.5">
                                         {user.auditEnabled ? (
@@ -273,7 +356,13 @@ const UsersAndRoles = () => {
                                         )}
                                     </td>
                                     <td className="px-6 py-3.5">
-                                        <StatusBadge status={user.status} />
+                                        {activeTab === 'pending' ? (
+                                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                                <Clock className="w-3 h-3" /> Invitation Sent
+                                            </span>
+                                        ) : (
+                                            <StatusBadge status={user.status} />
+                                        )}
                                     </td>
                                     <td className="px-6 py-3.5 text-right relative action-menu">
                                         <button
@@ -288,6 +377,14 @@ const UsersAndRoles = () => {
                                         {activeDropdown === user.id && (
                                             <div className={`absolute right-8 w-48 bg-white rounded-lg shadow-xl border border-slate-200 z-50 animate-in fade-in zoom-in-95 duration-200 ${idx >= paginatedUsers.length - 2 ? 'bottom-8 origin-bottom-right' : 'top-8 origin-top-right'}`}>
                                                 <div className="py-1">
+                                                    {activeTab === 'pending' && (
+                                                        <button onClick={() => { /* TODO: Resend logic */ alert("Resend feature coming soon"); }} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                                            <Mail className="w-3.5 h-3.5 text-slate-400" /> Resend Invite
+                                                        </button>
+                                                    )}
+                                                    <button onClick={() => setModalConfig({ type: 'passport', user })} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                                        <Shield className="w-3.5 h-3.5 text-slate-400" /> Check Passport
+                                                    </button>
                                                     <button onClick={() => handleAction('edit', user)} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                                                         <Pencil className="w-3.5 h-3.5 text-slate-400" /> Edit User
                                                     </button>
@@ -345,6 +442,33 @@ const UsersAndRoles = () => {
                         </select>
                     </div>
 
+                    {/* Edit Scopes for Existing Managers */}
+                    {editFormData.role === 'manager' && modalConfig.user?.role === 'manager' && (
+                        <div className="pt-4 border-t border-slate-100 mt-4">
+                            <label className="block text-xs font-bold text-slate-700 mb-2">Update Audit Scopes</label>
+                            <div className="grid grid-cols-1 gap-2">
+                                {SCOPES_CONFIG.map((scope) => (
+                                    <label key={scope.key} className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-colors ${editFormData.scopes?.includes(scope.title) ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={editFormData.scopes?.includes(scope.title) || false}
+                                            onChange={(e) => {
+                                                const currentScopes = editFormData.scopes || [];
+                                                if (e.target.checked) setEditFormData({ ...editFormData, scopes: [...currentScopes, scope.title] });
+                                                else setEditFormData({ ...editFormData, scopes: currentScopes.filter(s => s !== scope.title) });
+                                            }}
+                                            className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <div>
+                                            <div className="text-[11px] font-bold text-slate-900">{scope.title}</div>
+                                            <div className="text-[10px] text-slate-500 leading-tight">{scope.desc}</div>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Downgrade Warning */}
                     {modalConfig.user?.role === 'manager' && editFormData.role === 'member' && (
                         <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-xs animate-in fade-in slide-in-from-top-1">
@@ -381,6 +505,30 @@ const UsersAndRoles = () => {
                                     {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                 </select>
                                 <p className="text-[10px] text-blue-600 mt-1.5">Managers must be assigned to a team.</p>
+
+                                <div className="mt-4 border-t border-blue-200 pt-3">
+                                    <label className="block text-xs font-bold text-blue-900 mb-2">Assign Audit Scopes</label>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        {SCOPES_CONFIG.map((scope) => (
+                                            <label key={scope.key} className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-colors ${editFormData.scopes?.includes(scope.title) ? 'bg-white border-blue-300 shadow-sm' : 'bg-white/50 border-blue-200 hover:bg-white'}`}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={editFormData.scopes?.includes(scope.title) || false}
+                                                    onChange={(e) => {
+                                                        const currentScopes = editFormData.scopes || [];
+                                                        if (e.target.checked) setEditFormData({ ...editFormData, scopes: [...currentScopes, scope.title] });
+                                                        else setEditFormData({ ...editFormData, scopes: currentScopes.filter(s => s !== scope.title) });
+                                                    }}
+                                                    className="mt-0.5 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <div>
+                                                    <div className="text-[11px] font-bold text-blue-900">{scope.title}</div>
+                                                    <div className="text-[10px] text-blue-700/70 leading-tight">{scope.desc}</div>
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -617,6 +765,104 @@ const UsersAndRoles = () => {
                     <div className="flex justify-end pt-4 gap-2">
                         <Button variant="secondary" onClick={() => setModalConfig({ type: null, user: null })}>Cancel</Button>
                         <Button variant="danger" onClick={handleDelete}>Delete User</Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Passport Details Modal */}
+            <Modal
+                isOpen={modalConfig.type === 'passport'}
+                onClose={() => setModalConfig({ type: null, user: null })}
+                title="Digital ID Passport"
+                maxWidth="max-w-md"
+            >
+                <div className="space-y-6">
+                    {/* User Header */}
+                    <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
+                        <div className="w-14 h-14 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-xl font-bold text-slate-600">
+                            {modalConfig.user?.initials}
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-900">{modalConfig.user?.name}</h3>
+                            <p className="text-sm text-slate-500">{modalConfig.user?.email}</p>
+                            <div className="mt-1 flex items-center gap-2">
+                                <StatusBadge status={modalConfig.user?.status} />
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${modalConfig.user?.role === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                                    {modalConfig.user?.role}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* App Connections List */}
+                    <div className="space-y-3">
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Connected Applications</h4>
+
+                        {/* Slack Connection */}
+                        <div className={`flex items-center justify-between p-3 rounded-lg border ${modalConfig.user?.slackId ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-70'}`}>
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 flex items-center justify-center p-1">
+                                    <img src="https://www.google.com/s2/favicons?domain=slack.com&sz=128" alt="Slack" className="w-full h-full" />
+                                </div>
+                                <div>
+                                    <div className="text-sm font-semibold text-slate-900">Slack</div>
+                                    <div className="text-xs text-slate-500">Messaging & Alerts</div>
+                                </div>
+                            </div>
+                            <div>
+                                {(console.log('Slack ID Check:', modalConfig.user?.slackId), modalConfig.user?.slackId) ? (
+                                    <div className="flex items-center gap-2 px-2 py-1 bg-emerald-50 rounded border border-emerald-100">
+                                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                        <span className="text-[10px] font-bold text-emerald-700 uppercase">Connected</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 px-2 py-1 bg-slate-100 rounded border border-slate-200">
+                                        <XCircle className="w-3.5 h-3.5 text-slate-400" />
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase">Not Connected</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Teams Connection (Mock) */}
+                        <div className="flex items-center justify-between p-3 rounded-lg border bg-slate-50 border-slate-100 opacity-60">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 flex items-center justify-center p-1">
+                                    <img src="https://www.google.com/s2/favicons?domain=microsoft.com&sz=128" alt="Teams" className="w-full h-full" />
+                                </div>
+                                <div>
+                                    <div className="text-sm font-semibold text-slate-900">Microsoft Teams</div>
+                                    <div className="text-xs text-slate-500">Communication</div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 px-2 py-1 bg-slate-100 rounded border border-slate-200">
+                                <XCircle className="w-3.5 h-3.5 text-slate-400" />
+                                <span className="text-[10px] font-bold text-slate-500 uppercase">Not Connected</span>
+                            </div>
+                        </div>
+
+                        {/* Google Connection (Mock) */}
+                        <div className="flex items-center justify-between p-3 rounded-lg border bg-slate-50 border-slate-100 opacity-60">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 flex items-center justify-center p-1">
+                                    <img src="https://www.google.com/s2/favicons?domain=google.com&sz=128" alt="Google" className="w-full h-full" />
+                                </div>
+                                <div>
+                                    <div className="text-sm font-semibold text-slate-900">Google Workspace</div>
+                                    <div className="text-xs text-slate-500">Identity Provider</div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 px-2 py-1 bg-slate-100 rounded border border-slate-200">
+                                <XCircle className="w-3.5 h-3.5 text-slate-400" />
+                                <span className="text-[10px] font-bold text-slate-500 uppercase">Not Connected</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-2 text-center">
+                        <Button variant="ghost" onClick={() => setModalConfig({ type: null, user: null })} className="text-xs text-slate-400 hover:text-slate-600">
+                            Close Verification Details
+                        </Button>
                     </div>
                 </div>
             </Modal>    </div>
