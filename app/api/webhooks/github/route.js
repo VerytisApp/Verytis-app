@@ -30,10 +30,10 @@ export async function POST(req) {
                 return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
             }
         } else if (secret && !signature) {
-             console.error("❌ GitHub Webhook Missing Signature");
-             return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+            console.error("❌ GitHub Webhook Missing Signature");
+            return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
         }
-        
+
         // Parse JSON after verification
         const body = JSON.parse(rawBody);
 
@@ -43,7 +43,7 @@ export async function POST(req) {
             return NextResponse.json({ status: 'ignored_event_type' });
         }
 
-        const body = await req.json();
+
         const action = body.action;
         const pr = body.pull_request;
 
