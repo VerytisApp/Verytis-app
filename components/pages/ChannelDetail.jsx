@@ -234,12 +234,11 @@ const ChannelDetail = ({ userRole }) => {
     };
 
     // Find parent team to check scopes (Mock logic mostly)
-    const parentTeam = channel ? MOCK_TEAMS.find(t => t.name === channel.team) : null;
-
-    // Permission checks
+    // Simplified permission checks (removed dependency on deleted MOCK_TEAMS)
     const showScope = userRole !== 'Member';
     // Manager needs 'export' scope enabled on the team to see Export button
-    const canExport = userRole === 'Admin' || (userRole === 'Manager' && parentTeam?.scopes?.includes('export'));
+    // For now, allow all Admins and Managers to export until real team scopes are connected
+    const canExport = userRole === 'Admin' || userRole === 'Manager';
 
     const getActivityIcon = (iconType) => {
         switch (iconType) {

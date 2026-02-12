@@ -68,8 +68,9 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
 
     const allNavItems = [
         { path: '/', altPath: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Manager'] },
-        { path: '/teams', label: 'Teams', icon: Layers, roles: ['Admin', 'Manager', 'Member'] },
-        { path: '/users', label: 'Users', icon: Users, roles: ['Admin'] },
+        { path: '/teams', label: 'Teams', icon: Users, roles: ['Admin', 'Manager', 'Member'] }, // Changed icon to Users for Teams
+        { path: '/stacks', label: 'Stacks', icon: Layers, roles: ['Admin', 'Manager', 'Member'] }, // Added Stacks
+        { path: '/users', label: 'Users', icon: Shield, roles: ['Admin'] }, // Changed icon to Shield for Users to avoid dupe
         { path: '/channels', label: 'Channels', icon: MessageSquare, roles: ['Admin', 'Manager', 'Member'] },
         { path: '/timeline', label: 'Timeline', icon: Clock, roles: ['Admin', 'Manager', 'Member'] },
         { path: '/email-audit', label: 'Email Audit', icon: Mail, roles: ['Admin', 'Manager', 'Member'] },

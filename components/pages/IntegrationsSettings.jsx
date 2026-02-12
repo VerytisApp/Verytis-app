@@ -8,7 +8,7 @@ const IntegrationsSettings = () => {
     // Initial State (Clean, no fakes)
     const [connections, setConnections] = useState({
         slack: { connected: false, lastSync: null },
-        microsoft: { connected: false, lastSync: null }
+        github: { connected: false, lastSync: null }
     });
 
     const [activeTab, setActiveTab] = useState('overview');
@@ -123,15 +123,15 @@ const IntegrationsSettings = () => {
             ]
         },
         {
-            id: 'microsoft',
-            name: 'Microsoft 365',
-            category: 'Productivity',
-            logo: "https://www.google.com/s2/favicons?domain=microsoft.com&sz=128",
-            bgColor: 'bg-blue-50',
-            borderColor: 'border-blue-100',
-            description: "Synchronisation des métadonnées e-mail pour la traçabilité des échanges externes (Headers & Sujets uniquement).",
-            features: ['Metadata Sync', 'Header Analysis', 'No Body Read'],
-            permissions: ['Lecture En-têtes E-mails', 'Profil Utilisateur Basique']
+            id: 'github',
+            name: 'GitHub',
+            category: 'Development',
+            logo: "https://www.google.com/s2/favicons?domain=github.com&sz=128",
+            bgColor: 'bg-slate-50',
+            borderColor: 'border-slate-200',
+            description: "Synchronisation des métadonnées de code pour la traçabilité des modifications et des validations (Commits & PRs uniquement).",
+            features: ['Code Audit', 'Commit Tracking', 'PR Validation'],
+            permissions: ['Lecture Repositories', 'Lecture Historique Commits', 'Lecture Pull Requests']
         }
     ];
 

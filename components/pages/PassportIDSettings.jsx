@@ -71,10 +71,10 @@ const PassportIDSettings = () => {
             description: 'Connect your Slack workspace for real-time collaboration tracking'
         },
         {
-            id: 'teams',
-            name: 'Microsoft Teams',
-            logo: 'https://www.google.com/s2/favicons?domain=microsoft.com&sz=128',
-            description: 'Integrate with Microsoft Teams for enterprise communication'
+            id: 'github',
+            name: 'GitHub',
+            logo: 'https://www.google.com/s2/favicons?domain=github.com&sz=128',
+            description: 'Connect your GitHub account for code repository tracking'
         }
     ];
 

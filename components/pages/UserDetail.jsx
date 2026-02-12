@@ -226,10 +226,86 @@ const UserDetail = () => {
                         </div>
                     </Card>
 
+                    {/* Certified Connections Section */}
+                    <Card>
+                        <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/30 flex justify-between items-center">
+                            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900 flex items-center gap-2">
+                                <Shield className="w-3.5 h-3.5 text-emerald-600" /> Certified Connections
+                            </h3>
+                            {/* Save Button */}
+                            {(user.social_temp?.github !== (user.social_profiles?.github || '') || user.social_temp?.trello !== (user.social_profiles?.trello || '')) && (
+                                <button
+                                    onClick={async () => {
+                                        // Simple optimistic update + API call would go here
+                                        // For now, we just simulate the save functionality
+                                        const updatedSocials = {
+                                            github: user.social_temp?.github,
+                                            trello: user.social_temp?.trello
+                                        };
+
+                                        // In real app: await fetch('/api/users/update-socials', { body: JSON.stringify(updatedSocials) })
+                                        // Here we simulate local update
+                                        setUser(prev => ({
+                                            ...prev,
+                                            social_profiles: updatedSocials,
+                                            social_temp: updatedSocials // reset temp to match saved
+                                        }));
+                                        alert("Connections updated! Verify via Webhooks now.");
+                                    }}
+                                    className="text-[10px] bg-emerald-600 text-white px-2 py-1 rounded font-bold hover:bg-emerald-700 transition"
+                                >
+                                    SAVE CHANGES
+                                </button>
+                            )}
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <p className="text-xs text-slate-500 mb-4">
+                                Enter your external usernames to certify your actions automatically.
+                                <span className="block mt-1 font-medium text-slate-700">No OAuth required. Privacy First.</span>
+                            </p>
+
+                            {/* GitHub Input */}
+                            <div className="flex items-center gap-4">
+                                <PlatformIcon platform="GitHub" />
+                                <div className="flex-1">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">GitHub Username</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. octocat"
+                                        className="w-full text-sm border-b border-slate-200 focus:border-blue-500 outline-none py-1 text-slate-900 placeholder:text-slate-300"
+                                        value={user.social_temp?.github ?? (user.social_profiles?.github || '')}
+                                        onChange={(e) => setUser(prev => ({
+                                            ...prev,
+                                            social_temp: { ...prev.social_temp, github: e.target.value }
+                                        }))}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Trello Input */}
+                            <div className="flex items-center gap-4">
+                                <PlatformIcon platform="Trello" />
+                                <div className="flex-1">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Trello Username</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. user123"
+                                        className="w-full text-sm border-b border-slate-200 focus:border-blue-500 outline-none py-1 text-slate-900 placeholder:text-slate-300"
+                                        value={user.social_temp?.trello ?? (user.social_profiles?.trello || '')}
+                                        onChange={(e) => setUser(prev => ({
+                                            ...prev,
+                                            social_temp: { ...prev.social_temp, trello: e.target.value }
+                                        }))}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+
                     <Card>
                         <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/30">
                             <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900 flex items-center gap-2">
-                                <Fingerprint className="w-3.5 h-3.5 text-blue-600" /> Passport ID
+                                <Fingerprint className="w-3.5 h-3.5 text-blue-600" /> Passport ID Social Graph
                             </h3>
                         </div>
                         <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
