@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, PlatformIcon, StatusBadge, Button, ActivityFeed, Modal } from '@/components/ui';
+import { createClient } from '@/lib/supabase/client';
 import {
     Layers, ChevronRight, Settings, Plus, Info,
     CheckCircle2, AlertCircle, Clock, Activity, FileText
@@ -15,6 +16,7 @@ export default function StackDetailPage() {
     const [members, setMembers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeModal, setActiveModal] = useState(null);
+    const supabase = createClient();
 
     // Add Tool State
     const [availableIntegrations, setAvailableIntegrations] = useState([]);
@@ -24,25 +26,50 @@ export default function StackDetailPage() {
     const [currentStep, setCurrentStep] = useState(1);
 
     // Load Real Data
-    useEffect(() => {
-        const fetchTeamData = async () => {
-            try {
-                const res = await fetch(`/api/teams/${teamId}`);
-                if (!res.ok) throw new Error('Failed to fetch team');
-                const data = await res.json();
+    const fetchTeamData = async () => {
+        try {
+            const res = await fetch(`/api/teams/${teamId}`);
+            if (!res.ok) throw new Error('Failed to fetch team');
+            const data = await res.json();
 
-                if (data.team) {
-                    setTeam(data.team);
-                    setMembers(data.team.members || []);
-                }
-            } catch (err) {
-                console.error("Error loading team data:", err);
-            } finally {
-                setLoading(false);
+            if (data.team) {
+                setTeam(data.team);
+                setMembers(data.team.members || []);
             }
-        };
+        } catch (err) {
+            console.error("Error loading team data:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchTeamData();
+
+        // REAL-TIME: Listen for new activity logs for this team/resources
+        const channel = supabase
+            .channel(`team-activity-${teamId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'activity_logs'
+                },
+                (payload) => {
+                    console.log('🔥 New Activity Detected!', payload);
+                    // Proactive check: does this log belong to one of our monitored resources?
+                    // Or simply refetch since the backend filters correctly anyway.
+                    fetchTeamData();
+                }
+            )
+            .subscribe((status) => {
+                console.log(`📡 Realtime Status: ${status}`);
+            });
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [teamId]);
 
 

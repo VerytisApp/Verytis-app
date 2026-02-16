@@ -12,6 +12,7 @@ import crypto from 'crypto';
 // ... (other imports)
 
 export async function POST(req) {
+    console.log(`📡 Incoming GitHub Webhook...`);
     try {
         const signature = req.headers.get('x-hub-signature-256');
         const eventType = req.headers.get('x-github-event');
@@ -37,6 +38,8 @@ export async function POST(req) {
         // Parse JSON after verification
         const body = JSON.parse(rawBody);
 
+        console.log(`📡 GitHub Webhook Received: ${eventType} - ${body.action || 'push'}`);
+
         // 2. EVENT ROUTING
         if (eventType === 'pull_request') {
             const action = body.action;
@@ -44,6 +47,7 @@ export async function POST(req) {
 
             // FILTERING: Process ONLY if action === 'closed' AND merged === true
             if (action !== 'closed' || !pr.merged) {
+                console.log(`ℹ️ Ignoring PR action: ${action} (merged: ${pr.merged})`);
                 return NextResponse.json({ status: 'ignored_action' });
             }
 
@@ -57,19 +61,16 @@ export async function POST(req) {
 
         } else if (eventType === 'push') {
             const commits = body.commits || [];
-            if (commits.length === 0) return NextResponse.json({ status: 'no_commits' });
+            if (commits.length === 0) {
+                console.log(`ℹ️ GitHub Push with no commits (likely ref deletion)`);
+                return NextResponse.json({ status: 'no_commits' });
+            }
 
             const repoName = body.repository.full_name;
             const senderLogin = body.sender.login;
             const branch = body.ref.replace('refs/heads/', '');
 
             console.log(`🐙 GitHub Push: ${commits.length} commits to ${repoName} by ${senderLogin}`);
-
-            // We could log each commit, but a summary is often better for "high level" audit. 
-            // However, for "Audit Trail", logging individual significant commits might be better.
-            // Let's log the push as a single entry with commit details in metadata for now to reduce noise, 
-            // OR log the head commit. 
-            // User request implies "Commits" (plural). Let's log the push event.
 
             const summary = `Pushed ${commits.length} commit${commits.length > 1 ? 's' : ''} to ${branch}`;
 
@@ -83,7 +84,11 @@ export async function POST(req) {
                 })),
                 compare_url: body.compare
             });
+        } else if (eventType === 'ping') {
+            console.log(`🐙 GitHub Ping: Webhook successfully configured for ${body.repository?.full_name || 'Organization'}`);
+            return NextResponse.json({ status: 'pong' });
         } else {
+            console.log(`ℹ️ Ignoring GitHub event: ${eventType}`);
             return NextResponse.json({ status: 'ignored_event_type' });
         }
 
@@ -96,9 +101,26 @@ export async function POST(req) {
             let userId = null;
             let isVerified = false;
             let method = 'ANONYMOUS';
+            let organizationId = null;
+            let resourceId = null;
 
-            // Strategy: Social Profile Match (JSONB containment)
-            // We check both string format and nested object format for robustness
+            // 1. Resolve organization_id and resource_id from monitored_resources
+            // external_id for GitHub is the repository ID (numerical)
+            const { data: resource } = await supabase
+                .from('monitored_resources')
+                .select('id, team_id, teams(organization_id)')
+                .eq('external_id', repository.id.toString())
+                .maybeSingle();
+
+            if (resource) {
+                resourceId = resource.id;
+                organizationId = resource.teams?.organization_id;
+                console.log(`📍 Resource Found: ${resourceId} (Team: ${resource.team_id}, Org: ${organizationId})`);
+            } else {
+                console.log(`⚠️ Resource not found in monitored_resources for GitHub ID: ${repository.id}`);
+            }
+
+            // 2. Identify User
             let { data: profile } = await supabase
                 .from('profiles')
                 .select('id')
@@ -106,7 +128,6 @@ export async function POST(req) {
                 .maybeSingle();
 
             if (!profile) {
-                // Fallback for legacy string format if any
                 const { data: legacyProfile } = await supabase
                     .from('profiles')
                     .select('id')
@@ -124,8 +145,11 @@ export async function POST(req) {
                 console.log(`🕵️‍♀️ User not identified for GitHub: ${githubUsername}`);
             }
 
-            await supabase.from('activity_logs').insert({
+            // 3. Log Activity
+            const { error: logError } = await supabase.from('activity_logs').insert({
                 actor_id: userId,
+                organization_id: organizationId,
+                resource_id: resourceId,
                 action_type: actionType,
                 summary: `${summary} in ${repository.full_name}`,
                 metadata: {
@@ -137,6 +161,12 @@ export async function POST(req) {
                     ...extraMetadata
                 }
             });
+
+            if (logError) {
+                console.error(`❌ Error logging GitHub activity:`, logError);
+            } else {
+                console.log(`🚀 GitHub activity logged successfully`);
+            }
         }
 
     } catch (error) {
