@@ -7,7 +7,8 @@ import { Card, PlatformIcon, StatusBadge, Button, ActivityFeed, Modal } from '@/
 import { createClient } from '@/lib/supabase/client';
 import {
     Layers, ChevronRight, Settings, Plus, Info,
-    CheckCircle2, AlertCircle, Clock, Activity, FileText
+    CheckCircle2, AlertCircle, Clock, Activity, FileText,
+    GitCommit, GitPullRequest, GitBranch
 } from 'lucide-react';
 
 export default function StackDetailPage() {
@@ -352,8 +353,10 @@ export default function StackDetailPage() {
                                                         <div key={idx} className="p-3 flex gap-3 hover:bg-slate-50 transition-colors cursor-pointer group">
                                                             <div className="mt-0.5">
                                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${item.bg}`}>
-                                                                    {item.action === 'Pushed Code' || item.action === 'Merged PR' ? (
+                                                                    {item.action === 'Pushed Code' ? (
                                                                         <GitCommit className={`w-3.5 h-3.5 ${item.color}`} />
+                                                                    ) : item.action === 'Merged PR' ? (
+                                                                        <GitPullRequest className={`w-3.5 h-3.5 ${item.color}`} />
                                                                     ) : item.platform ? (
                                                                         <PlatformIcon platform={item.platform} className="w-3.5 h-3.5" />
                                                                     ) : (

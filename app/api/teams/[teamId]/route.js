@@ -176,7 +176,7 @@ export async function GET(req, { params }) {
 
                 return {
                     id: a.id,
-                    description: `${a.details?.message || a.details?.text || actionType}`,
+                    description: a.summary || actionType,
                     user: {
                         name: actorName,
                         avatar: a.profiles?.avatar_url
