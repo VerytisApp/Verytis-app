@@ -2,6 +2,89 @@ import { useState, useEffect } from 'react';
 import { Zap, CheckCircle, AlertCircle, RefreshCw, Lock, Shield, Info } from 'lucide-react';
 import { Card, Button } from '../ui';
 
+const GitHubRepositoriesView = () => {
+    const [repos, setRepos] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchRepos = async () => {
+            try {
+                const res = await fetch('/api/github/repositories');
+                const data = await res.json();
+                if (data.repositories) setRepos(data.repositories);
+            } catch (error) {
+                console.error("Failed to fetch repos", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchRepos();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="text-center py-12">
+                <div className="animate-spin w-6 h-6 border-2 border-slate-900 border-t-transparent rounded-full mx-auto mb-3"></div>
+                <p className="text-xs text-slate-400 font-medium">Loading repositories...</p>
+            </div>
+        );
+    }
+
+    if (repos.length === 0) {
+        return (
+            <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <img src="https://www.google.com/s2/favicons?domain=github.com&sz=64" alt="GitHub" className="w-6 h-6 opacity-50" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">Aucun dépôt accessible</h3>
+                <p className="text-slate-500 text-xs mt-2 max-w-sm mx-auto">
+                    Assurez-vous d'avoir donné accès aux dépôts lors de l'installation.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-between items-center mb-2">
+                <p className="text-sm text-slate-500">
+                    Active Repositories ({repos.length})
+                </p>
+                <div className="px-2 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded uppercase tracking-wide border border-emerald-100">
+                    Auto-Sync Active
+                </div>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
+                {repos.map(repo => (
+                    <div key={repo.id} className="p-4 flex items-center justify-between bg-white hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500">
+                                <span className="font-bold text-xs">{repo.private ? '🔒' : '🌐'}</span>
+                            </div>
+                            <div>
+                                <div className="text-sm font-bold text-slate-900">{repo.name}</div>
+                                {repo.description && (
+                                    <div className="text-xs text-slate-500 line-clamp-1 max-w-md">{repo.description}</div>
+                                )}
+                            </div>
+                        </div>
+                        <a
+                            href={repo.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                        >
+                            View
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        </a>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 const IntegrationsSettings = () => {
     const [selectedAppId, setSelectedAppId] = useState('slack');
 
@@ -15,35 +98,58 @@ const IntegrationsSettings = () => {
     const [channels, setChannels] = useState([]);
     const [isLoadingChannels, setIsLoadingChannels] = useState(false);
 
-    // 1. Fetch Real Status on Mount
-    useEffect(() => {
-        const checkStatus = async () => {
-            try {
-                const res = await fetch('/api/slack/status');
-                const data = await res.json();
-                if (data.connected) {
-                    setConnections(prev => ({
-                        ...prev,
-                        slack: { connected: true, lastSync: 'Connecté' }
-                    }));
-                }
-            } catch (e) {
-                console.error("Status check failed", e);
+    // 1. Fetch Real Status (Re-usable function)
+    const checkStatus = async () => {
+        try {
+            // Slack Status
+            const resSlack = await fetch('/api/slack/status');
+            const dataSlack = await resSlack.json();
+            if (dataSlack.connected) {
+                setConnections(prev => ({
+                    ...prev,
+                    slack: { connected: true, lastSync: 'Connecté' }
+                }));
             }
-        };
+
+            // GitHub Status
+            const resGithub = await fetch('/api/github/status');
+            const dataGithub = await resGithub.json();
+            if (dataGithub.connected) {
+                setConnections(prev => ({
+                    ...prev,
+                    github: { connected: true, lastSync: 'Connecté' }
+                }));
+            }
+        } catch (e) {
+            console.error("Status check failed", e);
+        }
+    };
+
+    useEffect(() => {
         checkStatus();
     }, []);
 
-    // 2. Check for connection success callback from URL (After OAuth redirect)
+    // Listener for Popup Message
+    useEffect(() => {
+        const handleMessage = (event) => {
+            if (event.data.type === 'GITHUB_CONNECTED') {
+                checkStatus();
+            }
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
+
+    // 2. Check for connection success callback from URL (Legacy/Fallback)
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
             if (params.get('connected') === 'true') {
+                const app = params.get('app') || 'slack';
                 setConnections(prev => ({
                     ...prev,
-                    slack: { connected: true, lastSync: 'À l\'instant' }
+                    [app]: { connected: true, lastSync: 'À l\'instant' }
                 }));
-                // Remove param cleanly
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
         }
@@ -54,13 +160,30 @@ const IntegrationsSettings = () => {
             if (!connections.slack.connected) {
                 window.location.href = '/api/slack/install';
             } else {
-                // Disconnect logic
                 setConnections(prev => ({
                     ...prev,
                     slack: { connected: false, lastSync: null }
                 }));
-                setChannels([]); // Clear channels on disconnect
-                setActiveTab('overview'); // Reset tab to overview on disconnect
+                setChannels([]);
+                setActiveTab('overview');
+            }
+        } else if (appId === 'github') {
+            if (!connections.github.connected) {
+                // Open Popup
+                const width = 600;
+                const height = 700;
+                const left = (window.screen.width - width) / 2;
+                const top = (window.screen.height - height) / 2;
+                window.open(
+                    '/api/auth/github/install',
+                    'GitHubConnect',
+                    `width=${width},height=${height},top=${top},left=${left}`
+                );
+            } else {
+                setConnections(prev => ({
+                    ...prev,
+                    github: { connected: false, lastSync: null }
+                }));
             }
         } else {
             // Original toggle logic for other apps
@@ -233,7 +356,7 @@ const IntegrationsSettings = () => {
                                         onClick={() => setActiveTab('channels')}
                                         className={`pb-2 text-sm font-medium transition-colors relative ${activeTab === 'channels' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
-                                        Channels & Sources
+                                        {selectedAppId === 'github' ? 'Repositories' : 'Channels & Sources'}
                                         {activeTab === 'channels' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"></span>}
                                     </button>
                                 )}
@@ -253,7 +376,7 @@ const IntegrationsSettings = () => {
 
                         <button
                             onClick={() => handleConnect(selectedAppId)}
-                            disabled={selectedAppId !== 'slack'}
+                            disabled={selectedAppId !== 'slack' && selectedAppId !== 'github'}
                             className={`px-6 py-2 transition-all duration-300 font-medium rounded-lg shadow-sm text-sm
                                 ${connections[selectedAppId].connected
                                     ? 'bg-rose-600 text-white hover:bg-rose-700 hover:shadow-rose-500/20 shadow-rose-500/10'
@@ -302,59 +425,64 @@ const IntegrationsSettings = () => {
                         </div>
                     ) : (
                         <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                            <div className="flex justify-between items-center mb-2">
-                                <p className="text-sm text-slate-500">
-                                    Select channels to audit.
-                                </p>
-                                {selectedChannels.size > 0 && (
-                                    <button
-                                        onClick={handleSaveChannels}
-                                        disabled={isSaving}
-                                        className="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
-                                    >
-                                        {isSaving ? 'Saving...' : `Import (${selectedChannels.size})`}
-                                    </button>
-                                )}
-                            </div>
-
-                            {isLoadingChannels ? (
-                                <div className="text-center py-12">
-                                    <div className="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-3"></div>
-                                    <p className="text-xs text-slate-400 font-medium">Loading channels...</p>
-                                </div>
+                            {selectedAppId === 'github' ? (
+                                <GitHubRepositoriesView />
                             ) : (
-                                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                                    {channels.length === 0 ? (
-                                        <div className="p-8 text-center text-slate-500 text-sm">
-                                            No channels found. Invite @Verytis to a channel to see it here.
+                                <>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <p className="text-sm text-slate-500">
+                                            Select channels to audit.
+                                        </p>
+                                        {selectedChannels.size > 0 && (
+                                            <button
+                                                onClick={handleSaveChannels}
+                                                disabled={isSaving}
+                                                className="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                                            >
+                                                {isSaving ? 'Saving...' : `Import (${selectedChannels.size})`}
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {isLoadingChannels ? (
+                                        <div className="text-center py-12">
+                                            <div className="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-3"></div>
+                                            <p className="text-xs text-slate-400 font-medium">Loading channels...</p>
                                         </div>
                                     ) : (
-                                        <div className="divide-y divide-slate-100">
-                                            {channels.map(channel => (
-                                                <div
-                                                    key={channel.id}
-                                                    onClick={() => toggleChannel(channel.id)}
-                                                    className={`p-4 flex items-center justify-between hover:bg-blue-50/50 cursor-pointer transition-colors ${selectedChannels.has(channel.id) ? 'bg-blue-50/80' : 'bg-white'}`}
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedChannels.has(channel.id) ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
-                                                            {selectedChannels.has(channel.id) && <CheckCircle className="w-3 h-3 text-white" />}
-                                                        </div>
-                                                        <div className="flex items-center gap-3">
-                                                            {/* Hash icon removed to fix reference error if not imported, assumed included or replaced */}
-                                                            <svg className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" /></svg>
-                                                            <div>
-                                                                <span className="text-sm font-semibold text-slate-900">#{channel.name}</span>
-                                                                {channel.is_private && <span className="ml-2 text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">Privé</span>}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <span className="text-xs font-medium text-slate-500">{channel.num_members} membres</span>
+                                        <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                            {channels.length === 0 ? (
+                                                <div className="p-8 text-center text-slate-500 text-sm">
+                                                    No channels found. Invite @Verytis to a channel to see it here.
                                                 </div>
-                                            ))}
+                                            ) : (
+                                                <div className="divide-y divide-slate-100">
+                                                    {channels.map(channel => (
+                                                        <div
+                                                            key={channel.id}
+                                                            onClick={() => toggleChannel(channel.id)}
+                                                            className={`p-4 flex items-center justify-between hover:bg-blue-50/50 cursor-pointer transition-colors ${selectedChannels.has(channel.id) ? 'bg-blue-50/80' : 'bg-white'}`}
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedChannels.has(channel.id) ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
+                                                                    {selectedChannels.has(channel.id) && <CheckCircle className="w-3 h-3 text-white" />}
+                                                                </div>
+                                                                <div className="flex items-center gap-3">
+                                                                    <svg className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" /></svg>
+                                                                    <div>
+                                                                        <span className="text-sm font-semibold text-slate-900">#{channel.name}</span>
+                                                                        {channel.is_private && <span className="ml-2 text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">Privé</span>}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <span className="text-xs font-medium text-slate-500">{channel.num_members} membres</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
-                                </div>
+                                </>
                             )}
                         </div>
                     )}
@@ -363,5 +491,7 @@ const IntegrationsSettings = () => {
         </div>
     );
 };
+
+
 
 export default IntegrationsSettings;

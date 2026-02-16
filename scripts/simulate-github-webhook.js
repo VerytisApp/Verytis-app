@@ -1,35 +1,44 @@
-// Native fetch is used in Node 22
+import crypto from 'crypto';
 
 async function simulateWebhook() {
     console.log("🚀 Simulating GitHub PR Merge Webhook...");
 
+    const secret = 'SGesteve69'; // Hardcoded for simulation or process.env.GITHUB_WEBHOOK_SECRET
+
     const payload = {
         action: "closed",
         pull_request: {
-            number: 123,
-            title: "Fix vital security issue",
+            number: 124,
+            title: "Fix: Auth flow race condition",
             merged: true,
-            html_url: "https://github.com/verytis/core/pull/123",
+            html_url: "https://github.com/verytis/core/pull/124",
             user: {
-                login: "tychiqueesteve" // Ensure this matches a profile in DB or test fallback
+                login: "tychiqueesteve"
             },
-            changed_files: 5,
-            additions: 100,
-            deletions: 20
+            changed_files: 3,
+            additions: 45,
+            deletions: 12
         },
         repository: {
             full_name: "verytis/core"
         }
     };
 
+    const payloadString = JSON.stringify(payload);
+
+    // Compute Signature
+    const hmac = crypto.createHmac('sha256', secret);
+    const signature = 'sha256=' + hmac.update(payloadString).digest('hex');
+
     try {
         const response = await fetch('http://localhost:3000/api/webhooks/github', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-github-event': 'pull_request'
+                'x-github-event': 'pull_request',
+                'x-hub-signature-256': signature
             },
-            body: JSON.stringify(payload)
+            body: payloadString
         });
 
         const data = await response.json();
