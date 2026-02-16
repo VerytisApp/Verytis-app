@@ -9,7 +9,7 @@ const supabase = createClient(
 
 import crypto from 'crypto';
 
-// GitHub Webhook Handler - Final Real-time Validation
+// GitHub Webhook Handler - Final Verification (Permissions Approved)
 export async function POST(req) {
     const rawBody = await req.text();
     console.log(`📡 Incoming GitHub Webhook Body Length: ${rawBody.length}`);
