@@ -121,22 +121,30 @@ export async function POST(req) {
             }
 
             // 2. Identify User
+            const lowerGithubUsername = githubUsername.toLowerCase();
+
             let { data: profile } = await supabase
                 .from('profiles')
                 .select('id')
-                .contains('social_profiles', { github: { username: githubUsername } })
+                .contains('social_profiles', { github: { username: lowerGithubUsername } })
                 .maybeSingle();
 
             if (!profile) {
                 const { data: legacyProfile } = await supabase
                     .from('profiles')
                     .select('id')
-                    .contains('social_profiles', { github: githubUsername })
+                    .contains('social_profiles', { github: lowerGithubUsername })
                     .maybeSingle();
                 profile = legacyProfile;
             }
 
-            if (profile) {
+            // MANUAL MAPPING FALLBACK (Mirroring backfill script)
+            if (!profile && lowerGithubUsername === 'tychiqueesteve') {
+                userId = '4cf8db21-2e1e-4c22-9055-d586b7fed310';
+                isVerified = true;
+                method = 'MANUAL_MAPPING';
+                console.log(`🔗 Manual Mapping Applied: ${githubUsername} -> ${userId}`);
+            } else if (profile) {
                 userId = profile.id;
                 isVerified = true;
                 method = 'SOCIAL_LINK';
