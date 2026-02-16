@@ -37,88 +37,107 @@ export async function POST(req) {
         // Parse JSON after verification
         const body = JSON.parse(rawBody);
 
-        if (eventType !== 'pull_request') {
-            // We only care about PRs for now (audit trail of code changes)
-            // Silently ignore other events to avoid log noise, or return 200
+        // 2. EVENT ROUTING
+        if (eventType === 'pull_request') {
+            const action = body.action;
+            const pr = body.pull_request;
+
+            // FILTERING: Process ONLY if action === 'closed' AND merged === true
+            if (action !== 'closed' || !pr.merged) {
+                return NextResponse.json({ status: 'ignored_action' });
+            }
+
+            console.log(`🐙 GitHub PR Merged: #${pr.number} in ${body.repository.full_name}`);
+            await logGitHubActivity('CODE_MERGE', body.repository, pr.user.login, `Merged PR #${pr.number}: ${pr.title}`, {
+                pr_number: pr.number,
+                url: pr.html_url,
+                additions: pr.additions,
+                deletions: pr.deletions
+            });
+
+        } else if (eventType === 'push') {
+            const commits = body.commits || [];
+            if (commits.length === 0) return NextResponse.json({ status: 'no_commits' });
+
+            const repoName = body.repository.full_name;
+            const senderLogin = body.sender.login;
+            const branch = body.ref.replace('refs/heads/', '');
+
+            console.log(`🐙 GitHub Push: ${commits.length} commits to ${repoName} by ${senderLogin}`);
+
+            // We could log each commit, but a summary is often better for "high level" audit. 
+            // However, for "Audit Trail", logging individual significant commits might be better.
+            // Let's log the push as a single entry with commit details in metadata for now to reduce noise, 
+            // OR log the head commit. 
+            // User request implies "Commits" (plural). Let's log the push event.
+
+            const summary = `Pushed ${commits.length} commit${commits.length > 1 ? 's' : ''} to ${branch}`;
+
+            await logGitHubActivity('CODE_PUSH', body.repository, senderLogin, summary, {
+                branch: branch,
+                commits: commits.map(c => ({
+                    id: c.id,
+                    message: c.message,
+                    url: c.url,
+                    author: c.author.name
+                })),
+                compare_url: body.compare
+            });
+        } else {
             return NextResponse.json({ status: 'ignored_event_type' });
         }
 
+        return NextResponse.json({ status: 'logged' });
 
-        const action = body.action;
-        const pr = body.pull_request;
 
-        // 2. FILTERING: Process ONLY if action === 'closed' AND merged === true
-        if (action !== 'closed' || !pr.merged) {
-            return NextResponse.json({ status: 'ignored_action' });
-        }
 
-        console.log(`🐙 GitHub PR Merged: #${pr.number} in ${body.repository.full_name}`);
+        // Helper to handle identification and logging
+        async function logGitHubActivity(actionType, repository, githubUsername, summary, extraMetadata = {}) {
+            let userId = null;
+            let isVerified = false;
+            let method = 'ANONYMOUS';
 
-        // 3. IDENTIFICATION STRATEGY (The Core Logic)
-        let userId = null;
-        let isVerified = false;
-        let method = 'ANONYMOUS';
+            // Strategy: Social Profile Match (JSONB containment)
+            // We check both string format and nested object format for robustness
+            let { data: profile } = await supabase
+                .from('profiles')
+                .select('id')
+                .contains('social_profiles', { github: { username: githubUsername } })
+                .maybeSingle();
 
-        const githubUsername = pr.user.login; // The PR author
-        // Also check merged_by if needed, but usually we credit the author of the PR content
-        // Or if we want to credit who merged it: const mergerUsername = pr.merged_by.login;
-
-        // Strategy A: Email Match (if available in payload? usually not in PR payload directly, maybe in commits url)
-        // We skip Email for PR payload unless we fetch commits. 
-        // Let's stick to Username matching via social_profiles first.
-
-        // Strategy B: Social Profile Match
-        // Query profiles where social_profiles->>github matches sender login
-        // Note: JSONB query syntax in Supabase JS
-        const { data: profileBySocial } = await supabase
-            .from('profiles')
-            .select('id')
-            // This requires the functional index or just raw filter if valid JSONB
-            .eq('social_profiles->>github', githubUsername) // This syntax depends on Supabase/PostgREST version support
-            // Standard PostgREST: .filter('social_profiles->>github', 'eq', githubUsername)
-            // or .contains('social_profiles', { github: githubUsername })
-            .maybeSingle();
-
-        // Let's try .contains for JSONB as it's more robust
-        const { data: profileByContains } = await supabase
-            .from('profiles')
-            .select('id')
-            .contains('social_profiles', { github: githubUsername })
-            .maybeSingle();
-
-        if (profileByContains) {
-            userId = profileByContains.id;
-            isVerified = true;
-            method = 'SOCIAL_LINK';
-            console.log(`✅ Identified User via GitHub Link: ${githubUsername} -> ${userId}`);
-        } else {
-            console.log(`🕵️‍♀️ User not identified for GitHub: ${githubUsername}. Logged as Anonymous.`);
-        }
-
-        // 4. LOGGING: Insert into activity_logs
-        const repoName = body.repository.full_name;
-        const prTitle = pr.title;
-        const prUrl = pr.html_url;
-
-        await supabase.from('activity_logs').insert({
-            actor_id: userId, // Can be null
-            action_type: 'CODE_MERGE',
-            summary: `Merged PR #${pr.number} in ${repoName}: ${prTitle}`,
-            metadata: {
-                platform: 'GitHub',
-                pr_number: pr.number,
-                repo: repoName,
-                url: prUrl,
-                github_user: githubUsername,
-                identification_method: method,
-                is_anonymous: !isVerified,
-                files_changed: pr.changed_files,
-                additions: pr.additions,
-                deletions: pr.deletions
+            if (!profile) {
+                // Fallback for legacy string format if any
+                const { data: legacyProfile } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .contains('social_profiles', { github: githubUsername })
+                    .maybeSingle();
+                profile = legacyProfile;
             }
-        });
 
-        return NextResponse.json({ status: 'logged', identified: isVerified });
+            if (profile) {
+                userId = profile.id;
+                isVerified = true;
+                method = 'SOCIAL_LINK';
+                console.log(`✅ Identified User via GitHub: ${githubUsername} -> ${userId}`);
+            } else {
+                console.log(`🕵️‍♀️ User not identified for GitHub: ${githubUsername}`);
+            }
+
+            await supabase.from('activity_logs').insert({
+                actor_id: userId,
+                action_type: actionType,
+                summary: `${summary} in ${repository.full_name}`,
+                metadata: {
+                    platform: 'GitHub',
+                    repo: repository.full_name,
+                    github_user: githubUsername,
+                    identification_method: method,
+                    is_anonymous: !isVerified,
+                    ...extraMetadata
+                }
+            });
+        }
 
     } catch (error) {
         console.error('GitHub Webhook Error:', error);

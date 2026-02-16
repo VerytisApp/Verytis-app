@@ -35,7 +35,8 @@ export async function GET(req, { params }) {
                     full_name,
                     email,
                     avatar_url,
-                    role
+                    role,
+                    social_profiles
                 )
             `)
             .eq('team_id', teamId);
@@ -58,7 +59,6 @@ export async function GET(req, { params }) {
             return nameA.localeCompare(nameB);
         });
 
-        // Fetch Channels (Monitored Resources linked to this team)
         // Fetch Channels (Monitored Resources linked to this team)
         const { data: channelsRaw, error: channelsError } = await supabase
             .from('monitored_resources')
@@ -87,24 +87,46 @@ export async function GET(req, { params }) {
             };
         }));
 
-        // Fetch Recent Activity (Limit 5)
-        const externalIds = channels.map(c => c.external_id).filter(Boolean);
+        // Fetch Recent Activity (Limit 10 for better mix)
+        const slackChannelIds = channels.filter(c => c.integrations?.provider === 'slack' || c.type === 'channel').map(c => c.external_id).filter(Boolean);
+        const repoNames = channels.filter(c => c.integrations?.provider === 'github' || c.type === 'repo').map(c => c.name).filter(Boolean);
+
         let recentActivity = [];
+        let orConditions = [];
 
-        if (externalIds.length > 0) {
-            const orFilter = externalIds.map(id => `metadata->>slack_channel.eq.${id}`).join(',');
+        if (slackChannelIds.length > 0) {
+            // metadata->>slack_channel equals any of the IDs
+            // Since we can't easily use .in with JSON arrow operator in basic postgrest unless properly escaped or using filter
+            // Let's use chained ORs for now or a different approach if list is long.
+            // Actually, querying JSONB array/values is best done with containment if possible, but here we want "field equals value"
+            // Let's use the .or syntax with comma separation
 
+            // Limit to first 10 channels to avoid URL length issues for now if many channels
+            const safeIds = slackChannelIds.slice(0, 10);
+            const slackFilter = safeIds.map(id => `metadata->>slack_channel.eq.${id}`).join(',');
+            if (slackFilter) orConditions.push(slackFilter);
+        }
+
+        if (repoNames.length > 0) {
+            const safeRepos = repoNames.slice(0, 10);
+            const repoFilter = safeRepos.map(name => `metadata->>repo.eq.${name}`).join(',');
+            if (repoFilter) orConditions.push(repoFilter);
+        }
+
+        if (orConditions.length > 0) {
+            const finalOr = orConditions.join(',');
             const { data: logs } = await supabase
                 .from('activity_logs')
                 .select(`
                     *,
                     profiles:actor_id (full_name, email, avatar_url)
                 `)
-                .or(orFilter)
+                .or(finalOr)
                 .order('created_at', { ascending: false })
-                .limit(5);
+                .limit(50); // Increased limit for better mix
             recentActivity = logs || [];
         } else {
+            // Fallback: Query by resource_id if no external IDs/Names
             const channelIds = channels.map(c => c.id);
             if (channelIds.length > 0) {
                 const { data: logs } = await supabase
@@ -112,13 +134,16 @@ export async function GET(req, { params }) {
                     .select('*, profiles:actor_id(*)')
                     .in('resource_id', channelIds)
                     .order('created_at', { ascending: false })
-                    .limit(5);
+                    .limit(50);
                 recentActivity = logs || [];
             }
         }
 
         // Fetch Audit Scopes (from settings or defaults)
         const scopes = team.settings?.scopes || ['Channel Audit', 'Documentation Audit', 'Email Audit', 'Reports & Exports'];
+
+        // Compute unique integrations
+        const uniqueIntegrations = [...new Set(channels.map(c => c.integrations?.provider || (c.type === 'channel' ? 'slack' : 'teams')).filter(Boolean))];
 
         // Construct Response
         const fullTeam = {
@@ -129,17 +154,22 @@ export async function GET(req, { params }) {
                 email: m.profiles?.email || '',
                 role: m.role, // 'lead' or 'member'
                 avatar: m.profiles?.avatar_url || '',
-                joined_at: m.joined_at
+                joined_at: m.joined_at,
+                social_profiles: m.profiles?.social_profiles || {}
             })),
             channels: channels.map(c => ({
                 id: c.id,
                 name: c.name,
-                platform: c.integrations?.provider || (c.type === 'slack_channel' ? 'slack' : 'teams'),
+                platform: c.integrations?.provider || (c.type === 'channel' ? 'slack' : c.type === 'repo' ? 'github' : 'other'),
                 decisionsCount: c.decisionsCount,
                 external_id: c.external_id
             })),
+            integrations: [...new Set(channels.map(c => c.integrations?.provider || (c.type === 'channel' ? 'slack' : c.type === 'repo' ? 'github' : null)).filter(Boolean))],
             recentActivity: recentActivity.map(a => {
-                const channel = channels.find(c => c.external_id === a.metadata?.slack_channel);
+                const channel = channels.find(c =>
+                    (c.integrations?.provider === 'slack' && c.external_id === a.metadata?.slack_channel) ||
+                    (c.integrations?.provider === 'github' && c.name === a.metadata?.repo)
+                );
                 const channelName = channel?.name || 'Unknown';
                 const actorName = a.profiles?.full_name || 'System';
                 const actionType = a.action_type || 'Activity';
