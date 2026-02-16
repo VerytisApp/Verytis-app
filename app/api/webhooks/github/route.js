@@ -12,15 +12,16 @@ import crypto from 'crypto';
 // ... (other imports)
 
 export async function POST(req) {
-    console.log(`📡 Incoming GitHub Webhook...`);
+    const rawBody = await req.text();
+    console.log(`📡 Incoming GitHub Webhook Body Length: ${rawBody.length}`);
     try {
         const signature = req.headers.get('x-hub-signature-256');
         const eventType = req.headers.get('x-github-event');
-
-        // 0. SECURITY: Verify Signature
-        const rawBody = await req.text(); // Need raw text for HMAC
         const secret = process.env.GITHUB_WEBHOOK_SECRET;
 
+        console.log(`📡 Event Type: ${eventType}, Signature: ${signature ? 'PRESENT' : 'MISSING'}`);
+
+        // 0. SECURITY: Verify Signature
         if (secret && signature) {
             const hmac = crypto.createHmac('sha256', secret);
             const digest = Buffer.from('sha256=' + hmac.update(rawBody).digest('hex'), 'utf8');
@@ -35,9 +36,7 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
         }
 
-        // Parse JSON after verification
         const body = JSON.parse(rawBody);
-
         console.log(`📡 GitHub Webhook Received: ${eventType} - ${body.action || 'push'}`);
 
         // 2. EVENT ROUTING
