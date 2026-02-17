@@ -268,20 +268,25 @@ export default function StackDetailPage() {
                                 // Use DB logs from team.recentActivity
                                 toolActivities = (team.recentActivity || [])
                                     .filter(item => ['CODE_MERGE', 'CODE_PUSH', 'OPEN_PR', 'COMMIT'].includes(item.actionType))
-                                    .map(item => ({
-                                        type: 'github',
-                                        platform: 'github',
-                                        action: formatActionUI(item.actionType),
-                                        target: item.description,
-                                        actor: item.user.name,
-                                        time: new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                                        icon: Activity,
-                                        color: 'text-slate-600',
-                                        bg: 'bg-slate-50',
-                                        url: null,
-                                        resourceName: item.channel,
-                                        metadata: item.metadata
-                                    }));
+                                const isSingleCommit = item.metadata?.commits?.length === 1;
+                                const displayTarget = isSingleCommit
+                                    ? item.metadata.commits[0].message
+                                    : item.description;
+
+                                return {
+                                    type: 'github',
+                                    platform: 'github',
+                                    action: isSingleCommit ? 'Pushed Commit' : formatActionUI(item.actionType),
+                                    target: displayTarget,
+                                    actor: item.user.name,
+                                    time: new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                    icon: Activity,
+                                    color: 'text-slate-600',
+                                    bg: 'bg-slate-50',
+                                    url: isSingleCommit ? item.metadata.commits[0].url : null,
+                                    resourceName: item.channel,
+                                    metadata: item.metadata
+                                };
                             } else {
                                 // Map real activity from team.recentActivity for Slack/Teams
                                 toolActivities = (team.recentActivity || [])
