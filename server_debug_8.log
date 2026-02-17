@@ -99,3 +99,290 @@
  ✓ Compiled /api/teams/[teamId]/resources in 76ms (1175 modules)
  POST /api/teams/0b9ec0cc-d979-4f98-9ae8-b96557cab65e/resources 200 in 847ms
  GET /api/teams/0b9ec0cc-d979-4f98-9ae8-b96557cab65e 200 in 1546ms
+ GET /stacks/0b9ec0cc-d979-4f98-9ae8-b96557cab65e 200 in 110ms
+ ✓ Compiled /api/teams/[teamId] in 338ms (1161 modules)
+ ✓ Compiled (1163 modules)
+ GET /api/users 200 in 1243ms
+ GET /api/users 200 in 6ms
+ GET /api/teams/0b9ec0cc-d979-4f98-9ae8-b96557cab65e 200 in 1949ms
+ GET /api/teams/0b9ec0cc-d979-4f98-9ae8-b96557cab65e 200 in 1572ms
+ ✓ Compiled /stacks in 130ms (1168 modules)
+ ✓ Compiled /api/teams in 77ms (1170 modules)
+ GET /api/teams 200 in 346ms
+ GET /api/teams 200 in 280ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1494ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1243ms
+ GET /api/teams 200 in 200ms
+ GET /api/teams 200 in 200ms
+ GET /api/teams/a3650b5d-feab-4115-9e89-8f659881c856 200 in 1021ms
+ GET /api/teams/a3650b5d-feab-4115-9e89-8f659881c856 200 in 1120ms
+ GET /api/teams 200 in 224ms
+ GET /api/teams 200 in 195ms
+ GET /api/teams/60e1fcf2-b308-4e46-92e3-fca8747d4b06 200 in 639ms
+ GET /api/teams/60e1fcf2-b308-4e46-92e3-fca8747d4b06 200 in 620ms
+ GET /api/teams 200 in 196ms
+ GET /api/teams 200 in 197ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1055ms
+ ✓ Compiled /api/integrations in 111ms (1172 modules)
+ GET /api/integrations 200 in 128ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1492ms
+ ✓ Compiled /api/github/repositories in 70ms (1175 modules)
+ GET /api/github/repositories 200 in 84ms
+ ✓ Compiled /api/teams/[teamId]/resources in 72ms (1177 modules)
+ POST /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/resources 200 in 721ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1735ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 947ms (2135 modules)
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 519ms
+ ✓ Compiled /api/teams/[teamId] in 95ms (1161 modules)
+ ✓ Compiled (1163 modules)
+ GET /api/users 200 in 718ms
+ GET /api/users 200 in 6ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1810ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1121ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 425ms (2135 modules)
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 325ms
+ ✓ Compiled /api/teams/[teamId] in 103ms (1161 modules)
+ ✓ Compiled (1163 modules)
+ GET /api/users 200 in 872ms
+ GET /api/users 200 in 6ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 2300ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1239ms
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 70ms
+ GET /api/users 200 in 246ms
+ GET /api/users 200 in 261ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1170ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1462ms
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 21ms
+ ⚠ Cross origin request detected from aperiodically-preinventive-ella.ngrok-free.dev to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ GET /api/users 200 in 756ms
+ GET /api/users 200 in 6ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 2551ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1105ms
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 17ms
+ GET /api/users 200 in 265ms
+ GET /api/users 200 in 247ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1926ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1086ms
+ ✓ Compiled /api/webhooks/github in 352ms (1162 modules)
+📡 Incoming GitHub Webhook Body Length: 8874
+📡 Event Type: push, Signature: MISSING
+📡 GitHub Webhook Received: push - push
+🐙 GitHub Push: 1 commits to VerytisApp/Verytis-app by tychiqueestevepro-maker
+📍 Resource Found: 8769f51e-1fc4-4e78-b3a8-e49b21220e7f (Team: 0ca5315c-4a7e-476a-b490-164fa0fa4cb8, Org: 5db477f6-c893-4ec4-9123-b12160224f70)
+✅ Identified User via GitHub: tychiqueestevepro-maker -> 4cf8db21-2e1e-4c22-9055-d586b7fed310
+🚀 GitHub activity logged successfully
+ POST /api/webhooks/github 200 in 1527ms
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 47ms
+ ✓ Compiled /api/teams/[teamId] in 96ms (1164 modules)
+ ✓ Compiled (1166 modules)
+ GET /api/users 200 in 755ms
+ GET /api/users 200 in 5ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 2006ms
+ ✓ Compiled /_not-found in 318ms (2197 modules)
+ GET /_next/static/chunks/app/(dashboard)/LayoutGroupContext.mjs.map 404 in 349ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1593ms
+ ✓ Compiled in 228ms (1042 modules)
+ ✓ Compiled in 201ms (1042 modules)
+ ✓ Compiled in 541ms (2135 modules)
+ ✓ Compiled in 229ms (2135 modules)
+ ✓ Compiled in 193ms (2135 modules)
+ ✓ Compiled /api/teams/[teamId] in 101ms (1161 modules)
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1570ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 2084ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1090ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1570ms
+ ✓ Compiled in 222ms (2203 modules)
+ ✓ Compiled in 190ms (2203 modules)
+ ✓ Compiled /stacks/[teamId]/activity/[activityId] in 301ms (2231 modules)
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1122ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1073ms
+ ✓ Compiled in 542ms (2202 modules)
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+ ✓ Compiled in 384ms (2202 modules)
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: '86521219-5f9d-4eed-b0bf-509f99cee7b0'
+}
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: '86521219-5f9d-4eed-b0bf-509f99cee7b0'
+}
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+ ✓ Compiled /api/teams/[teamId] in 95ms (1189 modules)
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1343ms
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: 'dda33de5-8bb4-44c2-b7a2-a2cf0d0017b8'
+}
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1466ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1099ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1125ms
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: '86521219-5f9d-4eed-b0bf-509f99cee7b0'
+}
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: '86521219-5f9d-4eed-b0bf-509f99cee7b0'
+}
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 404 in 273ms
+ ✓ Compiled /api/users in 288ms (1191 modules)
+ GET /api/users 200 in 649ms
+ GET /api/users 200 in 8ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 530ms (2223 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 574ms
+ GET /_next/static/chunks/app/(dashboard)/LayoutGroupContext.mjs.map 404 in 137ms
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: '86521219-5f9d-4eed-b0bf-509f99cee7b0'
+}
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 404 in 300ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 19ms
+ GET /_next/static/chunks/app/(dashboard)/LayoutGroupContext.mjs.map 404 in 30ms
+ GET /api/users 200 in 221ms
+ GET /api/users 200 in 230ms
+ ✓ Compiled in 826ms (2202 modules)
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: '86521219-5f9d-4eed-b0bf-509f99cee7b0'
+}
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: '86521219-5f9d-4eed-b0bf-509f99cee7b0'
+}
+Dashboard Layout Rendered
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: '86521219-5f9d-4eed-b0bf-509f99cee7b0'
+}
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 404 in 500ms
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+ ✓ Compiled /_not-found in 159ms (2191 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 198ms
+ GET /_next/static/chunks/app/(dashboard)/LayoutGroupContext.mjs.map 404 in 32ms
+ ✓ Compiled /api/users in 187ms (1190 modules)
+ GET /api/users 200 in 439ms
+ GET /api/users 200 in 7ms
+ ✓ Compiled in 259ms (2206 modules)
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 404 in 69ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 19ms
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 404 in 16ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 10ms
+ ✓ Compiled /api/teams/[teamId] in 259ms (1164 modules)
+ GET /api/users 200 in 635ms
+ GET /api/users 200 in 8ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1909ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1486ms
+ GET /api/users 200 in 247ms
+ GET /api/users 200 in 252ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1102ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1095ms
+ ✓ Compiled /stacks in 164ms (1169 modules)
+ ✓ Compiled /api/teams in 84ms (1171 modules)
+ GET /api/teams 200 in 295ms
+ GET /api/teams 200 in 220ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1270ms
+Dashboard Layout Rendered
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1145ms
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 81ms
+ GET /api/users 200 in 15ms
+ GET /api/users 200 in 7ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1094ms
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 404 in 12ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 919ms
+Dashboard Layout Rendered
+ GET /stacks 200 in 19ms
+ GET /api/teams 200 in 510ms
+ GET /api/users 200 in 511ms
+ GET /api/users 200 in 12ms
+ GET /api/teams 200 in 216ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1078ms
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 404 in 11ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1059ms
+ ✓ Compiled in 399ms (2215 modules)
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 404 in 16ms
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 404 in 13ms
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 46ms
+ GET /api/users 200 in 238ms
+ GET /api/users 200 in 8ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1273ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 2885ms
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 36ms
+ GET /api/users 200 in 708ms
+ GET /api/users 200 in 8ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1954ms
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 404 in 11ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1398ms

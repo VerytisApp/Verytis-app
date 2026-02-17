@@ -1,0 +1,694 @@
+
+> icare-admin-console@1.0.0 dev
+> next dev -p 3000
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 976ms
+ ✓ Compiled /middleware in 89ms (123 modules)
+ ○ Compiling /stacks/[teamId]/activity/[activityId] ...
+ ✓ Compiled /stacks/[teamId]/activity/[activityId] in 924ms (1427 modules)
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: '86521219-5f9d-4eed-b0bf-509f99cee7b0'
+}
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 404 in 1571ms
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: '86521219-5f9d-4eed-b0bf-509f99cee7b0'
+}
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 404 in 315ms
+ ⚠ Cross origin request detected from aperiodically-preinventive-ella.ngrok-free.dev to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ ✓ Compiled /api/users in 244ms (1430 modules)
+ ✓ Compiled (1460 modules)
+ GET /_next/static/chunks/app/(dashboard)/LayoutGroupContext.mjs.map 404 in 420ms
+ GET /api/users 200 in 557ms
+ GET /api/users 200 in 4ms
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: '86521219-5f9d-4eed-b0bf-509f99cee7b0'
+}
+Error fetching activity: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column monitored_resources_1.platform does not exist'
+}
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 404 in 307ms
+ GET /_next/static/chunks/app/(dashboard)/LayoutGroupContext.mjs.map 404 in 16ms
+ GET /api/users 200 in 209ms
+ GET /api/users 200 in 674ms
+ ✓ Compiled in 821ms (1441 modules)
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: '86521219-5f9d-4eed-b0bf-509f99cee7b0'
+}
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: '86521219-5f9d-4eed-b0bf-509f99cee7b0'
+}
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 200 in 523ms
+ ✓ Compiled /_not-found in 121ms (1430 modules)
+ GET /_next/static/chunks/app/(dashboard)/LayoutGroupContext.mjs.map 404 in 163ms
+ ✓ Compiled /api/users in 87ms (775 modules)
+ GET /api/users 200 in 364ms
+ GET /api/users 200 in 5ms
+ ✓ Compiled /stacks/[teamId] in 443ms (1585 modules)
+ ✓ Compiled /api/teams/[teamId] in 77ms (840 modules)
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 2031ms
+Rendering Activity Page: {
+  teamId: '0ca5315c-4a7e-476a-b490-164fa0fa4cb8',
+  activityId: 'dda33de5-8bb4-44c2-b7a2-a2cf0d0017b8'
+}
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1615ms
+ ✓ Compiled in 503ms (1565 modules)
+ ✓ Compiled /api/teams/[teamId] in 122ms (836 modules)
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 2023ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1693ms
+ ○ Compiling /timeline/[channelId] ...
+ ✓ Compiled /timeline/[channelId] in 929ms (2198 modules)
+ ✓ Compiled /api/activity in 251ms (1182 modules)
+ ✓ Compiled (1184 modules)
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/resources/list 200 in 352ms
+ GET /api/resources/list 200 in 5ms
+ GET /api/activity?channelId=0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 652ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 210ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1663ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1278ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1785ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1339ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1097ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1707ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1127ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1270ms
+ ✓ Compiled in 438ms (2216 modules)
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 2286ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1367ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1212ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1362ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1256ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1320ms
+ ✓ Compiled /timeline in 411ms (2200 modules)
+ ✓ Compiled /api/resources/list in 83ms (1182 modules)
+ GET /api/resources/list 200 in 114ms
+ GET /api/resources/list 200 in 5ms
+ ✓ Compiled in 279ms (1034 modules)
+ ✓ Compiled /channels in 390ms (2190 modules)
+ ✓ Compiled in 133ms (1036 modules)
+ ✓ Compiled /api/resources/list in 77ms (1184 modules)
+ GET /api/resources/list 200 in 130ms
+ GET /api/resources/list 200 in 7ms
+ ○ Compiling / ...
+ ✓ Compiled / in 588ms (2226 modules)
+ ✓ Compiled in 222ms (1038 modules)
+ ⚠ ./app/(dashboard)/timeline/[channelId]/page.jsx
+Attempted import error: 'Timeline' is not exported from '@/components/pages' (imported as 'Timeline').
+
+Import trace for requested module:
+./app/(dashboard)/timeline/[channelId]/page.jsx
+
+./app/(dashboard)/timeline/page.jsx
+Attempted import error: 'Timeline' is not exported from '@/components/pages' (imported as 'Timeline').
+
+Import trace for requested module:
+./app/(dashboard)/timeline/page.jsx
+
+./app/(dashboard)/timeline/page.jsx
+Attempted import error: 'Timeline' is not exported from '@/components/pages' (imported as 'Timeline').
+
+Import trace for requested module:
+./app/(dashboard)/timeline/page.jsx
+ ⚠ ./app/(dashboard)/timeline/[channelId]/page.jsx
+Attempted import error: 'Timeline' is not exported from '@/components/pages' (imported as 'Timeline').
+
+Import trace for requested module:
+./app/(dashboard)/timeline/[channelId]/page.jsx
+ ⚠ ./app/(dashboard)/timeline/[channelId]/page.jsx
+Attempted import error: 'Timeline' is not exported from '@/components/pages' (imported as 'Timeline').
+
+Import trace for requested module:
+./app/(dashboard)/timeline/[channelId]/page.jsx
+Error: You cannot use different slug names for the same dynamic path ('channelId' !== 'provider').
+    at handleSlug (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:94:31)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:131:17)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:142:40)
+    at UrlNode.insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:13:14)
+    at /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:46
+    at Array.forEach (<anonymous>)
+    at getSortedRoutes (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:21)
+    at DevRouteMatcherManager.reload (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/default-route-matcher-manager.js:112:55)
+    at async DevRouteMatcherManager.matchAll (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/dev-route-matcher-manager.js:90:9)
+    at async DevRouteMatcherManager.match (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/default-route-matcher-manager.js:155:26)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/next-server.js:228:31)
+    at async DevServer.handleRequestImpl (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/base-server.js:818:17)
+    at async /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:359:24)
+    at async requestHandlerImpl (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/start-server.js:141:13)
+ ⨯ unhandledRejection: Error: You cannot use different slug names for the same dynamic path ('channelId' !== 'provider').
+    at handleSlug (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:94:31)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:131:17)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:142:40)
+    at UrlNode.insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:13:14)
+    at /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:46
+    at Array.forEach (<anonymous>)
+    at getSortedRoutes (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:21)
+    at DevRouteMatcherManager.reload (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/default-route-matcher-manager.js:112:55)
+    at async DevRouteMatcherManager.matchAll (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/dev-route-matcher-manager.js:90:9)
+    at async DevRouteMatcherManager.match (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/default-route-matcher-manager.js:155:26)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/next-server.js:228:31)
+    at async DevServer.handleRequestImpl (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/base-server.js:818:17)
+    at async /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:359:24)
+    at async requestHandlerImpl (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/start-server.js:141:13)
+ ⨯ unhandledRejection: Error: You cannot use different slug names for the same dynamic path ('channelId' !== 'provider').
+    at handleSlug (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:94:31)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:131:17)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:142:40)
+    at UrlNode.insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:13:14)
+    at /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:46
+    at Array.forEach (<anonymous>)
+    at getSortedRoutes (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:21)
+    at DevRouteMatcherManager.reload (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/default-route-matcher-manager.js:112:55)
+    at async DevRouteMatcherManager.matchAll (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/dev-route-matcher-manager.js:90:9)
+    at async DevRouteMatcherManager.match (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/default-route-matcher-manager.js:155:26)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/next-server.js:228:31)
+    at async DevServer.handleRequestImpl (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/base-server.js:818:17)
+    at async /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:359:24)
+    at async requestHandlerImpl (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/start-server.js:141:13)
+ ⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('channelId' !== 'provider').
+    at handleSlug (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:94:31)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:131:17)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:142:40)
+    at UrlNode.insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:13:14)
+    at /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:46
+    at Array.forEach (<anonymous>)
+    at getSortedRoutes (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:21)
+    at Watchpack.<anonymous> (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js:558:65)
+ ⚠ ./app/(dashboard)/timeline/[channelId]/page.jsx
+Attempted import error: 'Timeline' is not exported from '@/components/pages' (imported as 'Timeline').
+
+Import trace for requested module:
+./app/(dashboard)/timeline/[channelId]/page.jsx
+Error: You cannot use different slug names for the same dynamic path ('channelId' !== 'provider').
+    at handleSlug (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:94:31)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:131:17)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:142:40)
+    at UrlNode.insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:13:14)
+    at /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:46
+    at Array.forEach (<anonymous>)
+    at getSortedRoutes (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:21)
+    at DevRouteMatcherManager.reload (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/default-route-matcher-manager.js:112:55)
+    at async DevRouteMatcherManager.matchAll (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/dev-route-matcher-manager.js:90:9)
+    at async DevRouteMatcherManager.match (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/default-route-matcher-manager.js:155:26)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/next-server.js:228:31)
+    at async DevServer.handleRequestImpl (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/base-server.js:818:17)
+    at async /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:359:24)
+    at async requestHandlerImpl (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/start-server.js:141:13)
+ ⨯ unhandledRejection: Error: You cannot use different slug names for the same dynamic path ('channelId' !== 'provider').
+    at handleSlug (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:94:31)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:131:17)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:142:40)
+    at UrlNode.insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:13:14)
+    at /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:46
+    at Array.forEach (<anonymous>)
+    at getSortedRoutes (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:21)
+    at DevRouteMatcherManager.reload (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/default-route-matcher-manager.js:112:55)
+    at async DevRouteMatcherManager.matchAll (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/dev-route-matcher-manager.js:90:9)
+    at async DevRouteMatcherManager.match (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/default-route-matcher-manager.js:155:26)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/next-server.js:228:31)
+    at async DevServer.handleRequestImpl (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/base-server.js:818:17)
+    at async /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:359:24)
+    at async requestHandlerImpl (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/start-server.js:141:13)
+ ⨯ unhandledRejection: Error: You cannot use different slug names for the same dynamic path ('channelId' !== 'provider').
+    at handleSlug (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:94:31)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:131:17)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:142:40)
+    at UrlNode.insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:13:14)
+    at /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:46
+    at Array.forEach (<anonymous>)
+    at getSortedRoutes (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:21)
+    at DevRouteMatcherManager.reload (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/default-route-matcher-manager.js:112:55)
+    at async DevRouteMatcherManager.matchAll (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/dev-route-matcher-manager.js:90:9)
+    at async DevRouteMatcherManager.match (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/future/route-matcher-managers/default-route-matcher-manager.js:155:26)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/next-server.js:228:31)
+    at async DevServer.handleRequestImpl (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/base-server.js:818:17)
+    at async /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:359:24)
+    at async requestHandlerImpl (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/start-server.js:141:13)
+ ⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('channelId' !== 'provider').
+    at handleSlug (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:94:31)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:131:17)
+    at UrlNode._insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:142:40)
+    at UrlNode.insert (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:13:14)
+    at /Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:46
+    at Array.forEach (<anonymous>)
+    at getSortedRoutes (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js:165:21)
+    at Watchpack.<anonymous> (/Users/tychiqueesteve/Verytis-app/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js:558:65)
+ ✓ Compiled in 149ms (1040 modules)
+ ✓ Compiled /api/integrations in 170ms (1194 modules)
+ GET /api/integrations 200 in 208ms
+ GET /api/integrations 200 in 8ms
+ ✓ Compiled /_not-found in 184ms (2223 modules)
+ GET /settings/integrations 404 in 29ms
+ GET /timeline 200 in 108ms
+ GET /timeline 200 in 15ms
+ GET /channels 200 in 41ms
+ GET /timeline 200 in 13ms
+ GET /api/integrations 200 in 22ms
+ ✓ Compiled /api/users in 168ms (1197 modules)
+ GET /api/integrations 200 in 7ms
+ GET /api/users 200 in 881ms
+ GET /api/users 200 in 5ms
+ ✓ Compiled /timeline/[provider] in 215ms (2231 modules)
+ GET /api/resources/list 200 in 8ms
+ GET /api/resources/list 200 in 6ms
+ ✓ Compiled /timeline/[provider]/[resourceId] in 155ms (2237 modules)
+ ✓ Compiled /api/activity in 90ms (1207 modules)
+ GET /api/resources/list 200 in 191ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=96400f53-5daf-4529-a80a-3909e0d92200 200 in 197ms
+ GET /api/resources/list 200 in 6ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=96400f53-5daf-4529-a80a-3909e0d92200 200 in 5ms
+ GET /api/resources/list 200 in 6ms
+ GET /api/resources/list 200 in 5ms
+ GET /api/resources/list 200 in 9ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=97488e04-a0ff-4bd1-bfd3-7cbffe303757 200 in 13ms
+ GET /api/resources/list 200 in 6ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=97488e04-a0ff-4bd1-bfd3-7cbffe303757 200 in 5ms
+ GET /api/resources/list 200 in 5ms
+ GET /api/resources/list 200 in 5ms
+ GET /api/resources/list 200 in 9ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=cfb41847-ecae-499b-9b13-c9586ae749de 200 in 13ms
+ GET /api/resources/list 200 in 5ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=cfb41847-ecae-499b-9b13-c9586ae749de 200 in 5ms
+ GET /api/resources/list 200 in 5ms
+ GET /api/resources/list 200 in 5ms
+ GET /api/integrations 200 in 7ms
+ GET /api/integrations 200 in 5ms
+ GET /api/resources/list 200 in 5ms
+ GET /api/resources/list 200 in 5ms
+ GET /api/resources/list 200 in 8ms
+ ✓ Compiled in 850ms (2213 modules)
+ ✓ Compiled /api/integrations in 83ms (1171 modules)
+ GET /api/integrations 200 in 115ms
+ GET /api/integrations 200 in 6ms
+ GET /api/resources/list 200 in 6ms
+ GET /api/resources/list 200 in 9ms
+ GET /api/integrations 200 in 6ms
+ GET /api/integrations 200 in 5ms
+ GET /api/resources/list 200 in 6ms
+ GET /api/resources/list 200 in 5ms
+ ✓ Compiled in 424ms (2145 modules)
+ ✓ Compiled /api/integrations in 89ms (1169 modules)
+ GET /api/integrations 200 in 151ms
+ GET /api/integrations 200 in 10ms
+ ✓ Compiled /api/resources/list in 91ms (1171 modules)
+ GET /api/resources/list 200 in 107ms
+ GET /api/resources/list 200 in 6ms
+ GET /timeline/github 200 in 136ms
+ ✓ Compiled /_not-found in 354ms (2204 modules)
+ GET /_next/static/chunks/app/(dashboard)/LayoutGroupContext.mjs.map 404 in 406ms
+ ✓ Compiled /api/users in 169ms (1174 modules)
+ GET /api/resources/list 200 in 274ms
+ GET /api/resources/list 200 in 9ms
+ GET /api/users 200 in 558ms
+ GET /api/users 200 in 5ms
+ ✓ Compiled in 466ms (2145 modules)
+ GET /timeline/github 200 in 110ms
+ ✓ Compiled /_not-found in 122ms (2134 modules)
+ GET /_next/static/chunks/app/(dashboard)/LayoutGroupContext.mjs.map 404 in 159ms
+ ✓ Compiled /api/users in 208ms (1170 modules)
+ ✓ Compiled (1172 modules)
+Total resources: 5, Filtered resources: 5
+ GET /api/resources/list 200 in 385ms
+Total resources: 5, Filtered resources: 5
+ GET /api/resources/list 200 in 6ms
+ GET /api/users 200 in 654ms
+ GET /api/users 200 in 6ms
+ ✓ Compiled /api/integrations in 296ms (1174 modules)
+ GET /api/integrations 200 in 314ms
+ GET /api/integrations 200 in 7ms
+Total resources: 5, Filtered resources: 5
+ GET /api/resources/list 200 in 7ms
+Total resources: 5, Filtered resources: 5
+ GET /api/resources/list 200 in 7ms
+ ✓ Compiled in 412ms (2145 modules)
+ ✓ Compiled /api/resources/list in 114ms (1169 modules)
+Total resources: 5, Filtered resources: 5
+ GET /api/resources/list 200 in 183ms
+ ✓ Compiled in 312ms (2213 modules)
+ GET /timeline/github 200 in 153ms
+ ✓ Compiled /_not-found in 130ms (2202 modules)
+ GET /_next/static/chunks/app/(dashboard)/LayoutGroupContext.mjs.map 404 in 165ms
+ ✓ Compiled /api/users in 182ms (1172 modules)
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 632ms
+ GET /api/users 200 in 638ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 6ms
+ GET /api/users 200 in 8ms
+ ✓ Compiled /timeline/[provider]/[resourceId] in 315ms (1176 modules)
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 14ms
+ ✓ Compiled /api/activity in 158ms (1178 modules)
+🚀 API Activity: Executing Optimized Query with DB Filtering
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 167ms
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 813ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 7ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 7ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 6ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 12ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 14ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 11ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 13ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 13ms
+ ✓ Compiled in 533ms (2197 modules)
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 36ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 7ms
+ GET /timeline/github 200 in 115ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 14ms
+ ✓ Compiled /api/users in 90ms (1155 modules)
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 8ms
+ GET /api/users 200 in 375ms
+ GET /api/users 200 in 7ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 14ms
+ ✓ Compiled /api/activity in 83ms (1157 modules)
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 114ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 27ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 10ms
+ ✓ Compiled /_not-found in 254ms (2190 modules)
+ GET /_next/static/chunks/app/(dashboard)/LayoutGroupContext.mjs.map 404 in 293ms
+ ✓ Compiled in 299ms (2204 modules)
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 29ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 12ms
+ ✓ Compiled /api/integrations in 305ms (1156 modules)
+ GET /api/integrations 200 in 320ms
+ GET /api/integrations 200 in 7ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 7ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 7ms
+ GET /_next/static/chunks/app/(dashboard)/LayoutGroupContext.mjs.map 404 in 31ms
+ ✓ Compiled in 137ms (1046 modules)
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 19ms
+ ✓ Compiled /api/activity in 134ms (1158 modules)
+🚀 API Activity: Executing Optimized Query with DB Filtering
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 156ms
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 524ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 8ms
+ GET /timeline/github/8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 146ms
+ ✓ Compiled /api/activity in 232ms (1155 modules)
+ ✓ Compiled (1157 modules)
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 396ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 407ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 9ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 8ms
+ GET /api/users 200 in 764ms
+ GET /api/users 200 in 7ms
+ ✓ Compiled in 696ms (2132 modules)
+ GET /timeline/github/8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 137ms
+ ✓ Compiled /api/users in 247ms (1155 modules)
+ ✓ Compiled (1159 modules)
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 463ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 470ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 13ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 10ms
+ GET /api/users 200 in 958ms
+ GET /api/users 200 in 7ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 8ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 7ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 15ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 14ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 13ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 12ms
+ ✓ Compiled in 446ms (2132 modules)
+ ✓ Compiled in 281ms (1045 modules)
+ ✓ Compiled in 295ms (2132 modules)
+ GET /timeline/github/8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 138ms
+ ✓ Compiled /api/users in 327ms (1155 modules)
+ ✓ Compiled (1159 modules)
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 483ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 8ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 928ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 8ms
+ GET /api/users 200 in 1218ms
+ ✓ Compiled /stacks/[teamId]/activity/[activityId] in 174ms (1186 modules)
+ GET /api/users 200 in 45ms
+ ✓ Compiled /stacks/[teamId] in 162ms (1205 modules)
+ ✓ Compiled /api/teams/[teamId] in 175ms (1207 modules)
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1658ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1395ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 23ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 14ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 9ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 8ms
+ ✓ Compiled in 280ms (1045 modules)
+ ⨯ ./app/(dashboard)/stacks/[teamId]/activity/[activityId]/page.jsx
+Error: 
+  [31mx[0m 'import', and 'export' cannot be used outside of module code
+    ,-[[36;1;4m/Users/tychiqueesteve/Verytis-app/app/(dashboard)/stacks/[teamId]/activity/[activityId]/page.jsx[0m:61:1]
+ [2m61[0m |         }
+ [2m62[0m |     };
+ [2m63[0m | 
+ [2m64[0m |     import BackToPrevious from '@/components/ui/BackToPrevious';
+    : [31;1m    ^^^^^^[0m
+ [2m65[0m | 
+ [2m66[0m |     // ...
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/(dashboard)/stacks/[teamId]/activity/[activityId]/page.jsx
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1642ms
+ ⨯ ./app/(dashboard)/stacks/[teamId]/activity/[activityId]/page.jsx
+Error: 
+  [31mx[0m 'import', and 'export' cannot be used outside of module code
+    ,-[[36;1;4m/Users/tychiqueesteve/Verytis-app/app/(dashboard)/stacks/[teamId]/activity/[activityId]/page.jsx[0m:61:1]
+ [2m61[0m |         }
+ [2m62[0m |     };
+ [2m63[0m | 
+ [2m64[0m |     import BackToPrevious from '@/components/ui/BackToPrevious';
+    : [31;1m    ^^^^^^[0m
+ [2m65[0m | 
+ [2m66[0m |     // ...
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/(dashboard)/stacks/[teamId]/activity/[activityId]/page.jsx
+ ○ Compiling /_not-found ...
+ ⨯ ./app/(dashboard)/stacks/[teamId]/activity/[activityId]/page.jsx
+Error: 
+  [31mx[0m 'import', and 'export' cannot be used outside of module code
+    ,-[[36;1;4m/Users/tychiqueesteve/Verytis-app/app/(dashboard)/stacks/[teamId]/activity/[activityId]/page.jsx[0m:61:1]
+ [2m61[0m |         }
+ [2m62[0m |     };
+ [2m63[0m | 
+ [2m64[0m |     import BackToPrevious from '@/components/ui/BackToPrevious';
+    : [31;1m    ^^^^^^[0m
+ [2m65[0m | 
+ [2m66[0m |     // ...
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/(dashboard)/stacks/[teamId]/activity/[activityId]/page.jsx
+ ⨯ ./app/(dashboard)/stacks/[teamId]/activity/[activityId]/page.jsx
+Error: 
+  [31mx[0m 'import', and 'export' cannot be used outside of module code
+    ,-[[36;1;4m/Users/tychiqueesteve/Verytis-app/app/(dashboard)/stacks/[teamId]/activity/[activityId]/page.jsx[0m:61:1]
+ [2m61[0m |         }
+ [2m62[0m |     };
+ [2m63[0m | 
+ [2m64[0m |     import BackToPrevious from '@/components/ui/BackToPrevious';
+    : [31;1m    ^^^^^^[0m
+ [2m65[0m | 
+ [2m66[0m |     // ...
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/(dashboard)/stacks/[teamId]/activity/[activityId]/page.jsx
+ GET /_next/static/webpack/a06ae4c0bb546a2e.webpack.hot-update.json 500 in 2510ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 500 in 2359ms
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 500 in 50ms
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/tychiqueesteve/Verytis-app/.next/cache/webpack/client-development-fallback/0.pack.gz_' -> '/Users/tychiqueesteve/Verytis-app/.next/cache/webpack/client-development-fallback/0.pack.gz'
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8/activity/86521219-5f9d-4eed-b0bf-509f99cee7b0 500 in 11ms
+ GET /timeline/github/8769f51e-1fc4-4e78-b3a8-e49b21220e7f 500 in 12ms
+ ✓ Compiled /_not-found in 1004ms (2428 modules)
+ GET /_next/static/webpack/bd833f38aaa6ca19.webpack.hot-update.json 404 in 952ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /timeline/github/8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 186ms
+ GET /timeline/github/8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 53ms
+ ✓ Compiled /api/users in 304ms (1237 modules)
+ ✓ Compiled (1241 modules)
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 541ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 541ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 11ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 8ms
+ GET /api/users 200 in 1079ms
+ GET /api/users 200 in 8ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 19ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 22ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 15ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 11ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 15ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 17ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 14ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=8769f51e-1fc4-4e78-b3a8-e49b21220e7f 200 in 16ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 8ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 10ms
+ ✓ Compiled /stacks in 276ms (2470 modules)
+ ✓ Compiled /api/teams in 125ms (1248 modules)
+ GET /api/teams 200 in 472ms
+ GET /api/teams 200 in 359ms
+ ✓ Compiled /api/teams/[teamId] in 92ms (1250 modules)
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1266ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1537ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1223ms
+ ✓ Compiled /timeline in 98ms (1254 modules)
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1226ms
+ ✓ Compiled /api/integrations in 111ms (1256 modules)
+ GET /api/integrations 200 in 131ms
+ GET /api/integrations 200 in 9ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 10ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 9ms
+ GET /api/integrations 200 in 8ms
+ GET /api/integrations 200 in 9ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 7ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 8ms
+ ✓ Compiled in 469ms (2442 modules)
+ GET /timeline/github 200 in 138ms
+ ✓ Compiled /api/resources/list in 147ms (1236 modules)
+ ✓ Compiled (1238 modules)
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 802ms
+ GET /api/users 200 in 802ms
+Total resources: 7, Filtered resources: 7
+ GET /api/resources/list 200 in 18ms
+ GET /api/users 200 in 12ms
+ ✓ Compiled /timeline in 92ms (1242 modules)
+ ✓ Compiled /api/integrations in 170ms (1244 modules)
+ GET /api/integrations 200 in 199ms
+ GET /api/integrations 200 in 9ms

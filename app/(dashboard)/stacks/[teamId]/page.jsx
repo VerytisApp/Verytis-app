@@ -25,7 +25,6 @@ export default function StackDetailPage() {
     const [loadingResources, setLoadingResources] = useState(false);
     const [selectedIntegration, setSelectedIntegration] = useState(null);
     const [currentStep, setCurrentStep] = useState(1);
-    const [selectedActivity, setSelectedActivity] = useState(null);
 
     // Load Real Data
     const fetchTeamData = async () => {
@@ -268,25 +267,28 @@ export default function StackDetailPage() {
                                 // Use DB logs from team.recentActivity
                                 toolActivities = (team.recentActivity || [])
                                     .filter(item => ['CODE_MERGE', 'CODE_PUSH', 'OPEN_PR', 'COMMIT'].includes(item.actionType))
-                                const isSingleCommit = item.metadata?.commits?.length === 1;
-                                const displayTarget = isSingleCommit
-                                    ? item.metadata.commits[0].message
-                                    : item.description;
+                                    .map(item => {
+                                        const isSingleCommit = item.metadata?.commits?.length === 1;
+                                        const displayTarget = isSingleCommit
+                                            ? item.metadata.commits[0].message
+                                            : item.description;
 
-                                return {
-                                    type: 'github',
-                                    platform: 'github',
-                                    action: isSingleCommit ? 'Pushed Commit' : formatActionUI(item.actionType),
-                                    target: displayTarget,
-                                    actor: item.user.name,
-                                    time: new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                                    icon: Activity,
-                                    color: 'text-slate-600',
-                                    bg: 'bg-slate-50',
-                                    url: isSingleCommit ? item.metadata.commits[0].url : null,
-                                    resourceName: item.channel,
-                                    metadata: item.metadata
-                                };
+                                        return {
+                                            id: item.id,
+                                            type: 'github',
+                                            platform: 'github',
+                                            action: isSingleCommit ? 'Pushed Commit' : formatActionUI(item.actionType),
+                                            target: displayTarget,
+                                            actor: item.user.name,
+                                            time: new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                            icon: Activity,
+                                            color: 'text-slate-600',
+                                            bg: 'bg-slate-50',
+                                            url: isSingleCommit ? item.metadata.commits[0].url : null,
+                                            resourceName: item.channel,
+                                            metadata: item.metadata
+                                        };
+                                    });
                             } else {
                                 // Map real activity from team.recentActivity for Slack/Teams
                                 toolActivities = (team.recentActivity || [])
@@ -298,6 +300,7 @@ export default function StackDetailPage() {
                                         return channel?.platform === tool || (tool === 'slack' && !channel?.platform);
                                     })
                                     .map(item => ({
+                                        id: item.id,
                                         type: tool,
                                         platform: tool,
                                         action: item.actionType,
@@ -360,9 +363,10 @@ export default function StackDetailPage() {
                                             ) : (
                                                 <div className="divide-y divide-slate-100">
                                                     {toolActivities.map((item, idx) => (
-                                                        <div key={idx}
-                                                            onClick={() => setSelectedActivity(item)}
-                                                            className="p-3 flex gap-3 hover:bg-slate-50 transition-colors cursor-pointer group"
+                                                        <Link
+                                                            key={idx}
+                                                            href={`/stacks/${team.id}/activity/${item.id || '#'}`}
+                                                            className="p-3 flex gap-3 hover:bg-slate-50 transition-colors cursor-pointer group block"
                                                         >
                                                             <div className="mt-0.5">
                                                                 <div className="flex items-center justify-center">
@@ -379,19 +383,13 @@ export default function StackDetailPage() {
                                                             </div>
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex justify-between items-start">
-                                                                    <h4 className="text-xs font-bold text-slate-900 truncate pr-2">
+                                                                    <h4 className="text-xs font-bold text-slate-900 truncate pr-2 group-hover:text-blue-600 transition-colors">
                                                                         {item.action}
                                                                     </h4>
                                                                     <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">{item.time}</span>
                                                                 </div>
                                                                 <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                                                                    {item.url ? (
-                                                                        <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-blue-600">
-                                                                            {item.target}
-                                                                        </a>
-                                                                    ) : (
-                                                                        item.target
-                                                                    )}
+                                                                    {item.target}
                                                                 </p>
                                                                 <div className="mt-1.5 flex items-center gap-2">
                                                                     <span className="inline-flex items-center gap-1 text-[9px] text-slate-500 border border-slate-200 rounded px-1 py-0.5 bg-slate-50">
@@ -402,7 +400,7 @@ export default function StackDetailPage() {
                                                                     <span className="text-[10px] font-medium text-slate-600">{item.actor}</span>
                                                                 </div>
                                                             </div>
-                                                        </div>
+                                                        </Link>
                                                     ))}
                                                 </div>
                                             )}
@@ -598,99 +596,6 @@ export default function StackDetailPage() {
                                 )}
                             </div>
                         )}
-                    </div>
-                )}
-            </Modal>
-
-            {/* Activity Detail Modal */}
-            <Modal
-                isOpen={!!selectedActivity}
-                onClose={() => setSelectedActivity(null)}
-                title="Activity Details"
-                className="max-w-xl"
-            >
-                {selectedActivity && (
-                    <div className="space-y-6 text-left">
-                        <div className="flex items-start gap-4">
-                            <div className="flex-shrink-0 pt-1">
-                                <PlatformIcon platform={selectedActivity.platform} className="w-10 h-10" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h3 className="text-lg font-bold text-slate-900 leading-tight">
-                                            {selectedActivity.action}
-                                        </h3>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-xs font-medium text-slate-500">{selectedActivity.resourceName}</span>
-                                            <span className="text-slate-300">•</span>
-                                            <span className="text-xs font-medium text-slate-500">{selectedActivity.time}</span>
-                                        </div>
-                                    </div>
-                                    <StatusBadge status="Completed" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="pt-2">
-                            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Summary</h4>
-                            <p className="text-sm text-slate-700 font-medium whitespace-pre-wrap">
-                                {selectedActivity.target}
-                            </p>
-                        </div>
-
-                        {selectedActivity.metadata?.commits && selectedActivity.metadata.commits.length > 0 && (
-                            <div className="space-y-3">
-                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                                    <GitBranch className="w-3 h-3" /> Commits Details
-                                </h4>
-                                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                                    {selectedActivity.metadata.commits.map((commit, cIdx) => (
-                                        <div key={commit.id || cIdx} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm group/commit hover:border-blue-200 transition-colors">
-                                            <div className="flex justify-between items-start gap-3">
-                                                <p className="text-xs text-slate-600 leading-relaxed flex-1">
-                                                    {commit.message}
-                                                </p>
-                                                {commit.url && (
-                                                    <a href={commit.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-600 hover:text-blue-800 font-bold whitespace-nowrap">
-                                                        VIEW DIFF
-                                                    </a>
-                                                )}
-                                            </div>
-                                            <div className="mt-2 flex items-center gap-2">
-                                                <div className="w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-[8px] font-bold text-slate-400">
-                                                    {commit.author?.substring(0, 1).toUpperCase() || 'U'}
-                                                </div>
-                                                <span className="text-[10px] text-slate-400">{commit.author || 'Unknown'}</span>
-                                                <span className="text-slate-200">•</span>
-                                                <span className="text-[10px] font-mono text-slate-300">
-                                                    {commit.id?.substring(0, 7)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 flex items-center justify-center text-xs font-bold text-slate-500">
-                                    {selectedActivity.actor?.substring(0, 2).toUpperCase()}
-                                </div>
-                                <div className="text-left">
-                                    <div className="text-xs font-bold text-slate-900">{selectedActivity.actor}</div>
-                                    <div className="text-[10px] text-slate-500">Contributor</div>
-                                </div>
-                            </div>
-                            {selectedActivity.metadata?.compare_url && (
-                                <a href={selectedActivity.metadata.compare_url} target="_blank" rel="noopener noreferrer">
-                                    <Button size="sm" variant="outline" className="text-xs gap-2">
-                                        Open on GitHub <ChevronRight className="w-3 h-3" />
-                                    </Button>
-                                </a>
-                            )}
-                        </div>
                     </div>
                 )}
             </Modal>

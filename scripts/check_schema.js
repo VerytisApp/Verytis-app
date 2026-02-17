@@ -6,16 +6,18 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function checkIntegrations() {
-    const { data: integrations, error } = await supabase
-        .from('integrations')
-        .select('*');
+async function checkSchema() {
+    const { data, error } = await supabase
+        .from('monitored_resources')
+        .select('*')
+        .limit(1);
 
     if (error) {
         console.error("Error:", error);
     } else {
-        console.log("Integrations:", JSON.stringify(integrations, null, 2));
+        console.log("Keys:", Object.keys(data[0] || {}));
+        if (data[0]) console.log("Sample:", data[0]);
     }
 }
 
-checkIntegrations();
+checkSchema();

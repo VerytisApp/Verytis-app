@@ -121,16 +121,18 @@ export async function GET(req) {
         // Admin: No extra filters (sees all)
 
         // 5. Apply Specific Param Filters (e.g. Channel)
-        if (targetSlackChannelId) {
+        // 5. Apply Specific Param Filters
+        // If a specific resource (channel/repo) is requested via ID
+        if (channelId) {
+            query = query.eq('resource_id', channelId);
+        } else if (targetSlackChannelId) {
+            // Fallback for legacy calls using external ID logic (if any)
             query = query.eq('metadata->>slack_channel', targetSlackChannelId);
         }
 
         const { data: logs, error } = await query;
 
         if (error) throw error;
-
-        // No need for in-memory filtering of channels anymore
-        // We still keep the mapping logic
 
         // Map to UI format
         const events = logs.map(log => {
@@ -146,7 +148,7 @@ export async function GET(req) {
             }
             // Anonymous user (not connected to Verytis)
             else {
-                actorName = log.metadata?.slack_user_name || 'User X';
+                actorName = log.metadata?.slack_user_name || log.metadata?.github_user || 'User X';
                 role = 'Not connected';
             }
 
@@ -186,10 +188,13 @@ function mapActionType(actionType) {
         case 'TRANSFER':
         case 'EDIT':
         case 'ARCHIVE':
+        case 'PR_MERGED':
             return 'decision';
         case 'COMMENT':
+        case 'PR_OPENED':
             return 'comment';
         case 'FILE_SHARED':
+        case 'CODE_PUSH':
             return 'file';
         case 'MEMBER_JOINED':
         case 'CHANNEL_CREATED':
@@ -214,6 +219,9 @@ function formatAction(actionType) {
         case 'MEMBER_JOINED': return 'Member joined';
         case 'CHANNEL_CREATED': return 'Channel created';
         case 'ATTEMPTED_ACTION_ANONYMOUS': return 'Unverified action';
+        case 'CODE_PUSH': return 'Code Push';
+        case 'PR_OPENED': return 'PR Opened';
+        case 'PR_MERGED': return 'PR Merged';
         default: return actionType;
     }
 }
