@@ -164,7 +164,7 @@ export async function GET(req, { params }) {
                 decisionsCount: c.decisionsCount,
                 external_id: c.external_id
             })),
-            integrations: [...new Set(channels.map(c => c.integrations?.provider || (c.type === 'channel' ? 'slack' : c.type === 'repo' ? 'github' : null)).filter(Boolean))],
+            integrations: [...new Set(channels.map(c => c.integrations?.provider || (c.type === 'channel' ? 'slack' : c.type === 'repo' ? 'github' : null)).filter(item => item && item !== 'slack'))],
             recentActivity: recentActivity.map(a => {
                 const channel = channels.find(c =>
                     (c.integrations?.provider === 'slack' && c.external_id === a.metadata?.slack_channel) ||

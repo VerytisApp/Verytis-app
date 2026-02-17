@@ -124,7 +124,33 @@ export async function GET(req) {
         // 5. Apply Specific Param Filters
         // If a specific resource (channel/repo) is requested via ID
         if (channelId) {
-            query = query.eq('resource_id', channelId);
+            // First, get the resource info to allow fallback to metadata search
+            // (This handles cases where the webhook failed to link resource_id but has the correct repo name/external_id)
+            const { data: resource } = await supabase
+                .from('monitored_resources')
+                .select('type, name, external_id')
+                .eq('id', channelId)
+                .single();
+
+            const conditions = [`resource_id.eq.${channelId}`];
+
+            if (resource) {
+                if (resource.type === 'repo' && resource.name) {
+                    // For GitHub: Match generic resource_id OR specific repo name in metadata
+                    conditions.push(`metadata->>repo.eq.${resource.name}`);
+                } else if (resource.external_id) {
+                    // For Slack: Match generic resource_id OR specific slack_channel ID in metadata
+                    conditions.push(`metadata->>slack_channel.eq.${resource.external_id}`);
+                }
+            }
+
+            // Use OR query if we have multiple conditions, otherwise simple EQ
+            if (conditions.length > 1) {
+                query = query.or(conditions.join(','));
+            } else {
+                query = query.eq('resource_id', channelId);
+            }
+
         } else if (targetSlackChannelId) {
             // Fallback for legacy calls using external ID logic (if any)
             query = query.eq('metadata->>slack_channel', targetSlackChannelId);

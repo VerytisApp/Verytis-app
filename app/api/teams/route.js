@@ -53,7 +53,12 @@ export async function GET(req) {
             .select(`
                 *,
                 team_members (count),
-                monitored_resources (count)
+                monitored_resources (
+                    type,
+                    integrations (
+                        provider
+                    )
+                )
             `)
             .order('created_at', { ascending: false });
 
@@ -66,18 +71,28 @@ export async function GET(req) {
         if (error) throw error;
 
         // Transform data
-        const formattedTeams = teams.map(team => ({
-            id: team.id,
-            name: team.name,
-            description: team.description,
-            type: team.type || 'Operational',
-            status: 'Active', // Default status unless we add a column
-            members: team.team_members?.[0]?.count || 0,
-            channels: team.monitored_resources?.[0]?.count || 0,
-            created_at: team.created_at,
-            scopes: team.settings?.scopes || [],
-            currentUserRole: userGlobalRole === 'admin' ? 'Admin' : (roleMap[team.id] === 'lead' ? 'Manager' : (roleMap[team.id] ? 'Member' : 'None'))
-        }));
+        const formattedTeams = teams.map(team => {
+            // Extract unique providers
+            const resources = team.monitored_resources || [];
+            const integrations = [...new Set(resources.map(r => {
+                // Return 'github' or 'slack' based on provider or type fallback
+                return r.integrations?.provider || (r.type === 'repo' ? 'github' : (r.type === 'channel' ? 'slack' : null));
+            }).filter(item => item && item !== 'slack'))];
+
+            return {
+                id: team.id,
+                name: team.name,
+                description: team.description,
+                type: team.type || 'Operational',
+                status: 'Active',
+                members: team.team_members?.[0]?.count || 0,
+                channels: resources.length,
+                integrations: integrations,
+                created_at: team.created_at,
+                scopes: team.settings?.scopes || [],
+                currentUserRole: userGlobalRole === 'admin' ? 'Admin' : (roleMap[team.id] === 'lead' ? 'Manager' : (roleMap[team.id] ? 'Member' : 'None'))
+            };
+        });
 
         // Sort teams: Manager first, then others
         formattedTeams.sort((a, b) => {

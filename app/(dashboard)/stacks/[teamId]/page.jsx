@@ -1,18 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, PlatformIcon, StatusBadge, Button, ActivityFeed, Modal } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
 import {
     Layers, ChevronRight, Settings, Plus, Info,
     CheckCircle2, AlertCircle, Clock, Activity, FileText,
-    GitCommit, GitPullRequest, GitBranch
+    GitCommit, GitPullRequest, GitBranch, Trash2, X
 } from 'lucide-react';
 
 export default function StackDetailPage() {
     const { teamId } = useParams();
+    const router = useRouter(); // Initialize router
     const [team, setTeam] = useState(null);
     const [members, setMembers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -25,6 +26,9 @@ export default function StackDetailPage() {
     const [loadingResources, setLoadingResources] = useState(false);
     const [selectedIntegration, setSelectedIntegration] = useState(null);
     const [currentStep, setCurrentStep] = useState(1);
+
+    // Stack Management State
+    const [isManagingStack, setIsManagingStack] = useState(false);
 
     // Load Real Data
     const fetchTeamData = async () => {
@@ -163,6 +167,43 @@ export default function StackDetailPage() {
         }
     };
 
+    // Delete Handlers
+    const handleDeleteResource = async (resourceId) => {
+        if (!confirm('Are you sure you want to remove this resource from the stack? This action cannot be undone.')) return;
+
+        try {
+            const res = await fetch(`/api/teams/${teamId}/resources/${resourceId}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                fetchTeamData(); // Refresh list
+            } else {
+                alert('Failed to delete resource');
+            }
+        } catch (e) {
+            console.error('Error deleting resource:', e);
+        }
+    };
+
+    const handleDeleteStack = async () => {
+        if (!confirm('Are you sure you want to delete this ENTIRE STACK? All data and configuration will be lost permanently.')) return;
+
+        try {
+            const res = await fetch(`/api/teams/${teamId}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                router.push('/stacks');
+            } else {
+                alert('Failed to delete stack');
+            }
+        } catch (e) {
+            console.error('Error deleting stack:', e);
+        }
+    };
+
     if (loading) return <div className="p-8 text-center text-slate-500">Loading stack context...</div>;
     if (!team) return <div className="p-8 text-center text-slate-500">Team not found</div>;
 
@@ -198,12 +239,7 @@ export default function StackDetailPage() {
                             </div>
                         </div>
                     </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="hidden sm:flex">
-                            <Settings className="w-4 h-4 mr-2" />
-                            Manage Stack
-                        </Button>
-                    </div>
+
                 </div>
 
                 <div className="mt-4 flex items-center gap-4">
@@ -341,11 +377,7 @@ export default function StackDetailPage() {
                                                 </div>
                                             </div>
                                             <div className="flex flex-col items-end gap-2">
-                                                <Link href={`/timeline/${team.id}?filter=${tool}`}>
-                                                    <Button variant="outline" size="sm" className="h-7 text-xs">
-                                                        View Timeline <ChevronRight className="w-3 h-3 ml-1" />
-                                                    </Button>
-                                                </Link>
+
                                                 <span className="text-[10px] text-slate-400 font-medium">
                                                     {toolActivities.length > 0 ? "Last active: Just now" : "No recent data"}
                                                 </span>
@@ -417,12 +449,17 @@ export default function StackDetailPage() {
 
                     {/* Active Stack Config */}
                     <Card>
-                        <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/30 flex justify-between items-center">
-                            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900 flex items-center gap-2">
-                                <Layers className="w-3.5 h-3.5 text-blue-600" /> Active Stack
+                        <div className={`px-5 py-3 border-b ${isManagingStack ? 'bg-red-50 border-red-100' : 'bg-slate-50/30 border-slate-100'} flex justify-between items-center transition-colors`}>
+                            <h3 className={`text-xs font-bold uppercase tracking-wide flex items-center gap-2 ${isManagingStack ? 'text-red-600' : 'text-slate-900'}`}>
+                                <Layers className="w-3.5 h-3.5" />
+                                {isManagingStack ? 'Manage Stack' : 'Active Stack'}
                             </h3>
-                            <button className="text-slate-400 hover:text-blue-600 transition-colors">
-                                <Settings className="w-3.5 h-3.5" />
+                            <button
+                                onClick={() => setIsManagingStack(!isManagingStack)}
+                                className={`${isManagingStack ? 'text-red-500 hover:text-red-700 bg-red-100 hover:bg-red-200 p-1 rounded-full' : 'text-slate-400 hover:text-blue-600'} transition-all`}
+                                title={isManagingStack ? "Close Management" : "Manage Stack"}
+                            >
+                                {isManagingStack ? <X className="w-3.5 h-3.5" /> : <Settings className="w-3.5 h-3.5" />}
                             </button>
                         </div>
                         <div className="p-2 space-y-1">
@@ -443,11 +480,46 @@ export default function StackDetailPage() {
                                                 </div>
                                             </div>
                                         </div>
+                                        {isManagingStack ? (
+                                            <button
+                                                onClick={() => handleDeleteResource(resource.id)}
+                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                title="Remove this app"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        ) : (
+                                            <Link
+                                                href={`/timeline/${resource.platform}/${resource.id}`}
+                                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                title="View Timeline"
+                                            >
+                                                <ChevronRight className="w-4 h-4" />
+                                            </Link>
+                                        )}
                                     </div>
                                 ))}
-                            <button onClick={openAddToolModal} className="w-full mt-2 py-2 border border-dashed border-slate-300 rounded text-xs font-medium text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center gap-2">
-                                <Plus className="w-3.5 h-3.5" /> Add Tool
-                            </button>
+
+                            {isManagingStack ? (
+                                <div className="pt-2 mt-2 border-t border-slate-100 space-y-2">
+                                    <button
+                                        onClick={openAddToolModal}
+                                        className="w-full py-2 border border-dashed border-slate-300 rounded text-xs font-medium text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Plus className="w-3.5 h-3.5" /> Add Tool
+                                    </button>
+                                    <button
+                                        onClick={handleDeleteStack}
+                                        className="w-full py-2 bg-red-50 border border-red-100 rounded text-xs font-bold text-red-600 hover:bg-red-100 hover:border-red-200 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" /> DELETE STACK
+                                    </button>
+                                </div>
+                            ) : (
+                                <button onClick={openAddToolModal} className="w-full mt-2 py-2 border border-dashed border-slate-300 rounded text-xs font-medium text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center gap-2">
+                                    <Plus className="w-3.5 h-3.5" /> Add Tool
+                                </button>
+                            )}
                         </div>
                     </Card>
 

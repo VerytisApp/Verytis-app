@@ -4,11 +4,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Download, Activity, CheckCircle, Settings, FileText, UserPlus, FilterX, XCircle, RefreshCw, Edit2, GitCommit, GitPullRequest, GitMerge, Archive as ArchiveIcon } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import { Card, Button, PlatformIcon } from '@/components/ui';
 
 export default function TimelineFeed({ userRole }) {
     const { provider, resourceId } = useParams();
     const router = useRouter();
+    const supabase = createClient();
 
     // We already have the resourceId, so 'selectedChannelId' refers to that
     const [filterType, setFilterType] = useState('all');
@@ -35,26 +37,53 @@ export default function TimelineFeed({ userRole }) {
         fetchResourceInfo();
     }, [resourceId]);
 
-    // Fetch real events
-    useEffect(() => {
-        const fetchEvents = async () => {
-            if (!resourceId) return;
+    const fetchEvents = async () => {
+        if (!resourceId) return;
 
-            setLoading(true);
-            try {
-                // Assumption: API supports fetching by ID directly
-                const res = await fetch(`/api/activity?channelId=${resourceId}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setEvents(data.events || []);
-                }
-            } catch (e) {
-                console.error('Error fetching events:', e);
-            } finally {
-                setLoading(false);
+        // Only show loading on initial fetch if we don't have events yet
+        if (events.length === 0) setLoading(true);
+
+        try {
+            // Assumption: API supports fetching by ID directly
+            const res = await fetch(`/api/activity?channelId=${resourceId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setEvents(data.events || []);
             }
-        };
+        } catch (e) {
+            console.error('Error fetching events:', e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Fetch real events & Subscribe to Realtime
+    useEffect(() => {
         fetchEvents();
+
+        // REAL-TIME: Listen for new activity logs for this resource
+        const channel = supabase
+            .channel(`resource-activity-${resourceId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'activity_logs',
+                    filter: `resource_id=eq.${resourceId}`
+                },
+                (payload) => {
+                    console.log('🔥 New Activity Detected for this resource!', payload);
+                    fetchEvents();
+                }
+            )
+            .subscribe((status) => {
+                console.log(`📡 Realtime Status: ${status}`);
+            });
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [resourceId]);
 
     // Filter events
@@ -123,7 +152,7 @@ export default function TimelineFeed({ userRole }) {
             <header className="flex items-center justify-between pb-4 border-b border-slate-200 mt-6">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => router.push(`/timeline/${provider}`)}
+                        onClick={() => router.back()}
                         className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors border border-transparent hover:border-slate-200"
                     >
                         <ArrowLeft className="w-4 h-4" />
