@@ -58,13 +58,13 @@ export async function GET(req) {
                 .eq('is_enabled', true);
             userScopes = perms ? perms.map(p => p.permission_key) : [];
 
-            // Fetch Team
+            // Fetch Team (Any role)
             const { data: teamMember } = await supabase
                 .from('team_members')
                 .select('team_id')
                 .eq('user_id', userId)
-                .eq('role', 'lead') // Only relevant if lead/manager
                 .maybeSingle();
+
             if (teamMember) userTeamId = teamMember.team_id;
         }
 
@@ -89,43 +89,38 @@ export async function GET(req) {
             .order('created_at', { ascending: false })
             .limit(100);
 
-        // 4. Apply Security Filters (Scopes & Roles)
-        // 4. Apply Security Filters (Scopes & Roles)
-        if (userRole === 'member') {
-            // Member: Strict restriction to own activity
-            if (userId) query = query.eq('actor_id', userId);
+        // 4. Apply Channel-Specific Team Access Logic (Overrides Role Restrictions)
+        let hasChannelAccess = false;
+
+        if (channelId && userTeamId) {
+            // Check if the requested channel belongs to the user's team
+            const { data: targetResource } = await supabase
+                .from('monitored_resources')
+                .select('team_id')
+                .eq('id', channelId)
+                .single();
+
+            if (targetResource && targetResource.team_id === userTeamId) {
+                hasChannelAccess = true;
+            }
         }
-        else if (userRole === 'manager') {
-            // Manager: Check for Audit Scope
-            const hasAuditScope = userScopes.includes('Channel Audit') || userScopes.includes('Full Audit');
 
-            if (!hasAuditScope || !userTeamId) {
-                // No scope OR not assigned to team -> Fallback to own activity
+        // If user has specific team access to this channel, SKIP role filters.
+        // Otherwise, apply strict role defaults.
+        if (!hasChannelAccess) {
+            if (userRole === 'member') {
+                // Member: Strict restriction to own activity
                 if (userId) query = query.eq('actor_id', userId);
-            } else {
-                // Has Scope AND Team
+            }
+            else if (userRole === 'manager') {
+                // Manager: Check for Audit Scope
+                const hasAuditScope = userScopes.includes('Channel Audit') || userScopes.includes('Full Audit');
 
-                // CRITICAL FIX: If we are viewing a specific channel (channelId), and that channel belongs to the user's team,
-                // we SKIP the strict "resource_id IN [...]" filter. 
-                // Why? Because listing all resource IDs excludes logs where resource_id is NULL (but match by metadata).
-                // The subsequent channelId query will safely restrict data to this resource anyway.
-
-                let skipResourceFilter = false;
-
-                if (channelId) {
-                    // Check if the requested channel belongs to the user's team
-                    const { data: targetResource } = await supabase
-                        .from('monitored_resources')
-                        .select('team_id')
-                        .eq('id', channelId)
-                        .single();
-
-                    if (targetResource && targetResource.team_id === userTeamId) {
-                        skipResourceFilter = true;
-                    }
-                }
-
-                if (!skipResourceFilter) {
+                if (!hasAuditScope || !userTeamId) {
+                    // No scope OR not assigned to team -> Fallback to own activity
+                    if (userId) query = query.eq('actor_id', userId);
+                } else {
+                    // Has Scope AND Team
                     // Filter by ALL Team Resources (Global Feed or Cross-Team Protection)
                     const { data: teamResources } = await supabase
                         .from('monitored_resources')
@@ -143,7 +138,7 @@ export async function GET(req) {
                 }
             }
         }
-        // Admin: No extra filters (sees all)
+        // Admin or Authorized Channel Viewer: No extra filters (sees all matching the channel)
 
         // 5. Apply Specific Param Filters (e.g. Channel)
         // If a specific resource (channel/repo) is requested via ID
