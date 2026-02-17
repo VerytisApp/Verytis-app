@@ -73,7 +73,15 @@ export default function TimelineFeed({ userRole }) {
                     filter: `resource_id=eq.${resourceId}`
                 },
                 (payload) => {
-                    console.log('🔥 New Activity Detected for this resource!', payload);
+                    console.log('🔥 New Activity Detected (DB)!', payload);
+                    fetchEvents();
+                }
+            )
+            .on(
+                'broadcast',
+                { event: 'new_activity' },
+                (payload) => {
+                    console.log('🔥 New Activity Detected (Broadcast)!', payload);
                     fetchEvents();
                 }
             )

@@ -62,9 +62,15 @@ export default function StackDetailPage() {
                     table: 'activity_logs'
                 },
                 (payload) => {
-                    console.log('🔥 New Activity Detected!', payload);
-                    // Proactive check: does this log belong to one of our monitored resources?
-                    // Or simply refetch since the backend filters correctly anyway.
+                    console.log('🔥 New Activity Detected (DB)!', payload);
+                    fetchTeamData();
+                }
+            )
+            .on(
+                'broadcast',
+                { event: 'new_activity' },
+                (payload) => {
+                    console.log('🔥 New Activity Detected (Broadcast)!', payload);
                     fetchTeamData();
                 }
             )

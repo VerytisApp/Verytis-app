@@ -172,6 +172,38 @@ export async function POST(req) {
                 console.error(`❌ Error logging GitHub activity:`, logError);
             } else {
                 console.log(`🚀 GitHub activity logged successfully`);
+
+                // BROADCAST to frontend (Bypassing RLS)
+                if (resourceId) {
+                    // We need the teamId to broadcast to the correct channel
+                    // We already have organizationId, but channel is `team-activity-${teamId}`
+                    // Resource has team_id
+                    const { data: res } = await supabase
+                        .from('monitored_resources')
+                        .select('team_id')
+                        .eq('id', resourceId)
+                        .single();
+
+                    if (res?.team_id) {
+                        // Broadcast to TEAM channel (for Stacks page)
+                        await supabase.channel(`team-activity-${res.team_id}`)
+                            .send({
+                                type: 'broadcast',
+                                event: 'new_activity',
+                                payload: { resourceId, actionType, summary }
+                            });
+
+                        // Broadcast to RESOURCE channel (for Timeline page)
+                        await supabase.channel(`resource-activity-${resourceId}`)
+                            .send({
+                                type: 'broadcast',
+                                event: 'new_activity',
+                                payload: { resourceId, actionType, summary }
+                            });
+
+                        console.log(`📡 Broadcast sent to team-activity-${res.team_id} AND resource-activity-${resourceId}`);
+                    }
+                }
             }
         }
 

@@ -136,8 +136,8 @@ export async function GET(req) {
 
             if (resource) {
                 if (resource.type === 'repo' && resource.name) {
-                    // For GitHub: Match generic resource_id OR specific repo name in metadata
-                    conditions.push(`metadata->>repo.eq.${resource.name}`);
+                    // For GitHub: Match generic resource_id OR specific repo name in metadata (CASE INSENSITIVE)
+                    conditions.push(`metadata->>repo.ilike.${resource.name}`);
                 } else if (resource.external_id) {
                     // For Slack: Match generic resource_id OR specific slack_channel ID in metadata
                     conditions.push(`metadata->>slack_channel.eq.${resource.external_id}`);
