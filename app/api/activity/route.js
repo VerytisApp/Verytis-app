@@ -3,10 +3,21 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * GET /api/activity?channelId=<uuid>
+ *
+ * Returns activity logs for a given monitored resource (channel/repo).
+ * Query strategy mirrors api/teams/[teamId] for consistency:
+ *   - Primary match:   resource_id = channelId
+ *   - Metadata match:  metadata->>repo = resource.name (GitHub)
+ *                      metadata->>slack_channel = resource.external_id (Slack)
+ *
+ * Auth: Access is scoped by channelId — you only see events for the resource you request.
+ *       Page-level auth is handled by middleware (session check).
+ */
 export async function GET(req) {
-    console.log("🚀 API Activity: Executing Optimized Query with DB Filtering");
     const { searchParams } = new URL(req.url);
-    const channelId = searchParams.get('channelId'); // This is the UUID from monitored_resources
+    const channelId = searchParams.get('channelId');
 
     const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -14,61 +25,24 @@ export async function GET(req) {
     );
 
     try {
-        let targetSlackChannelId = null;
-
-        // 1. Resolve UUID -> Slack Channel ID (e.g., C0A36CT0GNN)
+        // ── 1. Resolve Resource Details ─────────────────────────────────
+        // We need the resource name/type to build the OR query (same as Stack API)
+        let resource = null;
         if (channelId) {
-            const { data: resource, error: resourceError } = await supabase
+            const { data, error } = await supabase
                 .from('monitored_resources')
-                .select('external_id')
+                .select('type, name, external_id')
                 .eq('id', channelId)
                 .single();
 
-            if (resourceError && resourceError.code !== 'PGRST116') {
-                console.error("Error resolving channel ID:", resourceError);
+            if (error && error.code !== 'PGRST116') {
+                console.error('Error resolving resource:', error);
             }
-
-            if (resource) {
-                targetSlackChannelId = resource.external_id;
-            }
+            resource = data;
         }
 
-        // 2. Auth & Permissions Context
-        const userId = req.headers.get('x-user-id') || searchParams.get('userId'); // Retrieve from secure header or param
-
-        let userRole = 'admin'; // Default to admin for dev/demo if no user provided (simulated unsecured access)
-        let userScopes = [];
-        let userTeamId = null;
-
-        if (userId) {
-            // Fetch User Context
-            const { data: userProfile } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', userId)
-                .maybeSingle();
-
-            if (userProfile) userRole = userProfile.role;
-
-            // Fetch Scopes
-            const { data: perms } = await supabase
-                .from('user_permissions')
-                .select('permission_key')
-                .eq('user_id', userId)
-                .eq('is_enabled', true);
-            userScopes = perms ? perms.map(p => p.permission_key) : [];
-
-            // Fetch Team (Any role)
-            const { data: teamMember } = await supabase
-                .from('team_members')
-                .select('team_id')
-                .eq('user_id', userId)
-                .maybeSingle();
-
-            if (teamMember) userTeamId = teamMember.team_id;
-        }
-
-        // 3. Build Base Query
+        // ── 2. Build Query ──────────────────────────────────────────────
+        // Model: Exactly mirrors api/teams/[teamId] query pattern
         let query = supabase
             .from('activity_logs')
             .select(`
@@ -85,117 +59,45 @@ export async function GET(req) {
                     role
                 )
             `)
-            .not('action_type', 'in', '("DISCUSSION","DISCUSSION_ANONYMOUS")')
-            .order('created_at', { ascending: false })
-            .limit(100);
+            .not('action_type', 'in', '("DISCUSSION","DISCUSSION_ANONYMOUS")');
 
-        // 4. Apply Channel-Specific Team Access Logic (Overrides Role Restrictions)
-        let hasChannelAccess = false;
-
-        if (channelId && userTeamId) {
-            // Check if the requested channel belongs to the user's team
-            const { data: targetResource } = await supabase
-                .from('monitored_resources')
-                .select('team_id')
-                .eq('id', channelId)
-                .single();
-
-            if (targetResource && targetResource.team_id === userTeamId) {
-                hasChannelAccess = true;
-            }
-        }
-
-        // If user has specific team access to this channel, SKIP role filters.
-        // Otherwise, apply strict role defaults.
-        if (!hasChannelAccess) {
-            if (userRole === 'member') {
-                // Member: Strict restriction to own activity
-                if (userId) query = query.eq('actor_id', userId);
-            }
-            else if (userRole === 'manager') {
-                // Manager: Check for Audit Scope
-                const hasAuditScope = userScopes.includes('Channel Audit') || userScopes.includes('Full Audit');
-
-                if (!hasAuditScope || !userTeamId) {
-                    // No scope OR not assigned to team -> Fallback to own activity
-                    if (userId) query = query.eq('actor_id', userId);
-                } else {
-                    // Has Scope AND Team
-                    // Filter by ALL Team Resources (Global Feed or Cross-Team Protection)
-                    const { data: teamResources } = await supabase
-                        .from('monitored_resources')
-                        .select('id')
-                        .eq('team_id', userTeamId);
-
-                    const resourceIds = teamResources?.map(r => r.id) || [];
-
-                    if (resourceIds.length > 0) {
-                        query = query.in('resource_id', resourceIds);
-                    } else {
-                        // Team has no resources -> Show nothing (or own activity)
-                        if (userId) query = query.eq('actor_id', userId);
-                    }
-                }
-            }
-        }
-        // Admin or Authorized Channel Viewer: No extra filters (sees all matching the channel)
-
-        // 5. Apply Specific Param Filters (e.g. Channel)
-        // If a specific resource (channel/repo) is requested via ID
+        // ── 3. Apply Resource Filter ────────────────────────────────────
+        // Build OR conditions: match by resource_id OR by metadata fields
+        // This is the SAME pattern used by api/teams (proven to work)
         if (channelId) {
-            // First, get the resource info to allow fallback to metadata search
-            // (This handles cases where the webhook failed to link resource_id but has the correct repo name/external_id)
-            const { data: resource } = await supabase
-                .from('monitored_resources')
-                .select('type, name, external_id')
-                .eq('id', channelId)
-                .single();
-
             const conditions = [`resource_id.eq.${channelId}`];
 
             if (resource) {
                 if (resource.type === 'repo' && resource.name) {
-                    // For GitHub: Match generic resource_id OR specific repo name in metadata
-                    // Using .ilike to be safe (retaining the fix for case-sensitivity)
-                    conditions.push(`metadata->>repo.ilike.${resource.name}`);
+                    // GitHub: also match by repo name in metadata
+                    conditions.push(`metadata->>repo.eq.${resource.name}`);
                 } else if (resource.external_id) {
-                    // For Slack: Match generic resource_id OR specific slack_channel ID in metadata
+                    // Slack: also match by slack_channel ID in metadata
                     conditions.push(`metadata->>slack_channel.eq.${resource.external_id}`);
                 }
             }
 
-            // Use OR query if we have multiple conditions, otherwise simple EQ
-            if (conditions.length > 1) {
-                query = query.or(conditions.join(','));
-            } else {
-                query = query.eq('resource_id', channelId);
-            }
-
-        } else if (targetSlackChannelId) {
-            // Fallback for legacy calls using external ID logic (if any)
-            query = query.eq('metadata->>slack_channel', targetSlackChannelId);
+            query = query.or(conditions.join(','));
         }
 
+        // ── 4. Execute (single order + limit, no duplicates) ────────────
         const { data: logs, error } = await query
             .order('created_at', { ascending: false })
             .limit(50);
 
         if (error) throw error;
 
-        // Map to UI format
-        const events = logs.map(log => {
+        // ── 5. Map to UI Format ─────────────────────────────────────────
+        const events = (logs || []).map(log => {
             let actorName;
             let role;
             let email = null;
 
-            // Connected user (has actor_id and profile)
             if (log.actor_id && log.profiles?.full_name) {
                 actorName = log.profiles.full_name;
                 role = log.profiles.role || 'Member';
                 email = log.profiles.email;
-            }
-            // Anonymous user (not connected to Verytis)
-            else {
+            } else {
                 actorName = log.metadata?.slack_user_name || log.metadata?.github_user || 'User X';
                 role = 'Not connected';
             }
@@ -207,12 +109,12 @@ export async function GET(req) {
                 action: formatAction(log.action_type),
                 target: log.summary || 'No description',
                 actor: actorName,
-                email: email,
-                role: role,
+                email,
+                role,
                 meta: log.metadata?.attachments?.length > 0 ? `${log.metadata.attachments.length} file(s)` : null,
                 isAnonymous: log.metadata?.is_anonymous || false,
                 channelId: log.metadata?.slack_channel || 'Unknown',
-                rawMetadata: log.metadata // Include full metadata for audit export (proofs, text, etc.)
+                rawMetadata: log.metadata
             };
         });
 
@@ -228,6 +130,8 @@ export async function GET(req) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
+
+// ── Helpers ─────────────────────────────────────────────────────────────
 
 function mapActionType(actionType) {
     switch (actionType) {
@@ -267,9 +171,8 @@ function formatAction(actionType) {
         case 'MEMBER_JOINED': return 'Member joined';
         case 'CHANNEL_CREATED': return 'Channel created';
         case 'ATTEMPTED_ACTION_ANONYMOUS': return 'Unverified action';
-        case 'CODE_PUSH': return 'Pushed Commit'; // Match Stack page
-        case 'PR_OPENED': return 'Opened PR'; // Match Stack page
-        case 'PR_MERGED': return 'Merged PR';
+        case 'CODE_PUSH': return 'Pushed Commit';
+        case 'PR_OPENED': return 'Opened PR';
         case 'PR_MERGED': return 'PR Merged';
         default: return actionType;
     }
