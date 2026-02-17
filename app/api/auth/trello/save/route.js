@@ -56,24 +56,31 @@ export async function POST(req) {
             organization_id: targetOrgId,
             provider: 'trello',
             name: member.username || member.fullName || 'Trello',
-            external_id: member.id,
+            external_id: member.id || `token_${token.substring(0, 16)}`,
             settings: {
                 api_token: token,
                 api_key: process.env.TRELLO_API_KEY,
-                username: member.username,
-                full_name: member.fullName,
+                username: member.username || null,
+                full_name: member.fullName || null,
                 avatar_url: member.avatarUrl ? `https://trello-members.s3.amazonaws.com/${member.id}/${member.avatarHash}/170.png` : null,
                 connected_at: new Date().toISOString()
             }
         };
 
+        let dbResult;
         if (existing) {
-            await supabase.from('integrations').update(integrationData).eq('id', existing.id);
+            dbResult = await supabase.from('integrations').update(integrationData).eq('id', existing.id);
         } else {
-            await supabase.from('integrations').insert(integrationData);
+            dbResult = await supabase.from('integrations').insert(integrationData);
         }
 
-        return NextResponse.json({ success: true, username: member.username });
+        if (dbResult.error) {
+            console.error('❌ Trello DB save error:', dbResult.error);
+            return NextResponse.json({ error: dbResult.error.message }, { status: 500 });
+        }
+
+        console.log('✅ Trello integration saved to DB');
+        return NextResponse.json({ success: true, username: member.username || 'Trello' });
     } catch (err) {
         console.error('Trello save error:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });
