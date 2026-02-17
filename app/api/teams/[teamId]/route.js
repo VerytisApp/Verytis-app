@@ -140,7 +140,7 @@ export async function GET(req, { params }) {
         }
 
         // Fetch Audit Scopes (from settings or defaults)
-        const scopes = team.settings?.scopes || ['Channel Audit', 'Documentation Audit', 'Email Audit', 'Reports & Exports'];
+        const scopes = team.settings?.scopes || ['Channel Audit', 'Documentation Audit', 'Reports & Exports'];
 
         // Compute unique integrations
         const uniqueIntegrations = [...new Set(channels.map(c => c.integrations?.provider || (c.type === 'channel' ? 'slack' : 'teams')).filter(Boolean))];

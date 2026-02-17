@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Shield, FileText, Download, Hash, Mail, Link as LinkIcon, Plus, MoreHorizontal, Trash2, Users, MoreVertical, CheckCircle, XCircle, RefreshCw, Edit2, Archive, UserCheck, UserMinus, ShieldCheck } from 'lucide-react';
+import { ChevronRight, Shield, FileText, Download, Hash, Link as LinkIcon, Plus, MoreHorizontal, Trash2, Users, MoreVertical, CheckCircle, XCircle, RefreshCw, Edit2, Archive, UserCheck, UserMinus, ShieldCheck } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon, ToggleSwitch, Modal } from '../ui';
 import { SCOPES_CONFIG } from '@/lib/constants';
 
@@ -306,7 +306,6 @@ const TeamDetail = ({ userRole, currentUser }) => {
                                         <div key={scopeTitle} className="p-1.5 rounded bg-white border border-slate-200 text-slate-600 shadow-sm" title={scopeTitle}>
                                             {(key === 'audit' || scopeTitle === 'Channel Audit') && <Hash className="w-4 h-4" />}
                                             {(key === 'docs' || scopeTitle === 'Documentation Audit') && <FileText className="w-4 h-4" />}
-                                            {(key === 'email' || scopeTitle === 'Email Audit') && <Mail className="w-4 h-4" />}
                                             {(key === 'export' || scopeTitle === 'Reports & Exports') && <Download className="w-4 h-4" />}
                                         </div>
                                     );
@@ -593,10 +592,9 @@ const TeamDetail = ({ userRole, currentUser }) => {
                                     <div key={idx} className="flex items-center justify-between">
                                         <div className="flex items-start gap-3">
                                             <div className="mt-0.5 text-slate-400">
-                                                {idx === 0 && <Hash className="w-4 h-4" />}
-                                                {idx === 1 && <FileText className="w-4 h-4" />}
-                                                {idx === 2 && <Mail className="w-4 h-4" />}
-                                                {idx === 3 && <Download className="w-4 h-4" />}
+                                                {scope.key === 'audit' && <Hash className="w-4 h-4" />}
+                                                {scope.key === 'docs' && <FileText className="w-4 h-4" />}
+                                                {scope.key === 'export' && <Download className="w-4 h-4" />}
                                             </div>
                                             <div>
                                                 <div className="text-xs font-bold text-slate-900">{scope.title}</div>

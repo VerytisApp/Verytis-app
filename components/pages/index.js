@@ -6,7 +6,6 @@ export { default as ChannelDetail } from './ChannelDetail';
 export { default as TimelineIntegrationList } from './TimelineIntegrationList';
 export { default as TimelineResourceList } from './TimelineResourceList';
 export { default as TimelineFeed } from './TimelineFeed';
-export { default as EmailAudit } from './EmailAudit';
 export { default as AuditDocumentation } from './AuditDocumentation';
 export { default as UsersAndRoles } from './UsersAndRoles';
 export { default as UserDetail } from './UserDetail';

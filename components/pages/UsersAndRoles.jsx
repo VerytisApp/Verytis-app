@@ -239,7 +239,7 @@ const UsersAndRoles = () => {
             <header className="flex justify-between items-end">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-slate-900">Users & Access</h1>
-                    <p className="text-slate-500 mt-1 text-xs font-medium">Manage roles, channel visibility and email audit scope.</p>
+                    <p className="text-slate-500 mt-1 text-xs font-medium">Manage roles, channel visibility and audit scope.</p>
                 </div>
                 <div className="flex gap-2">
                     {/* CSV Import Placeholder - keeping simpler for now */}
@@ -304,7 +304,6 @@ const UsersAndRoles = () => {
                                 <th className="px-6 py-3 uppercase tracking-wide">User</th>
                                 <th className="px-6 py-3 uppercase tracking-wide">Role</th>
                                 <th className="px-6 py-3 uppercase tracking-wide">Passport ID</th>
-                                <th className="px-6 py-3 uppercase tracking-wide">Email Audit</th>
                                 <th className="px-6 py-3 uppercase tracking-wide">Status</th>
                                 <th className="px-6 py-3 text-right uppercase tracking-wide">Actions</th>
                             </tr>
@@ -344,17 +343,7 @@ const UsersAndRoles = () => {
                                             <MoreHorizontal className="w-5 h-5 text-slate-500" />
                                         </button>
                                     </td>
-                                    <td className="px-6 py-3.5">
-                                        {user.auditEnabled ? (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
-                                                ENABLED
-                                            </span>
-                                        ) : (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                                                DISABLED
-                                            </span>
-                                        )}
-                                    </td>
+
                                     <td className="px-6 py-3.5">
                                         {activeTab === 'pending' ? (
                                             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">

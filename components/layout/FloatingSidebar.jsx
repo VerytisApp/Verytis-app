@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    LayoutDashboard, MessageSquare, FileText, Users, Clock, Mail,
+    LayoutDashboard, MessageSquare, FileText, Users, Clock,
     Settings, LogOut, MoreVertical, Layers, ChevronLeft, Shield
 } from 'lucide-react';
 import IcareLogo from '../image/Gemini Generated Image (14).png';
@@ -73,7 +73,6 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
         { path: '/users', label: 'Users', icon: Shield, roles: ['Admin'] }, // Changed icon to Shield for Users to avoid dupe
         { path: '/channels', label: 'Channels', icon: MessageSquare, roles: ['Admin', 'Manager', 'Member'] },
         { path: '/timeline', label: 'Timeline', icon: Clock, roles: ['Admin', 'Manager', 'Member'] },
-        { path: '/email-audit', label: 'Email Audit', icon: Mail, roles: ['Admin', 'Manager', 'Member'] },
         { path: '/reports', label: 'Reports', icon: FileText, roles: ['Admin', 'Manager', 'Member'] },
     ];
 
