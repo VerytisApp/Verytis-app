@@ -58,6 +58,11 @@ export default async function ActivityDetailsPage({ params }) {
             case 'CODE_MERGE': return 'Merged Pull Request';
             case 'CODE_PUSH': return 'Pushed Code';
             case 'OPEN_PR': return 'Opened Pull Request';
+            case 'CARD_MOVED': return 'Card Moved';
+            case 'MEMBER_ASSIGNED': return 'Member Assigned';
+            case 'ATTACHMENT_ADDED': return 'Attachment Added';
+            case 'CHECKLIST_DONE': return 'Checklist Completed';
+            case 'CARD_ARCHIVED': return 'Card Archived';
             default: return type.replace(/_/g, ' ');
         }
     };

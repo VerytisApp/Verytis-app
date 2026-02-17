@@ -141,15 +141,20 @@ function mapActionType(actionType) {
         case 'EDIT':
         case 'ARCHIVE':
         case 'PR_MERGED':
+        case 'CARD_MOVED':
+        case 'CARD_ARCHIVED':
             return 'decision';
         case 'COMMENT':
         case 'PR_OPENED':
             return 'comment';
         case 'FILE_SHARED':
         case 'CODE_PUSH':
+        case 'ATTACHMENT_ADDED':
             return 'file';
         case 'MEMBER_JOINED':
         case 'CHANNEL_CREATED':
+        case 'MEMBER_ASSIGNED':
+        case 'CHECKLIST_DONE':
             return 'system';
         case 'DISCUSSION_ANONYMOUS':
         case 'ATTEMPTED_ACTION_ANONYMOUS':
@@ -174,6 +179,11 @@ function formatAction(actionType) {
         case 'CODE_PUSH': return 'Pushed Commit';
         case 'PR_OPENED': return 'Opened PR';
         case 'PR_MERGED': return 'PR Merged';
+        case 'CARD_MOVED': return 'Card Moved';
+        case 'MEMBER_ASSIGNED': return 'Member Assigned';
+        case 'ATTACHMENT_ADDED': return 'Attachment';
+        case 'CHECKLIST_DONE': return 'Checklist Done';
+        case 'CARD_ARCHIVED': return 'Card Archived';
         default: return actionType;
     }
 }

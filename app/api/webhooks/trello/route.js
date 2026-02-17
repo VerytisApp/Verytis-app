@@ -1,0 +1,270 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+/**
+ * HEAD /api/webhooks/trello
+ * Trello sends a HEAD request to verify the webhook URL exists.
+ */
+export async function HEAD() {
+    return new NextResponse(null, { status: 200 });
+}
+
+/**
+ * POST /api/webhooks/trello
+ * 
+ * Trello Webhook Handler — 5 Audit Actions (ISO 27001 / SOC2)
+ * 
+ * 1. CARD_MOVED      — Card moved between lists (validation)
+ * 2. MEMBER_ASSIGNED — Member added to card (responsibility)
+ * 3. ATTACHMENT_ADDED — File attached to card (specification)
+ * 4. CHECKLIST_DONE  — Checklist item completed (protocol)
+ * 5. CARD_ARCHIVED   — Card archived (traceability)
+ */
+export async function POST(req) {
+    const rawBody = await req.text();
+
+    try {
+        // ── Security: Verify Trello Webhook Signature ───────────────
+        const headerSignature = req.headers.get('x-trello-webhook');
+        const secret = process.env.TRELLO_API_SECRET;
+        const callbackUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/webhooks/trello`;
+
+        if (secret && headerSignature) {
+            const base64Digest = crypto
+                .createHmac('sha1', secret)
+                .update(rawBody + callbackUrl)
+                .digest('base64');
+
+            if (base64Digest !== headerSignature) {
+                console.error("❌ Trello Webhook Signature Verification Failed");
+                return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+            }
+        }
+
+        const body = JSON.parse(rawBody);
+        const action = body.action;
+
+        if (!action) {
+            return NextResponse.json({ status: 'no_action' });
+        }
+
+        const actionType = action.type;
+        const actor = action.memberCreator;
+        const actorName = actor?.fullName || actor?.username || 'Unknown';
+        const board = action.data?.board;
+        const card = action.data?.card;
+
+        console.log(`📋 Trello Webhook: ${actionType} by ${actorName} on board "${board?.name}"`);
+
+        // ── Route Events ────────────────────────────────────────────
+
+        // 1. CARD_MOVED — Card moved between lists (validation/workflow)
+        if (actionType === 'updateCard' && action.data?.listAfter && action.data?.listBefore) {
+            const listBefore = action.data.listBefore.name;
+            const listAfter = action.data.listAfter.name;
+
+            await logTrelloActivity(
+                'CARD_MOVED',
+                board,
+                actor,
+                `Moved "${card.name}" from "${listBefore}" to "${listAfter}"`,
+                {
+                    card_id: card.id,
+                    card_name: card.name,
+                    list_before: listBefore,
+                    list_after: listAfter,
+                    card_url: card.shortLink ? `https://trello.com/c/${card.shortLink}` : null
+                }
+            );
+        }
+
+        // 2. MEMBER_ASSIGNED — Member added to card (responsibility)
+        else if (actionType === 'addMemberToCard') {
+            const assignedMember = action.member || action.data?.member;
+            const assignedName = assignedMember?.fullName || assignedMember?.username || 'a member';
+
+            await logTrelloActivity(
+                'MEMBER_ASSIGNED',
+                board,
+                actor,
+                `Assigned ${assignedName} to "${card.name}"`,
+                {
+                    card_id: card.id,
+                    card_name: card.name,
+                    assigned_member: assignedName,
+                    assigned_member_id: assignedMember?.id,
+                    card_url: card.shortLink ? `https://trello.com/c/${card.shortLink}` : null
+                }
+            );
+        }
+
+        // 3. ATTACHMENT_ADDED — File attached to card (specification)
+        else if (actionType === 'addAttachmentToCard') {
+            const attachment = action.data?.attachment;
+
+            await logTrelloActivity(
+                'ATTACHMENT_ADDED',
+                board,
+                actor,
+                `Added "${attachment?.name || 'file'}" to "${card.name}"`,
+                {
+                    card_id: card.id,
+                    card_name: card.name,
+                    attachment_name: attachment?.name,
+                    attachment_url: attachment?.url,
+                    card_url: card.shortLink ? `https://trello.com/c/${card.shortLink}` : null
+                }
+            );
+        }
+
+        // 4. CHECKLIST_DONE — Checklist item completed (protocol)
+        else if (actionType === 'updateCheckItemStateOnCard' && action.data?.checkItem?.state === 'complete') {
+            const checkItem = action.data.checkItem;
+            const checklist = action.data.checklist;
+
+            await logTrelloActivity(
+                'CHECKLIST_DONE',
+                board,
+                actor,
+                `Completed "${checkItem.name}" on "${card.name}"`,
+                {
+                    card_id: card.id,
+                    card_name: card.name,
+                    checklist_name: checklist?.name,
+                    check_item: checkItem.name,
+                    card_url: card.shortLink ? `https://trello.com/c/${card.shortLink}` : null
+                }
+            );
+        }
+
+        // 5. CARD_ARCHIVED — Card archived (traceability)
+        else if (actionType === 'updateCard' && action.data?.card?.closed === true && action.data?.old?.closed === false) {
+            await logTrelloActivity(
+                'CARD_ARCHIVED',
+                board,
+                actor,
+                `Archived "${card.name}"`,
+                {
+                    card_id: card.id,
+                    card_name: card.name,
+                    card_url: card.shortLink ? `https://trello.com/c/${card.shortLink}` : null
+                }
+            );
+        }
+
+        else {
+            console.log(`ℹ️ Ignoring Trello event: ${actionType}`);
+            return NextResponse.json({ status: 'ignored' });
+        }
+
+        return NextResponse.json({ status: 'logged' });
+
+    } catch (error) {
+        console.error('Trello Webhook Error:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
+
+// ── Helper: Log Trello Activity ─────────────────────────────────────────
+
+async function logTrelloActivity(actionType, board, actor, summary, extraMetadata = {}) {
+    let userId = null;
+    let isVerified = false;
+    let method = 'ANONYMOUS';
+    let organizationId = null;
+    let resourceId = null;
+
+    // 1. Resolve resource from monitored_resources (by board name or external_id)
+    if (board) {
+        const { data: resource } = await supabase
+            .from('monitored_resources')
+            .select('id, team_id, teams(organization_id)')
+            .or(`external_id.eq.${board.id},name.eq.${board.name}`)
+            .maybeSingle();
+
+        if (resource) {
+            resourceId = resource.id;
+            organizationId = resource.teams?.organization_id;
+            console.log(`📍 Trello Resource Found: ${resourceId} (Org: ${organizationId})`);
+        } else {
+            console.log(`⚠️ Trello board "${board.name}" not found in monitored_resources`);
+        }
+    }
+
+    // 2. Identify User (by Trello username in social_profiles)
+    if (actor?.username) {
+        const lowerUsername = actor.username.toLowerCase();
+
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('id')
+            .contains('social_profiles', { trello: lowerUsername })
+            .maybeSingle();
+
+        if (profile) {
+            userId = profile.id;
+            isVerified = true;
+            method = 'SOCIAL_LINK';
+            console.log(`✅ Identified Trello user: ${actor.username} -> ${userId}`);
+        } else {
+            console.log(`🕵️ Trello user not linked: ${actor.username}`);
+        }
+    }
+
+    // 3. Insert Activity Log
+    const { error: logError } = await supabase.from('activity_logs').insert({
+        actor_id: userId,
+        organization_id: organizationId,
+        resource_id: resourceId,
+        action_type: actionType,
+        summary: `${summary} on ${board?.name || 'Trello'}`,
+        metadata: {
+            platform: 'Trello',
+            board_name: board?.name,
+            board_id: board?.id,
+            trello_user: actor?.username || actor?.fullName,
+            identification_method: method,
+            is_anonymous: !isVerified,
+            ...extraMetadata
+        }
+    });
+
+    if (logError) {
+        console.error(`❌ Error logging Trello activity:`, logError);
+    } else {
+        console.log(`🚀 Trello activity logged: ${actionType}`);
+
+        // BROADCAST to frontend
+        if (resourceId) {
+            const { data: res } = await supabase
+                .from('monitored_resources')
+                .select('team_id')
+                .eq('id', resourceId)
+                .single();
+
+            if (res?.team_id) {
+                await supabase.channel(`team-activity-${res.team_id}`)
+                    .send({
+                        type: 'broadcast',
+                        event: 'new_activity',
+                        payload: { resourceId, actionType, summary }
+                    });
+
+                await supabase.channel(`resource-activity-${resourceId}`)
+                    .send({
+                        type: 'broadcast',
+                        event: 'new_activity',
+                        payload: { resourceId, actionType, summary }
+                    });
+
+                console.log(`📡 Broadcast sent for Trello ${actionType}`);
+            }
+        }
+    }
+}

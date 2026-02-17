@@ -101,6 +101,11 @@ export default function StackDetailPage() {
             case 'CODE_MERGE': return 'Merged PR';
             case 'CODE_PUSH': return 'Pushed Code';
             case 'ATTEMPTED_ACTION_ANONYMOUS': return 'Unverified action';
+            case 'CARD_MOVED': return 'Card Moved';
+            case 'MEMBER_ASSIGNED': return 'Member Assigned';
+            case 'ATTACHMENT_ADDED': return 'Attachment';
+            case 'CHECKLIST_DONE': return 'Checklist Done';
+            case 'CARD_ARCHIVED': return 'Card Archived';
             default: return actionType;
         }
     };
@@ -341,7 +346,7 @@ export default function StackDetailPage() {
                                         // Since recentActivity is mixed, we might need a way to distinguish.
                                         // For now, let's show all non-github activity if the tool matches the channel's platform
                                         const channel = team.channels?.find(c => c.name === item.channel);
-                                        return channel?.platform === tool || (tool === 'slack' && !channel?.platform);
+                                        return channel?.platform === tool || (tool === 'trello' && item.metadata?.platform === 'Trello') || (tool === 'slack' && !channel?.platform);
                                     })
                                     .map(item => ({
                                         id: item.id,
@@ -372,7 +377,7 @@ export default function StackDetailPage() {
                                                 </div>
                                                 <div>
                                                     <h3 className="text-lg font-bold text-slate-900 capitalize leading-tight flex items-center gap-2">
-                                                        {tool === 'github' ? 'Repositories' : tool === 'slack' ? 'Channels' : 'SharePoint'}
+                                                        {tool === 'github' ? 'Repositories' : tool === 'slack' ? 'Channels' : tool === 'trello' ? 'Boards' : 'SharePoint'}
                                                     </h3>
                                                     <div className="flex items-center gap-2 mt-0.5">
                                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Team</span>
