@@ -90,6 +90,7 @@ export async function GET(req) {
             .limit(100);
 
         // 4. Apply Security Filters (Scopes & Roles)
+        // 4. Apply Security Filters (Scopes & Roles)
         if (userRole === 'member') {
             // Member: Strict restriction to own activity
             if (userId) query = query.eq('actor_id', userId);
@@ -102,26 +103,49 @@ export async function GET(req) {
                 // No scope OR not assigned to team -> Fallback to own activity
                 if (userId) query = query.eq('actor_id', userId);
             } else {
-                // Has Scope AND Team: Filter by Team Resources
-                const { data: teamResources } = await supabase
-                    .from('monitored_resources')
-                    .select('id')
-                    .eq('team_id', userTeamId);
+                // Has Scope AND Team
 
-                const resourceIds = teamResources?.map(r => r.id) || [];
+                // CRITICAL FIX: If we are viewing a specific channel (channelId), and that channel belongs to the user's team,
+                // we SKIP the strict "resource_id IN [...]" filter. 
+                // Why? Because listing all resource IDs excludes logs where resource_id is NULL (but match by metadata).
+                // The subsequent channelId query will safely restrict data to this resource anyway.
 
-                if (resourceIds.length > 0) {
-                    query = query.in('resource_id', resourceIds);
-                } else {
-                    // Team has no resources -> Show nothing (or own activity)
-                    if (userId) query = query.eq('actor_id', userId);
+                let skipResourceFilter = false;
+
+                if (channelId) {
+                    // Check if the requested channel belongs to the user's team
+                    const { data: targetResource } = await supabase
+                        .from('monitored_resources')
+                        .select('team_id')
+                        .eq('id', channelId)
+                        .single();
+
+                    if (targetResource && targetResource.team_id === userTeamId) {
+                        skipResourceFilter = true;
+                    }
+                }
+
+                if (!skipResourceFilter) {
+                    // Filter by ALL Team Resources (Global Feed or Cross-Team Protection)
+                    const { data: teamResources } = await supabase
+                        .from('monitored_resources')
+                        .select('id')
+                        .eq('team_id', userTeamId);
+
+                    const resourceIds = teamResources?.map(r => r.id) || [];
+
+                    if (resourceIds.length > 0) {
+                        query = query.in('resource_id', resourceIds);
+                    } else {
+                        // Team has no resources -> Show nothing (or own activity)
+                        if (userId) query = query.eq('actor_id', userId);
+                    }
                 }
             }
         }
         // Admin: No extra filters (sees all)
 
         // 5. Apply Specific Param Filters (e.g. Channel)
-        // 5. Apply Specific Param Filters
         // If a specific resource (channel/repo) is requested via ID
         if (channelId) {
             // First, get the resource info to allow fallback to metadata search
@@ -137,8 +161,8 @@ export async function GET(req) {
             if (resource) {
                 if (resource.type === 'repo' && resource.name) {
                     // For GitHub: Match generic resource_id OR specific repo name in metadata
-                    // Using .eq to match exactly how api/teams works
-                    conditions.push(`metadata->>repo.eq.${resource.name}`);
+                    // Using .ilike to be safe (retaining the fix for case-sensitivity)
+                    conditions.push(`metadata->>repo.ilike.${resource.name}`);
                 } else if (resource.external_id) {
                     // For Slack: Match generic resource_id OR specific slack_channel ID in metadata
                     conditions.push(`metadata->>slack_channel.eq.${resource.external_id}`);
