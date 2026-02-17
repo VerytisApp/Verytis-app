@@ -309,151 +309,14 @@ export default function StackDetailPage() {
                     {/* Render a separate Activity Card for each integration */}
                     {team.integrations
                         .filter(tool => tool !== 'slack')
-                        .map(tool => {
-                            let toolActivities = [];
-
-                            if (tool === 'github') {
-                                // Use DB logs from team.recentActivity
-                                toolActivities = (team.recentActivity || [])
-                                    .filter(item => ['CODE_MERGE', 'CODE_PUSH', 'OPEN_PR', 'COMMIT'].includes(item.actionType))
-                                    .map(item => {
-                                        const isSingleCommit = item.metadata?.commits?.length === 1;
-                                        const displayTarget = isSingleCommit
-                                            ? item.metadata.commits[0].message
-                                            : item.description;
-
-                                        return {
-                                            id: item.id,
-                                            type: 'github',
-                                            platform: 'github',
-                                            action: isSingleCommit ? 'Pushed Commit' : formatActionUI(item.actionType),
-                                            target: displayTarget,
-                                            actor: item.user.name,
-                                            time: new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                                            icon: Activity,
-                                            color: 'text-slate-600',
-                                            bg: 'bg-slate-50',
-                                            url: isSingleCommit ? item.metadata.commits[0].url : null,
-                                            resourceName: item.channel,
-                                            metadata: item.metadata
-                                        };
-                                    });
-                            } else {
-                                // Map real activity from team.recentActivity for Slack/Teams
-                                toolActivities = (team.recentActivity || [])
-                                    .filter(item => {
-                                        // Basic filtering based on channel platform (if available) or assume based on tool loop
-                                        // Since recentActivity is mixed, we might need a way to distinguish.
-                                        // For now, let's show all non-github activity if the tool matches the channel's platform
-                                        const channel = team.channels?.find(c => c.name === item.channel);
-                                        return channel?.platform === tool || (tool === 'trello' && item.metadata?.platform === 'Trello') || (tool === 'slack' && !channel?.platform);
-                                    })
-                                    .map(item => ({
-                                        id: item.id,
-                                        type: tool,
-                                        platform: tool,
-                                        action: item.actionType,
-                                        target: `${item.channel}: "${item.description}"`,
-                                        actor: item.user.name,
-                                        time: new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                                        icon: tool === 'slack' ? Activity : FileText, // Simple icon logic
-                                        color: tool === 'slack' ? 'text-emerald-600' : 'text-blue-600',
-                                        bg: tool === 'slack' ? 'bg-emerald-50' : 'bg-blue-50',
-                                        resourceName: item.channel,
-                                        metadata: item.metadata
-                                    }));
-                            }
-
-                            // Removed return null to always show the tool section if it's in team.integrations
-                            // if (toolActivities.length === 0) return null;
-
-                            return (
-                                <div key={tool} className="space-y-3">
-                                    <div className="bg-white rounded-xl border border-slate-200 p-4 mb-3 shadow-sm">
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex items-center justify-center p-1">
-                                                    <PlatformIcon platform={tool} className="w-8 h-8" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-lg font-bold text-slate-900 capitalize leading-tight flex items-center gap-2">
-                                                        {tool === 'github' ? 'Repositories' : tool === 'slack' ? 'Channels' : tool === 'trello' ? 'Boards' : 'SharePoint'}
-                                                    </h3>
-                                                    <div className="flex items-center gap-2 mt-0.5">
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Team</span>
-                                                        <span className="text-xs font-semibold text-slate-600">{team.name}</span>
-                                                        <span className="text-slate-300">•</span>
-                                                        <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-100">
-                                                            Active
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-col items-end gap-2">
-
-                                                <span className="text-[10px] text-slate-400 font-medium">
-                                                    {toolActivities.length > 0 ? "Last active: Just now" : "No recent data"}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <Card className="min-h-[100px] flex flex-col justify-center">
-                                        <div className="p-0">
-                                            {toolActivities.length === 0 ? (
-                                                <div className="py-8 text-center px-4">
-                                                    <Activity className="w-8 h-8 text-slate-200 mx-auto mb-2 opacity-50" />
-                                                    <p className="text-xs text-slate-400">No recent {tool} activity found for this stack.</p>
-                                                    <p className="text-[10px] text-slate-300 mt-1">Actions on connected resources will appear here.</p>
-                                                </div>
-                                            ) : (
-                                                <div className="divide-y divide-slate-100">
-                                                    {toolActivities.map((item, idx) => (
-                                                        <Link
-                                                            key={idx}
-                                                            href={`/stacks/${team.id}/activity/${item.id || '#'}`}
-                                                            className="p-3 flex gap-3 hover:bg-slate-50 transition-colors cursor-pointer group block"
-                                                        >
-                                                            <div className="mt-0.5">
-                                                                <div className="flex items-center justify-center">
-                                                                    {item.action === 'Pushed Code' ? (
-                                                                        <GitCommit className={`w-3.5 h-3.5 ${item.color}`} />
-                                                                    ) : item.action === 'Merged PR' ? (
-                                                                        <GitPullRequest className={`w-3.5 h-3.5 ${item.color}`} />
-                                                                    ) : item.platform ? (
-                                                                        <PlatformIcon platform={item.platform} className="w-4 h-4" />
-                                                                    ) : (
-                                                                        <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex justify-between items-start">
-                                                                    <h4 className="text-xs font-bold text-slate-900 truncate pr-2 group-hover:text-blue-600 transition-colors">
-                                                                        {item.action}
-                                                                    </h4>
-                                                                    <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">{item.time}</span>
-                                                                </div>
-                                                                <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                                                                    {item.target}
-                                                                </p>
-                                                                <div className="mt-1.5 flex items-center gap-2">
-                                                                    <span className="inline-flex items-center gap-1 text-[9px] text-slate-500 border border-slate-200 rounded px-1 py-0.5 bg-slate-50">
-                                                                        <PlatformIcon platform={item.type} className="w-2.5 h-2.5" />
-                                                                        {item.resourceName || (item.type === 'github' ? 'Repository' : 'Channel')}
-                                                                    </span>
-                                                                    <span className="text-[9px] text-slate-400">•</span>
-                                                                    <span className="text-[10px] font-medium text-slate-600">{item.actor}</span>
-                                                                </div>
-                                                            </div>
-                                                        </Link>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </Card>
-                                </div>
-                            );
-                        })}
+                        .map(tool => (
+                            <ToolActivitySection
+                                key={tool}
+                                tool={tool}
+                                team={team}
+                                formatActionUI={formatActionUI}
+                            />
+                        ))}
 
                 </div>
 
@@ -476,6 +339,14 @@ export default function StackDetailPage() {
                             </button>
                         </div>
                         <div className="p-2 space-y-1">
+
+                            {/* Add Tool Button (Top of List) */}
+                            {!isManagingStack && (
+                                <button onClick={openAddToolModal} className="w-full mb-2 py-2 border border-dashed border-slate-300 rounded text-xs font-medium text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center gap-2">
+                                    <Plus className="w-3.5 h-3.5" /> Add Tool
+                                </button>
+                            )}
+
                             {/* Iterate over actual CHANNELS/RESOURCES (Exclude Slack) */}
                             {(team.channels || [])
                                 .filter(resource => resource.platform !== 'slack')
@@ -513,7 +384,7 @@ export default function StackDetailPage() {
                                     </div>
                                 ))}
 
-                            {isManagingStack ? (
+                            {isManagingStack && (
                                 <div className="pt-2 mt-2 border-t border-slate-100 space-y-2">
                                     <button
                                         onClick={openAddToolModal}
@@ -528,10 +399,6 @@ export default function StackDetailPage() {
                                         <Trash2 className="w-3.5 h-3.5" /> DELETE STACK
                                     </button>
                                 </div>
-                            ) : (
-                                <button onClick={openAddToolModal} className="w-full mt-2 py-2 border border-dashed border-slate-300 rounded text-xs font-medium text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center gap-2">
-                                    <Plus className="w-3.5 h-3.5" /> Add Tool
-                                </button>
                             )}
                         </div>
                     </Card>
@@ -684,6 +551,164 @@ export default function StackDetailPage() {
                     </div>
                 )}
             </Modal>
+        </div>
+    );
+}
+
+// ── Tool Activity Section Component ─────────────────────────────────────────
+
+function ToolActivitySection({ tool, team, formatActionUI }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    let toolActivities = [];
+    if (tool === 'github') {
+        toolActivities = (team.recentActivity || [])
+            .filter(item => ['CODE_MERGE', 'CODE_PUSH', 'OPEN_PR', 'COMMIT'].includes(item.actionType))
+            .map(item => {
+                const isSingleCommit = item.metadata?.commits?.length === 1;
+                const displayTarget = isSingleCommit
+                    ? item.metadata.commits[0].message
+                    : item.description;
+
+                return {
+                    id: item.id,
+                    type: 'github',
+                    platform: 'github',
+                    action: isSingleCommit ? 'Pushed Commit' : formatActionUI(item.actionType),
+                    target: displayTarget,
+                    actor: item.user.name,
+                    time: new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    icon: Activity,
+                    color: 'text-slate-600',
+                    bg: 'bg-slate-50',
+                    url: isSingleCommit ? item.metadata.commits[0].url : null,
+                    resourceName: item.channel,
+                    metadata: item.metadata
+                };
+            });
+    } else {
+        toolActivities = (team.recentActivity || [])
+            .filter(item => {
+                const channel = team.channels?.find(c => c.name === item.channel);
+                return channel?.platform === tool || (tool === 'trello' && item.metadata?.platform === 'Trello') || (tool === 'slack' && !channel?.platform);
+            })
+            .map(item => ({
+                id: item.id,
+                type: tool,
+                platform: tool,
+                action: item.actionType,
+                target: `${item.channel}: "${item.description}"`,
+                actor: item.user.name,
+                time: new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                icon: tool === 'slack' ? Activity : FileText,
+                color: tool === 'slack' ? 'text-emerald-600' : 'text-blue-600',
+                bg: tool === 'slack' ? 'bg-emerald-50' : 'bg-blue-50',
+                resourceName: item.channel,
+                metadata: item.metadata
+            }));
+    }
+
+    const displayedActivities = isExpanded ? toolActivities : toolActivities.slice(0, 5);
+    const hasMore = toolActivities.length > 5;
+
+    return (
+        <div key={tool} className="space-y-3">
+            <div className="bg-white rounded-xl border border-slate-200 p-4 mb-3 shadow-sm">
+                <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center p-1">
+                            <PlatformIcon platform={tool} className="w-8 h-8" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-900 capitalize leading-tight flex items-center gap-2">
+                                {tool === 'github' ? 'Repositories' : tool === 'slack' ? 'Channels' : tool === 'trello' ? 'Boards' : 'SharePoint'}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Team</span>
+                                <span className="text-xs font-semibold text-slate-600">{team.name}</span>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-100">
+                                    Active
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                        <span className="text-[10px] text-slate-400 font-medium">
+                            {toolActivities.length > 0 ? "Last active: Just now" : "No recent data"}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <Card className="min-h-[100px] flex flex-col justify-center">
+                <div className="p-0">
+                    {toolActivities.length === 0 ? (
+                        <div className="py-8 text-center px-4">
+                            <Activity className="w-8 h-8 text-slate-200 mx-auto mb-2 opacity-50" />
+                            <p className="text-xs text-slate-400">No recent {tool} activity found for this stack.</p>
+                            <p className="text-[10px] text-slate-300 mt-1">Actions on connected resources will appear here.</p>
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-slate-100">
+                            {displayedActivities.map((item, idx) => (
+                                <Link
+                                    key={idx}
+                                    href={`/stacks/${team.id}/activity/${item.id || '#'}`}
+                                    className="p-3 flex gap-3 hover:bg-slate-50 transition-colors cursor-pointer group block"
+                                >
+                                    <div className="mt-0.5">
+                                        <div className="flex items-center justify-center">
+                                            {item.action === 'Pushed Code' ? (
+                                                <GitCommit className={`w-3.5 h-3.5 ${item.color}`} />
+                                            ) : item.action === 'Merged PR' ? (
+                                                <GitPullRequest className={`w-3.5 h-3.5 ${item.color}`} />
+                                            ) : item.platform ? (
+                                                <PlatformIcon platform={item.platform} className="w-4 h-4" />
+                                            ) : (
+                                                <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-start">
+                                            <h4 className="text-xs font-bold text-slate-900 truncate pr-2 group-hover:text-blue-600 transition-colors">
+                                                {item.action}
+                                            </h4>
+                                            <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">{item.time}</span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                                            {item.target}
+                                        </p>
+                                        <div className="mt-1.5 flex items-center gap-2">
+                                            <span className="inline-flex items-center gap-1 text-[9px] text-slate-500 border border-slate-200 rounded px-1 py-0.5 bg-slate-50">
+                                                <PlatformIcon platform={item.type} className="w-2.5 h-2.5" />
+                                                {item.resourceName || (item.type === 'github' ? 'Repository' : 'Channel')}
+                                            </span>
+                                            <span className="text-[9px] text-slate-400">•</span>
+                                            <span className="text-[10px] font-medium text-slate-600">{item.actor}</span>
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </div>
+                {/* View More Logic */}
+                {hasMore && (
+                    <div className="p-2 border-t border-slate-100 bg-slate-50/50">
+                        <button
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            className="w-full text-xs text-blue-600 font-medium hover:text-blue-800 flex items-center justify-center gap-1 py-1"
+                        >
+                            {isExpanded ? (
+                                <>Show Less</>
+                            ) : (
+                                <>View {toolActivities.length - 5} more activities</>
+                            )}
+                        </button>
+                    </div>
+                )}
+            </Card>
         </div>
     );
 }
