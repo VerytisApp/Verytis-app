@@ -2,14 +2,15 @@ import { useState, useEffect } from 'react';
 import { Zap, CheckCircle, AlertCircle, RefreshCw, Lock, Shield, Info } from 'lucide-react';
 import { Card, Button } from '../ui';
 
-const GitHubRepositoriesView = () => {
+const GitHubRepositoriesView = ({ teamId }) => {
     const [repos, setRepos] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchRepos = async () => {
             try {
-                const res = await fetch('/api/github/repositories');
+                const query = teamId ? `?teamId=${teamId}` : '';
+                const res = await fetch(`/api/github/repositories${query}`);
                 const data = await res.json();
                 if (data.repositories) setRepos(data.repositories);
             } catch (error) {
@@ -19,7 +20,9 @@ const GitHubRepositoriesView = () => {
             }
         };
         fetchRepos();
-    }, []);
+    }, [teamId]);
+
+
 
     if (loading) {
         return (
@@ -85,7 +88,7 @@ const GitHubRepositoriesView = () => {
     );
 };
 
-const IntegrationsSettings = () => {
+const IntegrationsSettings = ({ teamId }) => {
     const [selectedAppId, setSelectedAppId] = useState('slack');
 
     // Initial State (Clean, no fakes)
@@ -102,7 +105,8 @@ const IntegrationsSettings = () => {
     const checkStatus = async () => {
         try {
             // Slack Status
-            const resSlack = await fetch('/api/slack/status');
+            const query = teamId ? `?teamId=${teamId}` : '';
+            const resSlack = await fetch(`/api/slack/status${query}`);
             const dataSlack = await resSlack.json();
             if (dataSlack.connected) {
                 setConnections(prev => ({
@@ -112,7 +116,7 @@ const IntegrationsSettings = () => {
             }
 
             // GitHub Status
-            const resGithub = await fetch('/api/github/status');
+            const resGithub = await fetch(`/api/github/status${query}`);
             const dataGithub = await resGithub.json();
             if (dataGithub.connected) {
                 setConnections(prev => ({
@@ -127,7 +131,7 @@ const IntegrationsSettings = () => {
 
     useEffect(() => {
         checkStatus();
-    }, []);
+    }, [teamId]);
 
     // Listener for Popup Message
     useEffect(() => {
@@ -158,7 +162,8 @@ const IntegrationsSettings = () => {
     const handleConnect = async (appId) => {
         if (appId === 'slack') {
             if (!connections.slack.connected) {
-                window.location.href = '/api/slack/install';
+                const query = teamId ? `?teamId=${teamId}` : '';
+                window.location.href = `/api/slack/install${query}`;
             } else {
                 setConnections(prev => ({
                     ...prev,
@@ -174,8 +179,9 @@ const IntegrationsSettings = () => {
                 const height = 700;
                 const left = (window.screen.width - width) / 2;
                 const top = (window.screen.height - height) / 2;
+                const query = teamId ? `?teamId=${teamId}` : '';
                 window.open(
-                    '/api/auth/github/install',
+                    `/api/auth/github/install${query}`,
                     'GitHubConnect',
                     `width=${width},height=${height},top=${top},left=${left}`
                 );
@@ -201,7 +207,8 @@ const IntegrationsSettings = () => {
     const fetchChannels = async () => {
         setIsLoadingChannels(true);
         try {
-            const res = await fetch('/api/slack/channels');
+            const query = teamId ? `?teamId=${teamId}` : '';
+            const res = await fetch(`/api/slack/channels${query}`);
             const data = await res.json();
             if (data.channels) setChannels(data.channels);
         } catch (error) {
@@ -426,7 +433,7 @@ const IntegrationsSettings = () => {
                     ) : (
                         <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
                             {selectedAppId === 'github' ? (
-                                <GitHubRepositoriesView />
+                                <GitHubRepositoriesView teamId={teamId} />
                             ) : (
                                 <>
                                     <div className="flex justify-between items-center mb-2">

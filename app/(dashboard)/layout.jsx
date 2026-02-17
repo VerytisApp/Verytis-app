@@ -7,7 +7,10 @@ import IntegrationsSettings from '@/components/pages/IntegrationsSettings';
 import AdminSecuritySettings from '@/components/pages/AdminSecuritySettings';
 import PassportIDSettings from '@/components/pages/PassportIDSettings';
 
+import { useParams } from 'next/navigation';
+
 function DashboardContent({ children }) {
+    const params = useParams();
     const { currentRole, setCurrentRole } = useRole();
     const { activeModal, setActiveModal } = useModal();
     const { isSidebarCollapsed, setIsSidebarCollapsed } = useSidebar();
@@ -55,7 +58,7 @@ function DashboardContent({ children }) {
                 onClose={() => setActiveModal(null)}
                 title="Passport ID Société"
             >
-                <IntegrationsSettings />
+                <IntegrationsSettings teamId={params?.teamId} />
             </Modal>
 
             <Modal

@@ -33,7 +33,28 @@ const PassportIDSettings = () => {
                 });
             }
         }
+
+        // Sync GitHub
+        if (passportStatus?.connections?.github?.connected) {
+            // For now just logging, can extend context if needed
+            // console.log("GitHub Connected:", passportStatus.connections.github.username);
+        }
     }, [passportStatus, currentUser, setCurrentUser]);
+
+    // Listener for Popup Message
+    useEffect(() => {
+        const handleMessage = (event) => {
+            if (event.data.type === 'GITHUB_LINKED') {
+                console.log("GitHub Linked!", event.data.user);
+                // Aggressive refresh pattern
+                fetchPassportStatus();
+                setTimeout(fetchPassportStatus, 1000);
+                setTimeout(fetchPassportStatus, 3000);
+            }
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [currentUser]);
 
     useEffect(() => {
         if (currentUser?.id && currentUser.id !== 'mock-admin-id') {
@@ -144,12 +165,41 @@ const PassportIDSettings = () => {
         }
     };
 
+    const handleDisconnect = async (provider) => {
+        if (!confirm(`Are you sure you want to disconnect ${provider}?`)) return;
+
+        setIsLoading(true);
+        try {
+            const res = await fetch('/api/user/disconnect', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: currentUser.id,
+                    provider: provider
+                })
+            });
+
+            if (res.ok) {
+                // Refresh status
+                await fetchPassportStatus();
+            } else {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to disconnect');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Failed to disconnect: ' + e.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300 relative">
             {/* LINK MODAL */}
             {showLinkModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowLinkModal(false)} />
+                    <div className="absolute inset-0 pointer-events-auto" onClick={() => setShowLinkModal(false)} />
                     <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-[440px] overflow-hidden ring-1 ring-slate-900/5 animate-in zoom-in-95 duration-200">
                         {/* Header */}
                         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-start bg-slate-50/30">
@@ -325,18 +375,24 @@ const PassportIDSettings = () => {
                                     <div className="pt-3 border-t border-slate-50">
                                         <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Connected Account</p>
                                         <div className="flex items-center justify-between">
-                                            <p className="text-xs font-medium text-slate-700 truncate max-w-[150px]" title={status.email}>
-                                                {status.email}
-                                            </p>
-                                            <button className="text-[10px] text-blue-600 hover:text-blue-700 hover:underline font-medium">
-                                                Switch Account
+                                            <div className="flex flex-col">
+                                                <p className="text-xs font-medium text-slate-700" title={integration.id === 'github' ? status.username : status.email}>
+                                                    {integration.id === 'github' ? `@${status.username}` : status.email}
+                                                </p>
+                                                {status.lastSync && (
+                                                    <span className="text-[10px] text-slate-400">
+                                                        Synced: {new Date(status.lastSync).toLocaleString()}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <button
+                                                className="text-[10px] text-rose-600 hover:text-rose-700 hover:underline font-medium"
+                                                onClick={() => handleDisconnect(integration.id)}
+                                            >
+                                                Disconnect
                                             </button>
                                         </div>
-                                        {status.lastSync && (
-                                            <div className="text-[10px] text-slate-400 mt-1">
-                                                Last sync: {new Date(status.lastSync).toLocaleDateString()}
-                                            </div>
-                                        )}
                                     </div>
                                 ) : (
                                     <div className="pt-3 border-t border-slate-50">
@@ -351,15 +407,36 @@ const PassportIDSettings = () => {
                                             </div>
                                         )}
                                         <div className="flex justify-end">
-                                            <button
-                                                onClick={() => {
-                                                    console.log("Opening Link Modal");
-                                                    setShowLinkModal(true);
-                                                }}
-                                                className="text-xs font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline"
-                                            >
-                                                {status?.reason === 'email_mismatch' ? 'Link Account Manually' : 'Connect manually'} &rarr;
-                                            </button>
+                                            {integration.id === 'github' ? (
+                                                <button
+                                                    onClick={() => {
+                                                        const width = 600;
+                                                        const height = 700;
+                                                        const left = (window.screen.width - width) / 2;
+                                                        const top = (window.screen.height - height) / 2;
+                                                        const url = `/api/auth/github/login?userId=${currentUser.id}`;
+                                                        window.open(
+                                                            url,
+                                                            'GitHubLink',
+                                                            `width=${width},height=${height},top=${top},left=${left}`
+                                                        );
+                                                    }}
+                                                    className="px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition flex items-center gap-2"
+                                                >
+                                                    <img src="https://www.google.com/s2/favicons?domain=github.com&sz=128" className="w-3 h-3 invert" />
+                                                    Connect with GitHub
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => {
+                                                        console.log("Opening Link Modal");
+                                                        setShowLinkModal(true);
+                                                    }}
+                                                    className="text-xs font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline"
+                                                >
+                                                    {status?.reason === 'email_mismatch' ? 'Link Account Manually' : 'Connect manually'} &rarr;
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 )}

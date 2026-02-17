@@ -183,7 +183,8 @@ export async function GET(req, { params }) {
                     },
                     time: a.created_at,
                     channel: channelName,
-                    actionType: actionType
+                    actionType: actionType,
+                    metadata: a.metadata
                 };
             }),
             scopes,

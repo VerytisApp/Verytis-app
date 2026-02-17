@@ -11,6 +11,7 @@ export const StatusBadge = ({ status }) => {
         linked: 'bg-blue-50 text-blue-700 border-blue-200 ring-blue-500/10',
         pending: 'bg-blue-50 text-blue-700 border-blue-200 ring-blue-500/10',
         validated: 'bg-emerald-50 text-emerald-700 border-emerald-200 ring-emerald-500/10',
+        completed: 'bg-emerald-50 text-emerald-700 border-emerald-200 ring-emerald-500/10',
         rejected: 'bg-rose-50 text-rose-700 border-rose-200 ring-rose-500/10',
         'authorization revoked': 'bg-amber-50 text-amber-700 border-amber-200 ring-amber-500/10',
         'connection error': 'bg-rose-50 text-rose-700 border-rose-200 ring-rose-500/10'
@@ -34,6 +35,8 @@ export const PlatformIcon = ({ platform }) => {
             return <img src={getFavicon('workspace.google.com')} alt="Google Workspace" className="w-4 h-4" />;
         case 'microsoft 365':
             return <img src={getFavicon('microsoft.com')} alt="Microsoft 365" className="w-4 h-4" />;
+        case 'github':
+            return <img src={getFavicon('github.com')} alt="GitHub" className="w-4 h-4" />;
         case 'email':
             return <Mail className="w-3.5 h-3.5 text-slate-600" />;
         default:
@@ -76,7 +79,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = "max-w-4xl"
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 min-h-screen">
-            <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-[2px] transition-opacity duration-300" onClick={onClose} />
+            <div className="absolute inset-0 transition-opacity duration-300 pointer-events-auto" onClick={onClose} />
             <div className={`relative w-full ${maxWidth} max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl ring-1 ring-slate-900/5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200`}>
                 <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white/95 backdrop-blur-md rounded-t-xl">
                     <h2 className="text-lg font-semibold text-slate-900">{title}</h2>

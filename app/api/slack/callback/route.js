@@ -33,8 +33,16 @@ export async function GET(req) {
             return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=${data.error}`);
         }
 
-        // SAVE TO DB (Passport ID Societe)
-        const TEST_ORG_ID = '5db477f6-c893-4ec4-9123-b12160224f70'; // Test Corp
+        // Parse state to get Organization ID
+        const stateParam = searchParams.get('state');
+        let state = {};
+        try {
+            if (stateParam) state = JSON.parse(stateParam);
+        } catch (e) {
+            // ignore
+        }
+
+        const targetOrgId = state.organizationId || '5db477f6-c893-4ec4-9123-b12160224f70'; // Test Corp fallback
 
         const { createClient } = require('@supabase/supabase-js');
         const supabase = createClient(
@@ -53,7 +61,7 @@ export async function GET(req) {
 
         const { data: existingInt } = await supabase.from('integrations')
             .select('id')
-            .eq('organization_id', TEST_ORG_ID)
+            .eq('organization_id', targetOrgId)
             .eq('provider', 'slack')
             .single();
 

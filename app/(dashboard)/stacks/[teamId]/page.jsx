@@ -25,6 +25,7 @@ export default function StackDetailPage() {
     const [loadingResources, setLoadingResources] = useState(false);
     const [selectedIntegration, setSelectedIntegration] = useState(null);
     const [currentStep, setCurrentStep] = useState(1);
+    const [selectedActivity, setSelectedActivity] = useState(null);
 
     // Load Real Data
     const fetchTeamData = async () => {
@@ -191,7 +192,7 @@ export default function StackDetailPage() {
                                 {team.integrations
                                     .filter(tool => tool !== 'slack')
                                     .map((tool, idx) => (
-                                        <div key={idx} className="w-8 h-8 rounded-full bg-white border-2 border-slate-50 shadow-sm flex items-center justify-center p-0.5 relative z-0 hover:z-10 hover:scale-110 transition-transform">
+                                        <div key={idx} className="w-8 h-8 flex items-center justify-center p-0.5 relative z-0 hover:z-10 hover:scale-110 transition-transform">
                                             <PlatformIcon platform={tool} className="w-full h-full" />
                                         </div>
                                     ))}
@@ -277,7 +278,9 @@ export default function StackDetailPage() {
                                         icon: Activity,
                                         color: 'text-slate-600',
                                         bg: 'bg-slate-50',
-                                        url: null
+                                        url: null,
+                                        resourceName: item.channel,
+                                        metadata: item.metadata
                                     }));
                             } else {
                                 // Map real activity from team.recentActivity for Slack/Teams
@@ -298,7 +301,9 @@ export default function StackDetailPage() {
                                         time: new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                                         icon: tool === 'slack' ? Activity : FileText, // Simple icon logic
                                         color: tool === 'slack' ? 'text-emerald-600' : 'text-blue-600',
-                                        bg: tool === 'slack' ? 'bg-emerald-50' : 'bg-blue-50'
+                                        bg: tool === 'slack' ? 'bg-emerald-50' : 'bg-blue-50',
+                                        resourceName: item.channel,
+                                        metadata: item.metadata
                                     }));
                             }
 
@@ -310,8 +315,8 @@ export default function StackDetailPage() {
                                     <div className="bg-white rounded-xl border border-slate-200 p-4 mb-3 shadow-sm">
                                         <div className="flex justify-between items-start">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded bg-slate-50 border border-slate-100 flex items-center justify-center p-1">
-                                                    <PlatformIcon platform={tool} className="w-6 h-6" />
+                                                <div className="flex items-center justify-center p-1">
+                                                    <PlatformIcon platform={tool} className="w-8 h-8" />
                                                 </div>
                                                 <div>
                                                     <h3 className="text-lg font-bold text-slate-900 capitalize leading-tight flex items-center gap-2">
@@ -350,15 +355,18 @@ export default function StackDetailPage() {
                                             ) : (
                                                 <div className="divide-y divide-slate-100">
                                                     {toolActivities.map((item, idx) => (
-                                                        <div key={idx} className="p-3 flex gap-3 hover:bg-slate-50 transition-colors cursor-pointer group">
+                                                        <div key={idx}
+                                                            onClick={() => setSelectedActivity(item)}
+                                                            className="p-3 flex gap-3 hover:bg-slate-50 transition-colors cursor-pointer group"
+                                                        >
                                                             <div className="mt-0.5">
-                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${item.bg}`}>
+                                                                <div className="flex items-center justify-center">
                                                                     {item.action === 'Pushed Code' ? (
                                                                         <GitCommit className={`w-3.5 h-3.5 ${item.color}`} />
                                                                     ) : item.action === 'Merged PR' ? (
                                                                         <GitPullRequest className={`w-3.5 h-3.5 ${item.color}`} />
                                                                     ) : item.platform ? (
-                                                                        <PlatformIcon platform={item.platform} className="w-3.5 h-3.5" />
+                                                                        <PlatformIcon platform={item.platform} className="w-4 h-4" />
                                                                     ) : (
                                                                         <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
                                                                     )}
@@ -383,7 +391,7 @@ export default function StackDetailPage() {
                                                                 <div className="mt-1.5 flex items-center gap-2">
                                                                     <span className="inline-flex items-center gap-1 text-[9px] text-slate-500 border border-slate-200 rounded px-1 py-0.5 bg-slate-50">
                                                                         <PlatformIcon platform={item.type} className="w-2.5 h-2.5" />
-                                                                        {item.type === 'github' ? 'verytis/core' : item.type === 'slack' ? 'Engineering' : 'SharePoint'}
+                                                                        {item.resourceName || (item.type === 'github' ? 'Repository' : 'Channel')}
                                                                     </span>
                                                                     <span className="text-[9px] text-slate-400">•</span>
                                                                     <span className="text-[10px] font-medium text-slate-600">{item.actor}</span>
@@ -421,8 +429,8 @@ export default function StackDetailPage() {
                                 .map(resource => (
                                     <div key={resource.id} className="flex items-center justify-between p-2 rounded hover:bg-slate-50 transition-colors group">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded bg-white border border-slate-200 flex items-center justify-center shadow-sm">
-                                                <PlatformIcon platform={resource.platform} />
+                                            <div className="w-8 h-8 flex items-center justify-center">
+                                                <PlatformIcon platform={resource.platform} className="w-6 h-6" />
                                             </div>
                                             <div className="min-w-0">
                                                 <div className="text-sm font-bold text-slate-900 break-words leading-tight" title={resource.name}>{resource.name}</div>
@@ -512,8 +520,8 @@ export default function StackDetailPage() {
                                 onClick={() => handleIntegrationSelect(integration)}
                                 className="w-full flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all group text-left"
                             >
-                                <div className="w-10 h-10 rounded bg-white border border-slate-200 flex items-center justify-center group-hover:border-blue-200">
-                                    <PlatformIcon platform={integration.provider} className="w-6 h-6" />
+                                <div className="w-10 h-10 flex items-center justify-center">
+                                    <PlatformIcon platform={integration.provider} className="w-8 h-8" />
                                 </div>
                                 <div>
                                     <div className="font-bold text-slate-900 capitalize">{integration.provider}</div>
@@ -585,6 +593,99 @@ export default function StackDetailPage() {
                                 )}
                             </div>
                         )}
+                    </div>
+                )}
+            </Modal>
+
+            {/* Activity Detail Modal */}
+            <Modal
+                isOpen={!!selectedActivity}
+                onClose={() => setSelectedActivity(null)}
+                title="Activity Details"
+                className="max-w-xl"
+            >
+                {selectedActivity && (
+                    <div className="space-y-6 text-left">
+                        <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 pt-1">
+                                <PlatformIcon platform={selectedActivity.platform} className="w-10 h-10" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-slate-900 leading-tight">
+                                            {selectedActivity.action}
+                                        </h3>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-xs font-medium text-slate-500">{selectedActivity.resourceName}</span>
+                                            <span className="text-slate-300">•</span>
+                                            <span className="text-xs font-medium text-slate-500">{selectedActivity.time}</span>
+                                        </div>
+                                    </div>
+                                    <StatusBadge status="Completed" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="pt-2">
+                            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Summary</h4>
+                            <p className="text-sm text-slate-700 font-medium whitespace-pre-wrap">
+                                {selectedActivity.target}
+                            </p>
+                        </div>
+
+                        {selectedActivity.metadata?.commits && selectedActivity.metadata.commits.length > 0 && (
+                            <div className="space-y-3">
+                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                    <GitBranch className="w-3 h-3" /> Commits Details
+                                </h4>
+                                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                                    {selectedActivity.metadata.commits.map((commit, cIdx) => (
+                                        <div key={commit.id || cIdx} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm group/commit hover:border-blue-200 transition-colors">
+                                            <div className="flex justify-between items-start gap-3">
+                                                <p className="text-xs text-slate-600 leading-relaxed flex-1">
+                                                    {commit.message}
+                                                </p>
+                                                {commit.url && (
+                                                    <a href={commit.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-600 hover:text-blue-800 font-bold whitespace-nowrap">
+                                                        VIEW DIFF
+                                                    </a>
+                                                )}
+                                            </div>
+                                            <div className="mt-2 flex items-center gap-2">
+                                                <div className="w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-[8px] font-bold text-slate-400">
+                                                    {commit.author?.substring(0, 1).toUpperCase() || 'U'}
+                                                </div>
+                                                <span className="text-[10px] text-slate-400">{commit.author || 'Unknown'}</span>
+                                                <span className="text-slate-200">•</span>
+                                                <span className="text-[10px] font-mono text-slate-300">
+                                                    {commit.id?.substring(0, 7)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 flex items-center justify-center text-xs font-bold text-slate-500">
+                                    {selectedActivity.actor?.substring(0, 2).toUpperCase()}
+                                </div>
+                                <div className="text-left">
+                                    <div className="text-xs font-bold text-slate-900">{selectedActivity.actor}</div>
+                                    <div className="text-[10px] text-slate-500">Contributor</div>
+                                </div>
+                            </div>
+                            {selectedActivity.metadata?.compare_url && (
+                                <a href={selectedActivity.metadata.compare_url} target="_blank" rel="noopener noreferrer">
+                                    <Button size="sm" variant="outline" className="text-xs gap-2">
+                                        Open on GitHub <ChevronRight className="w-3 h-3" />
+                                    </Button>
+                                </a>
+                            )}
+                        </div>
                     </div>
                 )}
             </Modal>

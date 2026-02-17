@@ -1,0 +1,101 @@
+
+> icare-admin-console@1.0.0 dev
+> next dev -p 3000
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1069ms
+ ✓ Compiled /middleware in 90ms (123 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 2.6s (2076 modules)
+ GET / 200 in 2788ms
+ ○ Compiling /api/users ...
+ ✓ Compiled /api/users in 1154ms (1132 modules)
+ GET /api/users 200 in 2012ms
+ ✓ Compiled /stacks in 291ms (2152 modules)
+ GET /api/users 200 in 17ms
+ ✓ Compiled /api/teams in 85ms (1139 modules)
+ GET /api/teams 200 in 344ms
+ GET /api/teams 200 in 237ms
+ ✓ Compiled /stacks/[teamId] in 286ms (2180 modules)
+ ✓ Compiled /api/teams/[teamId] in 101ms (1162 modules)
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1889ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1525ms
+ ✓ Compiled in 358ms (1775 modules)
+ GET /stacks/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 106ms
+ ✓ Compiled /api/teams/[teamId] in 174ms (809 modules)
+ ✓ Compiled (811 modules)
+ GET /api/users 200 in 1020ms
+ GET /api/users 200 in 4ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 2659ms
+ GET /api/teams/0ca5315c-4a7e-476a-b490-164fa0fa4cb8 200 in 1499ms
+ ✓ Compiled in 385ms (1775 modules)
+ ✓ Compiled in 563ms (1775 modules)
+ ✓ Compiled in 382ms (1775 modules)
+ ✓ Compiled in 660ms (1775 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 537ms (1085 modules)
+ ✓ Compiled /api/slack/status in 190ms (1153 modules)
+ GET /api/slack/status 200 in 261ms
+ GET /api/slack/status 200 in 7ms
+ ✓ Compiled /api/github/status in 64ms (1155 modules)
+ GET /api/github/status 200 in 91ms
+ GET /api/github/status 200 in 4ms
+ ✓ Compiled /channels in 237ms (2181 modules)
+ ✓ Compiled /api/resources/list in 100ms (1161 modules)
+ GET /api/resources/list 200 in 114ms
+ GET /api/resources/list 200 in 6ms
+ ✓ Compiled /stacks in 66ms (1166 modules)
+ ✓ Compiled /api/teams in 68ms (1168 modules)
+ GET /api/teams 200 in 945ms
+ GET /api/teams 200 in 235ms
+ ✓ Compiled /teams in 129ms (2196 modules)
+ ✓ Compiled /api/users in 80ms (1174 modules)
+ GET /api/resources/list 200 in 178ms
+ GET /api/resources/list 200 in 5ms
+ GET /api/teams?userId=mock-admin-id 200 in 611ms
+ GET /api/users 200 in 789ms
+ GET /api/users 200 in 4ms
+ GET /api/teams?userId=mock-admin-id 200 in 400ms
+ GET /api/resources/list 200 in 5ms
+ GET /api/resources/list 200 in 6ms
+ ✓ Compiled /timeline in 182ms (2204 modules)
+ GET /api/resources/list 200 in 6ms
+ GET /api/resources/list 200 in 5ms
+ ✓ Compiled /timeline/[channelId] in 157ms (2210 modules)
+ GET /api/resources/list 200 in 8ms
+ ✓ Compiled /api/activity in 108ms (1184 modules)
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/resources/list 200 in 199ms
+ GET /api/activity?channelId=96400f53-5daf-4529-a80a-3909e0d92200 200 in 221ms
+🚀 API Activity: Executing Optimized Query with DB Filtering
+ GET /api/activity?channelId=96400f53-5daf-4529-a80a-3909e0d92200 200 in 6ms
+ GET /api/teams 200 in 673ms
+ GET /api/teams 200 in 212ms
+ GET /api/resources/list 200 in 10ms
+ GET /api/resources/list 200 in 7ms
+ GET /api/users 200 in 242ms
+ GET /api/teams?userId=mock-admin-id 200 in 419ms
+ GET /api/users 200 in 556ms
+ GET /api/teams?userId=mock-admin-id 200 in 405ms
+ GET /api/resources/list 200 in 11ms
+ GET /api/users 200 in 6ms
+ GET /api/teams?userId=fba57a83-8a87-46fc-9f39-82b35d4d478b 200 in 479ms
+ GET /api/resources/list 200 in 10ms
+ GET /api/users 200 in 5ms
+ GET /api/teams?userId=4cf8db21-2e1e-4c22-9055-d586b7fed310 200 in 507ms
+ GET /api/teams 200 in 1561ms
+ GET /api/teams 200 in 397ms
+ ✓ Compiled /api/teams/[teamId] in 207ms (1168 modules)
+ GET /api/teams/0b9ec0cc-d979-4f98-9ae8-b96557cab65e 200 in 1646ms
+ GET /api/teams/0b9ec0cc-d979-4f98-9ae8-b96557cab65e 200 in 814ms
+ ✓ Compiled /api/integrations in 79ms (1170 modules)
+ GET /api/integrations 200 in 105ms
+ ✓ Compiled /api/github/repositories in 86ms (1173 modules)
+ GET /api/github/repositories 200 in 104ms
+ ✓ Compiled /api/teams/[teamId]/resources in 76ms (1175 modules)
+ POST /api/teams/0b9ec0cc-d979-4f98-9ae8-b96557cab65e/resources 200 in 847ms
+ GET /api/teams/0b9ec0cc-d979-4f98-9ae8-b96557cab65e 200 in 1546ms

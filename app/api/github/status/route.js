@@ -3,17 +3,26 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-    const TEST_ORG_ID = '5db477f6-c893-4ec4-9123-b12160224f70';
+export async function GET(req) {
+    const { searchParams } = new URL(req.url);
+    let organizationId = searchParams.get('organizationId');
+    const teamId = searchParams.get('teamId');
 
     const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
         process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
+    if (!organizationId && teamId) {
+        const { data } = await supabase.from('teams').select('organization_id').eq('id', teamId).single();
+        if (data) organizationId = data.organization_id;
+    }
+
+    const targetOrgId = organizationId || '5db477f6-c893-4ec4-9123-b12160224f70';
+
     const { data, error } = await supabase.from('integrations')
         .select('id, settings, name')
-        .eq('organization_id', TEST_ORG_ID)
+        .eq('organization_id', targetOrgId)
         .eq('provider', 'github')
         .single();
 

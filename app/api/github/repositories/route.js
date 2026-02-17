@@ -1,31 +1,46 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getValidGitHubToken } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-    const TEST_ORG_ID = '5db477f6-c893-4ec4-9123-b12160224f70';
+export async function GET(req) {
+    const { searchParams } = new URL(req.url);
+    let organizationId = searchParams.get('organizationId');
+    const teamId = searchParams.get('teamId');
 
     const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
         process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
+    // Resolve Org ID
+    if (!organizationId && teamId) {
+        const { data } = await supabase.from('teams').select('organization_id').eq('id', teamId).single();
+        if (data) organizationId = data.organization_id;
+    }
+
+    const targetOrgId = organizationId || '5db477f6-c893-4ec4-9123-b12160224f70';
+
     try {
         const { data: integration } = await supabase.from('integrations')
-            .select('settings')
-            .eq('organization_id', TEST_ORG_ID)
+            .select('id, settings')
+            .eq('organization_id', targetOrgId)
             .eq('provider', 'github')
             .single();
 
-        if (!integration || !integration.settings.access_token || !integration.settings.installation_id) {
+        if (!integration) {
             return NextResponse.json({ repositories: [] });
         }
 
-        const { access_token, installation_id } = integration.settings;
+        const access_token = await getValidGitHubToken(integration.id);
+        const { installation_id } = integration.settings;
 
-        // Fetch repositories accessible to the installation for this user
-        // https://docs.github.com/en/rest/apps/installations?apiVersion=2022-11-28#list-repositories-accessible-to-the-user-access-token
+        if (!access_token || !installation_id) {
+            return NextResponse.json({ repositories: [] });
+        }
+
+        // Fetch repositories accessible to the installation
         const res = await fetch(`https://api.github.com/user/installations/${installation_id}/repositories`, {
             headers: {
                 'Authorization': `Bearer ${access_token}`,

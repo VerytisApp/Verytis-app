@@ -4,3 +4,4 @@ node_modules
 .next/
 out/
 .env*.local
+server_debug.log

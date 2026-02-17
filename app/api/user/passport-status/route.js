@@ -7,7 +7,17 @@ export const dynamic = 'force-dynamic';
 export async function GET(req) {
     const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+        {
+            auth: {
+                persistSession: false
+            },
+            global: {
+                fetch: (url, options) => {
+                    return fetch(url, { ...options, cache: 'no-store' });
+                }
+            }
+        }
     );
 
     try {
@@ -36,13 +46,15 @@ export async function GET(req) {
         // 2. Fetch User Profile (INCLUDING slack_user_id)
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('id, email, full_name, role, organization_id, slack_user_id')
+            .select('id, email, full_name, role, organization_id, slack_user_id, social_profiles')
             .eq('id', targetUserId)
             .single();
 
         if (profileError || !profile) {
             return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
         }
+
+        console.log("DEBUG PASSPORT STATUS - Profile:", JSON.stringify(profile, null, 2));
 
         // 3. Get Integration Token
         const { data: orgIntegration } = await supabase
@@ -143,13 +155,26 @@ export async function GET(req) {
         // Teams (Statique pour l'instant)
         const teamsStatus = { connected: false };
 
+        // --- GITHUB STATUS (From social_profiles) ---
+        let githubStatus = { connected: false };
+        if (profile.social_profiles?.github) {
+            githubStatus = {
+                connected: true,
+                source: 'passport_id',
+                username: profile.social_profiles.github.username,
+                email: profile.social_profiles.github.email,
+                lastSync: profile.social_profiles.github.connected_at
+            };
+        }
+
         return NextResponse.json({
             userId: targetUserId,
             userEmail: profile.email,
             debug: debugInfo,
             connections: {
                 slack: slackStatus,
-                teams: teamsStatus
+                teams: teamsStatus,
+                github: githubStatus
             }
         });
 

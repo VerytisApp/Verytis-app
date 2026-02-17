@@ -3,9 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-    // 1. Context: "Test Corp"
-    const TEST_ORG_ID = '5db477f6-c893-4ec4-9123-b12160224f70';
+export async function GET(req) {
+    const { searchParams } = new URL(req.url);
+    const organizationId = searchParams.get('organizationId');
+
+    // 1. Context: Dynamic or Fallback "Test Corp"
+    const targetOrgId = organizationId || '5db477f6-c893-4ec4-9123-b12160224f70';
 
     const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -15,7 +18,7 @@ export async function GET() {
     // 2. Check if we have a token in 'integrations'
     const { data, error } = await supabase.from('integrations')
         .select('id, settings, name')
-        .eq('organization_id', TEST_ORG_ID)
+        .eq('organization_id', targetOrgId)
         .eq('provider', 'slack')
         .single();
 
