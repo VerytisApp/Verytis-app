@@ -94,7 +94,8 @@ const IntegrationsSettings = ({ teamId }) => {
     // Initial State (Clean, no fakes)
     const [connections, setConnections] = useState({
         slack: { connected: false, lastSync: null },
-        github: { connected: false, lastSync: null }
+        github: { connected: false, lastSync: null },
+        trello: { connected: false, lastSync: null }
     });
 
     const [activeTab, setActiveTab] = useState('overview');
@@ -124,6 +125,16 @@ const IntegrationsSettings = ({ teamId }) => {
                     github: { connected: true, lastSync: 'Connecté' }
                 }));
             }
+
+            // Trello Status
+            const resTrello = await fetch(`/api/trello/status${query}`);
+            const dataTrello = await resTrello.json();
+            if (dataTrello.connected) {
+                setConnections(prev => ({
+                    ...prev,
+                    trello: { connected: true, lastSync: 'Connecté' }
+                }));
+            }
         } catch (e) {
             console.error("Status check failed", e);
         }
@@ -136,7 +147,7 @@ const IntegrationsSettings = ({ teamId }) => {
     // Listener for Popup Message
     useEffect(() => {
         const handleMessage = (event) => {
-            if (event.data.type === 'GITHUB_CONNECTED') {
+            if (event.data.type === 'GITHUB_CONNECTED' || event.data.type === 'TRELLO_CONNECTED') {
                 checkStatus();
             }
         };
@@ -174,7 +185,6 @@ const IntegrationsSettings = ({ teamId }) => {
             }
         } else if (appId === 'github') {
             if (!connections.github.connected) {
-                // Open Popup
                 const width = 600;
                 const height = 700;
                 const left = (window.screen.width - width) / 2;
@@ -189,6 +199,24 @@ const IntegrationsSettings = ({ teamId }) => {
                 setConnections(prev => ({
                     ...prev,
                     github: { connected: false, lastSync: null }
+                }));
+            }
+        } else if (appId === 'trello') {
+            if (!connections.trello.connected) {
+                const width = 600;
+                const height = 700;
+                const left = (window.screen.width - width) / 2;
+                const top = (window.screen.height - height) / 2;
+                const query = teamId ? `?teamId=${teamId}` : '';
+                window.open(
+                    `/api/auth/trello/install${query}`,
+                    'TrelloConnect',
+                    `width=${width},height=${height},top=${top},left=${left}`
+                );
+            } else {
+                setConnections(prev => ({
+                    ...prev,
+                    trello: { connected: false, lastSync: null }
                 }));
             }
         } else {
@@ -262,6 +290,17 @@ const IntegrationsSettings = ({ teamId }) => {
             description: "Synchronisation des métadonnées de code pour la traçabilité des modifications et des validations (Commits & PRs uniquement).",
             features: ['Code Audit', 'Commit Tracking', 'PR Validation'],
             permissions: ['Lecture Repositories', 'Lecture Historique Commits', 'Lecture Pull Requests']
+        },
+        {
+            id: 'trello',
+            name: 'Trello',
+            category: 'Project Management',
+            logo: "https://www.google.com/s2/favicons?domain=trello.com&sz=128",
+            bgColor: 'bg-[#0079BF]/5',
+            borderColor: 'border-[#0079BF]/10',
+            description: "Connectez vos boards Trello pour tracer les décisions projet, les mouvements de cartes et les validations d'équipe.",
+            features: ['Board Audit Trail', 'Card Movement Tracking', 'Decision Traceability', 'Checklist Validation'],
+            permissions: ['Lecture des Boards', 'Lecture des Cartes & Listes', 'Lecture des Membres', 'Lecture de l\'Activité']
         }
     ];
 
@@ -363,7 +402,7 @@ const IntegrationsSettings = ({ teamId }) => {
                                         onClick={() => setActiveTab('channels')}
                                         className={`pb-2 text-sm font-medium transition-colors relative ${activeTab === 'channels' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
-                                        {selectedAppId === 'github' ? 'Repositories' : 'Channels & Sources'}
+                                        {selectedAppId === 'github' ? 'Repositories' : selectedAppId === 'trello' ? 'Boards' : 'Channels & Sources'}
                                         {activeTab === 'channels' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"></span>}
                                     </button>
                                 )}
@@ -383,7 +422,7 @@ const IntegrationsSettings = ({ teamId }) => {
 
                         <button
                             onClick={() => handleConnect(selectedAppId)}
-                            disabled={selectedAppId !== 'slack' && selectedAppId !== 'github'}
+                            disabled={selectedAppId !== 'slack' && selectedAppId !== 'github' && selectedAppId !== 'trello'}
                             className={`px-6 py-2 transition-all duration-300 font-medium rounded-lg shadow-sm text-sm
                                 ${connections[selectedAppId].connected
                                     ? 'bg-rose-600 text-white hover:bg-rose-700 hover:shadow-rose-500/20 shadow-rose-500/10'
