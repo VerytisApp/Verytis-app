@@ -30,9 +30,20 @@ export async function POST(req) {
         }
         const targetOrgId = organizationId || '5db477f6-c893-4ec4-9123-b12160224f70';
 
-        // Fetch Trello member info to get username
-        const memberRes = await fetch(`https://api.trello.com/1/members/me?key=${process.env.TRELLO_API_KEY}&token=${token}`);
-        const member = await memberRes.json();
+        // Fetch Trello member info to get username (best-effort, don't block save)
+        let member = {};
+        try {
+            const memberRes = await fetch(`https://api.trello.com/1/members/me?key=${process.env.TRELLO_API_KEY}&token=${token}`);
+            const memberText = await memberRes.text();
+            console.log(`Trello /members/me response (${memberRes.status}): ${memberText.substring(0, 200)}`);
+            if (memberRes.ok && memberText.startsWith('{')) {
+                member = JSON.parse(memberText);
+            } else {
+                console.warn(`⚠️ Trello member lookup failed: ${memberText}`);
+            }
+        } catch (memberErr) {
+            console.warn(`⚠️ Trello member lookup error:`, memberErr.message);
+        }
 
         // Check for existing integration
         const { data: existing } = await supabase.from('integrations')
