@@ -71,7 +71,9 @@ export default function StackDetailPage() {
                 { event: 'new_activity' },
                 (payload) => {
                     console.log('🔥 New Activity Detected (Broadcast)!', payload);
-                    fetchTeamData();
+                    setTimeout(() => {
+                        fetchTeamData();
+                    }, 1000);
                 }
             )
             .subscribe((status) => {

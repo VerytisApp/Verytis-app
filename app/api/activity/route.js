@@ -136,8 +136,9 @@ export async function GET(req) {
 
             if (resource) {
                 if (resource.type === 'repo' && resource.name) {
-                    // For GitHub: Match generic resource_id OR specific repo name in metadata (CASE INSENSITIVE)
-                    conditions.push(`metadata->>repo.ilike.${resource.name}`);
+                    // For GitHub: Match generic resource_id OR specific repo name in metadata
+                    // Using .eq to match exactly how api/teams works
+                    conditions.push(`metadata->>repo.eq.${resource.name}`);
                 } else if (resource.external_id) {
                     // For Slack: Match generic resource_id OR specific slack_channel ID in metadata
                     conditions.push(`metadata->>slack_channel.eq.${resource.external_id}`);
@@ -156,7 +157,9 @@ export async function GET(req) {
             query = query.eq('metadata->>slack_channel', targetSlackChannelId);
         }
 
-        const { data: logs, error } = await query;
+        const { data: logs, error } = await query
+            .order('created_at', { ascending: false })
+            .limit(50);
 
         if (error) throw error;
 
@@ -245,8 +248,9 @@ function formatAction(actionType) {
         case 'MEMBER_JOINED': return 'Member joined';
         case 'CHANNEL_CREATED': return 'Channel created';
         case 'ATTEMPTED_ACTION_ANONYMOUS': return 'Unverified action';
-        case 'CODE_PUSH': return 'Code Push';
-        case 'PR_OPENED': return 'PR Opened';
+        case 'CODE_PUSH': return 'Pushed Commit'; // Match Stack page
+        case 'PR_OPENED': return 'Opened PR'; // Match Stack page
+        case 'PR_MERGED': return 'Merged PR';
         case 'PR_MERGED': return 'PR Merged';
         default: return actionType;
     }

@@ -48,6 +48,7 @@ export default function TimelineFeed({ userRole }) {
             const res = await fetch(`/api/activity?channelId=${resourceId}`);
             if (res.ok) {
                 const data = await res.json();
+                console.log(`📊 Timeline fetched ${data.events?.length} events. Top event:`, data.events?.[0]);
                 setEvents(data.events || []);
             }
         } catch (e) {
@@ -82,7 +83,10 @@ export default function TimelineFeed({ userRole }) {
                 { event: 'new_activity' },
                 (payload) => {
                     console.log('🔥 New Activity Detected (Broadcast)!', payload);
-                    fetchEvents();
+                    // Add delay to allow DB propagation
+                    setTimeout(() => {
+                        fetchEvents();
+                    }, 1000);
                 }
             )
             .subscribe((status) => {
@@ -100,15 +104,15 @@ export default function TimelineFeed({ userRole }) {
 
         // GitHub Specific Filters
         if (provider === 'github') {
-            if (filterType === 'commits' && event.action === 'Code Push') return true;
-            if (filterType === 'prs' && ['PR Opened', 'PR Merged'].includes(event.action)) return true;
+            if (filterType === 'commits' && event.action === 'Pushed Commit') return true;
+            if (filterType === 'prs' && ['Opened PR', 'Merged PR'].includes(event.action)) return true;
             if (filterType === 'system' && ['system', 'anonymous'].includes(event.type)) return true;
             return false;
         }
 
         // Default / Slack Filters
         if (filterType === 'decisions' && event.type === 'decision') return true;
-        if (filterType === 'code' && (event.type === 'file' || event.type === 'comment' || event.action === 'PR Merged')) return true;
+        if (filterType === 'code' && (event.type === 'file' || event.type === 'comment' || event.action === 'Merged PR')) return true;
         if (filterType === 'system' && ['system', 'anonymous'].includes(event.type)) return true;
         return false;
     });
@@ -130,17 +134,17 @@ export default function TimelineFeed({ userRole }) {
                 'Transfer': { icon: RefreshCw, color: 'text-purple-600' },
                 'Edit': { icon: Edit2, color: 'text-blue-600' },
                 'Archive': { icon: ArchiveIcon, color: 'text-slate-600' },
-                'PR Merged': { icon: GitMerge, color: 'text-purple-600' }
+                'Merged PR': { icon: GitMerge, color: 'text-purple-600' }
             };
             style = decisionStyles[event.action] || decisionStyles['Approval'];
         } else if (event.type === 'file') {
-            if (event.action === 'Code Push') {
+            if (event.action === 'Pushed Commit') {
                 style = { icon: GitCommit, color: 'text-orange-500' };
             } else {
                 style = { icon: FileText, color: 'text-orange-500' };
             }
         } else if (event.type === 'comment') {
-            if (event.action === 'PR Opened') {
+            if (event.action === 'Opened PR') {
                 style = { icon: GitPullRequest, color: 'text-blue-500' };
             } else {
                 style = { icon: GitCommit, color: 'text-blue-500' };
@@ -186,7 +190,7 @@ export default function TimelineFeed({ userRole }) {
                         <option value="all">All Events</option>
                         {provider === 'github' ? (
                             <>
-                                <option value="commits">Commits</option>
+                                <option value="commits">Pushes</option>
                                 <option value="prs">Pull Requests</option>
                                 <option value="system">System</option>
                             </>
