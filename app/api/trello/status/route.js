@@ -33,9 +33,44 @@ export async function GET(req) {
 
     const isConnected = !!(data && data.settings?.api_token);
 
+    // Fetch workspace name from Trello API (organization name)
+    let workspaceName = data?.settings?.username || data?.name || null;
+
+    if (isConnected && data.settings?.api_token) {
+        try {
+            const API_KEY = process.env.TRELLO_API_KEY;
+            const token = data.settings.api_token;
+
+            // First, try to get organizations
+            const orgRes = await fetch(`https://api.trello.com/1/members/me/organizations?key=${API_KEY}&token=${token}&fields=displayName,name`, {
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (orgRes.ok) {
+                const orgs = await orgRes.json();
+                if (orgs && orgs.length > 0) {
+                    // Use first organization's display name
+                    workspaceName = orgs[0].displayName || orgs[0].name;
+                } else {
+                    // Fallback: if no org, get member's full name
+                    const memberRes = await fetch(`https://api.trello.com/1/members/me?key=${API_KEY}&token=${token}&fields=fullName,username`, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (memberRes.ok) {
+                        const member = await memberRes.json();
+                        workspaceName = member.fullName || member.username;
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Failed to fetch Trello workspace name:', e);
+            // Fall back to stored username
+        }
+    }
+
     return NextResponse.json({
         connected: isConnected,
-        name: data?.name || null,
+        name: workspaceName,
         lastSync: isConnected ? new Date().toISOString() : null
     });
 }

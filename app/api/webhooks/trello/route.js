@@ -18,22 +18,41 @@ export async function HEAD() {
 /**
  * POST /api/webhooks/trello
  * 
- * Trello Webhook Handler — 5 Audit Actions (ISO 27001 / SOC2)
+ * Trello Webhook Handler — 6 Audit Actions (ISO 27001 / SOC2)
  * 
  * 1. CARD_MOVED      — Card moved between lists (validation)
  * 2. MEMBER_ASSIGNED — Member added to card (responsibility)
  * 3. ATTACHMENT_ADDED — File attached to card (specification)
  * 4. CHECKLIST_DONE  — Checklist item completed (protocol)
- * 5. CARD_ARCHIVED   — Card archived (traceability)
+ * 5. CARD_COMPLETED  — Card marked as complete (due date)
+ * 6. CARD_ARCHIVED   — Card archived (traceability)
  */
+import fs from 'fs';
+import path from 'path';
+
 export async function POST(req) {
     const rawBody = await req.text();
+    const logFile = path.join(process.cwd(), 'trello_debug.log');
+
+    // Simple file logging for Trello events (keep for production audit trail if needed, or remove)
+    const log = (msg) => {
+        const timestamp = new Date().toISOString();
+        // fs.appendFileSync(logFile, `[${timestamp}] ${msg}\n`); // Commented out to reduce I/O in prod
+        console.log(`[Trello Webhook] ${msg}`);
+    };
+
+    // log('📨 Trello Webhook Received!');
+    // log(`Headers: ${JSON.stringify(Object.fromEntries(req.headers))}`);
 
     try {
         // ── Security: Verify Trello Webhook Signature ───────────────
         const headerSignature = req.headers.get('x-trello-webhook');
         const secret = process.env.TRELLO_API_SECRET;
         const callbackUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/webhooks/trello`;
+
+        // log(`🔐 Verifying Signature...`);
+        // log(`   - Callback URL: ${callbackUrl}`);
+        // log(`   - Header Sig: ${headerSignature}`);
 
         if (secret && headerSignature) {
             const base64Digest = crypto
@@ -42,16 +61,21 @@ export async function POST(req) {
                 .digest('base64');
 
             if (base64Digest !== headerSignature) {
-                console.warn("⚠️ Trello Webhook Signature mismatch (may be ngrok URL difference)");
+                console.warn(`⚠️ Signature Mismatch! Expected: ${base64Digest}, Got: ${headerSignature}`);
                 // In production, uncomment the line below to block invalid signatures:
                 // return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+            } else {
+                // log('✅ Signature Verified');
             }
+        } else {
+            console.warn('⚠️ Skipping signature check (missing details)');
         }
 
         const body = JSON.parse(rawBody);
         const action = body.action;
 
         if (!action) {
+            // log('Testing connection (no action in body)');
             return NextResponse.json({ status: 'no_action' });
         }
 
@@ -61,7 +85,11 @@ export async function POST(req) {
         const board = action.data?.board;
         const card = action.data?.card;
 
-        console.log(`📋 Trello Webhook: ${actionType} by ${actorName} on board "${board?.name}"`);
+        log(`📋 Action: ${actionType} by ${actorName} on board "${board?.name}"`);
+        // Debug: Log data for updateCard and checklist events to understand structure
+        // if (actionType === 'updateCard' || actionType.includes('CheckItem')) {
+        //     log(`🔍 Data payload: ${JSON.stringify(action.data)}`);
+        // }
 
         // ── Route Events ────────────────────────────────────────────
 
@@ -124,7 +152,7 @@ export async function POST(req) {
             );
         }
 
-        // 4. CHECKLIST_DONE — Checklist item completed (protocol)
+        // 5. CHECKLIST_DONE — Checklist item completed (protocol)
         else if (actionType === 'updateCheckItemStateOnCard' && action.data?.checkItem?.state === 'complete') {
             const checkItem = action.data.checkItem;
             const checklist = action.data.checklist;
@@ -139,6 +167,21 @@ export async function POST(req) {
                     card_name: card.name,
                     checklist_name: checklist?.name,
                     check_item: checkItem.name,
+                    card_url: card.shortLink ? `https://trello.com/c/${card.shortLink}` : null
+                }
+            );
+        }
+
+        // 6. CARD_COMPLETED (Due Date) — Card marked as complete
+        else if (actionType === 'updateCard' && action.data?.card?.dueComplete === true) {
+            await logTrelloActivity(
+                'CARD_COMPLETED',
+                board,
+                actor,
+                `Marked "${card.name}" as complete`,
+                {
+                    card_id: card.id,
+                    card_name: card.name,
                     card_url: card.shortLink ? `https://trello.com/c/${card.shortLink}` : null
                 }
             );

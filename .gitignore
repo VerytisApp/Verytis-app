@@ -5,3 +5,6 @@ node_modules
 out/
 .env*.local
 server_debug.log
+next_server.log
+ngrok_output.log
+trello_debug.log

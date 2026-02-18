@@ -138,12 +138,13 @@ export default function StackDetailPage() {
             let url = '';
             if (integration.provider === 'github') url = '/api/github/repositories';
             if (integration.provider === 'slack') url = '/api/slack/channels';
+            if (integration.provider === 'trello') url = '/api/trello/boards';
 
             if (url) {
                 const res = await fetch(url);
                 if (res.ok) {
                     const data = await res.json();
-                    setIntegrationResources(data.repositories || data.channels || []);
+                    setIntegrationResources(data.repositories || data.channels || data.boards || []);
                 }
             }
         } catch (e) {
@@ -161,7 +162,7 @@ export default function StackDetailPage() {
                 body: JSON.stringify({
                     resource_id: resource.id,
                     resource_name: resource.name,
-                    resource_type: selectedIntegration.provider === 'github' ? 'repo' : 'channel',
+                    resource_type: selectedIntegration.provider === 'github' ? 'repo' : selectedIntegration.provider === 'trello' ? 'board' : 'channel',
                     integration_id: selectedIntegration.id,
                     external_id: resource.id // Or specialized ID if needed
                 })
@@ -289,21 +290,7 @@ export default function StackDetailPage() {
                         </Card>
                     )}
 
-                    {/* No Activity Empty State (Apps connected but no data) */}
-                    {team.integrations && team.integrations.filter(t => t !== 'slack').length > 0 && (!team.recentActivity || team.recentActivity.length === 0) && (
-                        <Card className="flex flex-col items-center justify-center py-12 text-center border-dashed">
-                            <div className="w-16 h-16 rounded-full bg-slate-50/50 flex items-center justify-center mb-4">
-                                <Activity className="w-8 h-8 text-slate-200" />
-                            </div>
-                            <h3 className="text-sm font-bold text-slate-900 mb-1">No recent activity</h3>
-                            <p className="text-xs text-slate-400 max-w-xs mx-auto mb-6">
-                                It looks a bit quiet here. New commits and PRs will appear here as they happen.
-                            </p>
-                            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
-                                <Clock className="w-3 h-3 mr-2" /> Refresh Stream
-                            </Button>
-                        </Card>
-                    )}
+                    {/* No Activity Empty State REMOVED (Deprecated) */}
 
                     {/* Render a separate Activity Card for each integration */}
                     {/* Render a separate Activity Card for each integration */}
@@ -526,6 +513,8 @@ export default function StackDetailPage() {
                                             <div className="flex items-center gap-3 overflow-hidden">
                                                 {selectedIntegration?.provider === 'github' ? (
                                                     <Layers className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                                ) : selectedIntegration?.provider === 'trello' ? (
+                                                    <div className="w-4 h-4 text-slate-400 flex-shrink-0 flex items-center justify-center font-bold text-[10px] border border-slate-300 rounded">T</div>
                                                 ) : (
                                                     <div className="w-4 h-4 text-slate-400 flex-shrink-0">#</div>
                                                 )}

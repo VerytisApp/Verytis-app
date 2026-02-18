@@ -37,6 +37,8 @@ export const PlatformIcon = ({ platform }) => {
             return <img src={getFavicon('microsoft.com')} alt="Microsoft 365" className="w-4 h-4" />;
         case 'github':
             return <img src={getFavicon('github.com')} alt="GitHub" className="w-4 h-4" />;
+        case 'trello':
+            return <img src={getFavicon('trello.com')} alt="Trello" className="w-4 h-4" />;
         case 'email':
             return <Mail className="w-3.5 h-3.5 text-slate-600" />;
         default:

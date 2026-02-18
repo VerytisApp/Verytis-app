@@ -88,14 +88,94 @@ const GitHubRepositoriesView = ({ teamId }) => {
     );
 };
 
+const TrelloBoardsView = ({ teamId }) => {
+    const [boards, setBoards] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchBoards = async () => {
+            try {
+                const res = await fetch('/api/trello/boards');
+                const data = await res.json();
+                if (data.boards) setBoards(data.boards);
+            } catch (error) {
+                console.error('Failed to fetch Trello boards', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchBoards();
+    }, [teamId]);
+
+    if (loading) {
+        return (
+            <div className="text-center py-12">
+                <div className="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-3"></div>
+                <p className="text-xs text-slate-400 font-medium">Chargement des boards...</p>
+            </div>
+        );
+    }
+
+    if (boards.length === 0) {
+        return (
+            <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <img src="https://www.google.com/s2/favicons?domain=trello.com&sz=64" alt="Trello" className="w-6 h-6 opacity-50" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">Aucun board trouvé</h3>
+                <p className="text-slate-500 text-xs mt-2 max-w-sm mx-auto">
+                    Vérifiez que votre compte Trello a des boards ouverts.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-between items-center mb-2">
+                <p className="text-sm text-slate-500">
+                    Boards actifs ({boards.length})
+                </p>
+                <div className="px-2 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded uppercase tracking-wide border border-emerald-100">
+                    Sync Active
+                </div>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
+                {boards.map(board => (
+                    <div key={board.id} className="p-4 flex items-center justify-between bg-white hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                                <span className="font-bold text-xs">T</span>
+                            </div>
+                            <div>
+                                <div className="text-sm font-bold text-slate-900">{board.name}</div>
+                            </div>
+                        </div>
+                        <a
+                            href={board.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                        >
+                            Voir
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        </a>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 const IntegrationsSettings = ({ teamId }) => {
     const [selectedAppId, setSelectedAppId] = useState('slack');
 
     // Initial State (Clean, no fakes)
     const [connections, setConnections] = useState({
-        slack: { connected: false, lastSync: null },
-        github: { connected: false, lastSync: null },
-        trello: { connected: false, lastSync: null }
+        slack: { connected: false, lastSync: null, workspaceName: null },
+        github: { connected: false, lastSync: null, workspaceName: null },
+        trello: { connected: false, lastSync: null, workspaceName: null }
     });
 
     const [activeTab, setActiveTab] = useState('overview');
@@ -112,7 +192,11 @@ const IntegrationsSettings = ({ teamId }) => {
             if (dataSlack.connected) {
                 setConnections(prev => ({
                     ...prev,
-                    slack: { connected: true, lastSync: 'Connecté' }
+                    slack: {
+                        connected: true,
+                        lastSync: 'Connecté',
+                        workspaceName: dataSlack.teamName || null
+                    }
                 }));
             }
 
@@ -122,7 +206,11 @@ const IntegrationsSettings = ({ teamId }) => {
             if (dataGithub.connected) {
                 setConnections(prev => ({
                     ...prev,
-                    github: { connected: true, lastSync: 'Connecté' }
+                    github: {
+                        connected: true,
+                        lastSync: 'Connecté',
+                        workspaceName: dataGithub.username || null
+                    }
                 }));
             }
 
@@ -132,7 +220,11 @@ const IntegrationsSettings = ({ teamId }) => {
             if (dataTrello.connected) {
                 setConnections(prev => ({
                     ...prev,
-                    trello: { connected: true, lastSync: 'Connecté' }
+                    trello: {
+                        connected: true,
+                        lastSync: 'Connecté',
+                        workspaceName: dataTrello.name || null
+                    }
                 }));
             }
         } catch (e) {
@@ -369,6 +461,13 @@ const IntegrationsSettings = ({ teamId }) => {
                                         <span className={`w-1.5 h-1.5 rounded-full ${connections[app.id].connected ? 'bg-emerald-500' : 'bg-slate-300'}`}></span>
                                         {connections[app.id].connected ? 'Connecté' : 'Non configuré'}
                                     </div>
+                                    {connections[app.id].connected && connections[app.id].workspaceName && (
+                                        <div className="text-[10px] text-slate-500 mt-0.5 truncate">
+                                            {app.id === 'slack' && `Workspace: ${connections[app.id].workspaceName}`}
+                                            {app.id === 'github' && `Org: ${connections[app.id].workspaceName}`}
+                                            {app.id === 'trello' && `Workspace: ${connections[app.id].workspaceName}`}
+                                        </div>
+                                    )}
                                 </div>
                             </button>
                         ))}
@@ -473,6 +572,8 @@ const IntegrationsSettings = ({ teamId }) => {
                         <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
                             {selectedAppId === 'github' ? (
                                 <GitHubRepositoriesView teamId={teamId} />
+                            ) : selectedAppId === 'trello' ? (
+                                <TrelloBoardsView teamId={teamId} />
                             ) : (
                                 <>
                                     <div className="flex justify-between items-center mb-2">

@@ -87,21 +87,15 @@ export async function GET(req, { params }) {
             };
         }));
 
-        // Fetch Recent Activity (Limit 10 for better mix)
+        // Fetch Recent Activity (Limit 50 for better mix)
         const slackChannelIds = channels.filter(c => c.integrations?.provider === 'slack' || c.type === 'channel').map(c => c.external_id).filter(Boolean);
         const repoNames = channels.filter(c => c.integrations?.provider === 'github' || c.type === 'repo').map(c => c.name).filter(Boolean);
+        const trelloBoardIds = channels.filter(c => c.integrations?.provider === 'trello' || c.type === 'board').map(c => c.external_id).filter(Boolean);
 
         let recentActivity = [];
         let orConditions = [];
 
         if (slackChannelIds.length > 0) {
-            // metadata->>slack_channel equals any of the IDs
-            // Since we can't easily use .in with JSON arrow operator in basic postgrest unless properly escaped or using filter
-            // Let's use chained ORs for now or a different approach if list is long.
-            // Actually, querying JSONB array/values is best done with containment if possible, but here we want "field equals value"
-            // Let's use the .or syntax with comma separation
-
-            // Limit to first 10 channels to avoid URL length issues for now if many channels
             const safeIds = slackChannelIds.slice(0, 10);
             const slackFilter = safeIds.map(id => `metadata->>slack_channel.eq.${id}`).join(',');
             if (slackFilter) orConditions.push(slackFilter);
@@ -111,6 +105,12 @@ export async function GET(req, { params }) {
             const safeRepos = repoNames.slice(0, 10);
             const repoFilter = safeRepos.map(name => `metadata->>repo.eq.${name}`).join(',');
             if (repoFilter) orConditions.push(repoFilter);
+        }
+
+        if (trelloBoardIds.length > 0) {
+            const safeBoards = trelloBoardIds.slice(0, 10);
+            const trelloFilter = safeBoards.map(id => `metadata->>board_id.eq.${id}`).join(',');
+            if (trelloFilter) orConditions.push(trelloFilter);
         }
 
         if (orConditions.length > 0) {
@@ -123,7 +123,7 @@ export async function GET(req, { params }) {
                 `)
                 .or(finalOr)
                 .order('created_at', { ascending: false })
-                .limit(50); // Increased limit for better mix
+                .limit(50);
             recentActivity = logs || [];
         } else {
             // Fallback: Query by resource_id if no external IDs/Names
@@ -160,17 +160,18 @@ export async function GET(req, { params }) {
             channels: channels.map(c => ({
                 id: c.id,
                 name: c.name,
-                platform: c.integrations?.provider || (c.type === 'channel' ? 'slack' : c.type === 'repo' ? 'github' : 'other'),
+                platform: c.integrations?.provider || (c.type === 'channel' ? 'slack' : c.type === 'repo' ? 'github' : c.type === 'board' ? 'trello' : 'other'),
                 decisionsCount: c.decisionsCount,
                 external_id: c.external_id
             })),
-            integrations: [...new Set(channels.map(c => c.integrations?.provider || (c.type === 'channel' ? 'slack' : c.type === 'repo' ? 'github' : null)).filter(item => item && item !== 'slack'))],
+            integrations: [...new Set(channels.map(c => c.integrations?.provider || (c.type === 'channel' ? 'slack' : c.type === 'repo' ? 'github' : c.type === 'board' ? 'trello' : null)).filter(item => item && item !== 'slack'))],
             recentActivity: recentActivity.map(a => {
                 const channel = channels.find(c =>
                     (c.integrations?.provider === 'slack' && c.external_id === a.metadata?.slack_channel) ||
-                    (c.integrations?.provider === 'github' && c.name === a.metadata?.repo)
+                    (c.integrations?.provider === 'github' && c.name === a.metadata?.repo) ||
+                    (c.integrations?.provider === 'trello' && c.external_id === a.metadata?.board_id)
                 );
-                const channelName = channel?.name || 'Unknown';
+                const channelName = channel?.name || a.metadata?.board_name || 'Unknown';
                 const actorName = a.profiles?.full_name || 'System';
                 const actionType = a.action_type || 'Activity';
 

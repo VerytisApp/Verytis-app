@@ -36,6 +36,10 @@ export async function GET(req) {
         const access_token = await getValidGitHubToken(integration.id);
         const { installation_id } = integration.settings;
 
+        console.log('[DEBUG repos] integration.id:', integration.id);
+        console.log('[DEBUG repos] installation_id:', installation_id);
+        console.log('[DEBUG repos] token prefix:', access_token?.substring(0, 10));
+
         if (!access_token || !installation_id) {
             return NextResponse.json({ repositories: [] });
         }

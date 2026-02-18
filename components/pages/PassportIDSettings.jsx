@@ -51,6 +51,13 @@ const PassportIDSettings = () => {
                 setTimeout(fetchPassportStatus, 1000);
                 setTimeout(fetchPassportStatus, 3000);
             }
+            if (event.data.type === 'TRELLO_LINKED') {
+                console.log("Trello Linked!", event.data.user);
+                // Aggressive refresh pattern
+                fetchPassportStatus();
+                setTimeout(fetchPassportStatus, 1000);
+                setTimeout(fetchPassportStatus, 3000);
+            }
         };
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
@@ -96,6 +103,12 @@ const PassportIDSettings = () => {
             name: 'GitHub',
             logo: 'https://www.google.com/s2/favicons?domain=github.com&sz=128',
             description: 'Connect your GitHub account for code repository tracking'
+        },
+        {
+            id: 'trello',
+            name: 'Trello',
+            logo: 'https://www.google.com/s2/favicons?domain=trello.com&sz=128',
+            description: 'Connect your Trello account for project management tracking'
         }
     ];
 
@@ -166,10 +179,16 @@ const PassportIDSettings = () => {
     };
 
     const handleDisconnect = async (provider) => {
-        if (!confirm(`Are you sure you want to disconnect ${provider}?`)) return;
+        console.log('handleDisconnect called for:', provider);
+        if (!confirm(`Are you sure you want to disconnect ${provider}?`)) {
+            console.log('User cancelled disconnect');
+            return;
+        }
 
+        console.log('Proceeding with disconnect...');
         setIsLoading(true);
         try {
+            console.log('Calling /api/user/disconnect with:', { userId: currentUser.id, provider });
             const res = await fetch('/api/user/disconnect', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
@@ -179,15 +198,18 @@ const PassportIDSettings = () => {
                 })
             });
 
+            console.log('Disconnect response status:', res.status);
             if (res.ok) {
+                console.log('Disconnect successful, refreshing status...');
                 // Refresh status
                 await fetchPassportStatus();
             } else {
                 const err = await res.json();
+                console.error('Disconnect failed:', err);
                 throw new Error(err.error || 'Failed to disconnect');
             }
         } catch (e) {
-            console.error(e);
+            console.error('Disconnect error:', e);
             alert('Failed to disconnect: ' + e.message);
         } finally {
             setIsLoading(false);
@@ -376,13 +398,29 @@ const PassportIDSettings = () => {
                                         <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Connected Account</p>
                                         <div className="flex items-center justify-between">
                                             <div className="flex flex-col">
-                                                <p className="text-xs font-medium text-slate-700" title={integration.id === 'github' ? status.username : status.email}>
-                                                    {integration.id === 'github' ? `@${status.username}` : status.email}
+                                                <p className="text-xs font-medium text-slate-700" title={integration.id === 'github' || integration.id === 'trello' ? status.username : status.email}>
+                                                    {integration.id === 'github' || integration.id === 'trello' ? `@${status.username}` : status.email}
                                                 </p>
                                                 {status.lastSync && (
                                                     <span className="text-[10px] text-slate-400">
                                                         Synced: {new Date(status.lastSync).toLocaleString()}
                                                     </span>
+                                                )}
+                                                {/* Org Membership Status */}
+                                                {status.orgName && (
+                                                    <div className={`flex items-center gap-1 mt-1 text-[10px] font-medium ${status.foundInOrg ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                                        {status.foundInOrg ? (
+                                                            <>
+                                                                <CheckCircle className="w-3 h-3" />
+                                                                <span>Found in {status.orgName}</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <AlertCircle className="w-3 h-3" />
+                                                                <span>Not found in {status.orgName}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
 
@@ -425,6 +463,25 @@ const PassportIDSettings = () => {
                                                 >
                                                     <img src="https://www.google.com/s2/favicons?domain=github.com&sz=128" className="w-3 h-3 invert" />
                                                     Connect with GitHub
+                                                </button>
+                                            ) : integration.id === 'trello' ? (
+                                                <button
+                                                    onClick={() => {
+                                                        const width = 600;
+                                                        const height = 700;
+                                                        const left = (window.screen.width - width) / 2;
+                                                        const top = (window.screen.height - height) / 2;
+                                                        const url = `/api/auth/trello/login?userId=${currentUser.id}`;
+                                                        window.open(
+                                                            url,
+                                                            'TrelloLink',
+                                                            `width=${width},height=${height},top=${top},left=${left}`
+                                                        );
+                                                    }}
+                                                    className="px-3 py-1.5 bg-[#0079BF] text-white text-xs font-bold rounded-lg hover:bg-[#026AA7] transition flex items-center gap-2"
+                                                >
+                                                    <img src="https://www.google.com/s2/favicons?domain=trello.com&sz=128" className="w-3 h-3" />
+                                                    Connect with Trello
                                                 </button>
                                             ) : (
                                                 <button

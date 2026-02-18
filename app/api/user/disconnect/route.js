@@ -39,6 +39,11 @@ export async function DELETE(req) {
             // Remove github key
             delete currentSocials.github;
             updates.social_profiles = currentSocials;
+        } else if (provider === 'trello') {
+            const currentSocials = profile.social_profiles || {};
+            // Remove trello key
+            delete currentSocials.trello;
+            updates.social_profiles = currentSocials;
         } else if (provider === 'slack') {
             updates.slack_user_id = null;
             // Also optional: remove from social_profiles if stored there too

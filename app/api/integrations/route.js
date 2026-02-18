@@ -22,7 +22,8 @@ export async function GET() {
         // Filter connected ones only
         const connectedIntegrations = (integrations || []).filter(i => {
             if (i.provider === 'slack') return !!i.settings?.bot_token;
-            if (i.provider === 'github') return !!i.settings?.access_token; // or installation_id
+            if (i.provider === 'github') return !!i.settings?.access_token;
+            if (i.provider === 'trello') return !!i.settings?.api_token;
             return false;
         }).map(i => ({
             id: i.id,

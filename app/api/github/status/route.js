@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getValidGitHubToken } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,9 +29,38 @@ export async function GET(req) {
 
     const isConnected = !!(data && data.settings?.access_token);
 
+    // Fetch organization name from GitHub API
+    let orgName = data?.settings?.username || data?.name || null;
+
+    if (isConnected && data.settings?.installation_id) {
+        try {
+            const access_token = await getValidGitHubToken(data.id);
+            if (access_token) {
+                const res = await fetch(`https://api.github.com/user/installations/${data.settings.installation_id}/repositories?per_page=1`, {
+                    headers: {
+                        'Authorization': `Bearer ${access_token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+
+                if (res.ok) {
+                    const repoData = await res.json();
+                    if (repoData.repositories && repoData.repositories.length > 0) {
+                        // Extract org name from first repo's full_name (e.g., "VerytisApp/Verytis" -> "VerytisApp")
+                        const fullName = repoData.repositories[0].full_name;
+                        orgName = fullName.split('/')[0];
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Failed to fetch GitHub org name:', e);
+            // Fall back to stored username
+        }
+    }
+
     return NextResponse.json({
         connected: isConnected,
-        name: data?.name || null,
+        username: orgName,
         lastSync: isConnected ? new Date().toISOString() : null
     });
 }

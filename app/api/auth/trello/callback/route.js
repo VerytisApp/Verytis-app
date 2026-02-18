@@ -83,7 +83,10 @@ export async function GET(req) {
                     document.getElementById('message').textContent = 'Trello linked. This window will close.';
                     
                     if (window.opener) {
-                        window.opener.postMessage({ type: 'TRELLO_CONNECTED' }, '*');
+                        window.opener.postMessage({ 
+                            type: 'TRELLO_LINKED',
+                            user: { username: result.username || 'Trello User' }
+                        }, '*');
                         setTimeout(function() { window.close(); }, 1500);
                     }
                 } else {
