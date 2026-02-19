@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users, Activity, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { Card, Button, StatusBadge, PlatformIcon, Modal } from '../ui';
@@ -8,33 +9,20 @@ import { MOCK_CHANNELS, MOCK_TEAMS } from '../../data/mockData';
 
 const ChannelsList = ({ userRole }) => {
     // Basic state
-    const [channels, setChannels] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const fetcher = (...args) => fetch(...args).then(res => res.json());
+
+    // SWR Hook for channels
+    const { data: channelsData, isLoading: isChannelsLoading } = useSWR('/api/resources/list', fetcher, {
+        revalidateOnFocus: false,
+        dedupingInterval: 30000
+    });
+
+    const channels = channelsData?.resources || [];
+    const isLoading = isChannelsLoading && channels.length === 0;
+
     const [searchQuery, setSearchQuery] = useState('');
     const [filters, setFilters] = useState({ platform: '', status: '' });
-
-    // Dropdown active state
     const [openMenuId, setOpenMenuId] = useState(null);
-
-    // Fetch Channels
-    useEffect(() => {
-        const fetchChannels = async () => {
-            setIsLoading(true);
-            try {
-                // Fetch from our list API
-                const res = await fetch('/api/resources/list');
-                if (res.ok) {
-                    const data = await res.json();
-                    setChannels(data.resources || []);
-                }
-            } catch (e) {
-                console.error("Failed to fetch channels", e);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchChannels();
-    }, []);
 
     // Global click handler to close menu
     useEffect(() => {
@@ -52,14 +40,39 @@ const ChannelsList = ({ userRole }) => {
 
     // Filtering logic
     const filteredChannels = channels.filter(channel => {
+        const isSlack = (channel.platform || 'slack').toLowerCase() === 'slack';
         const matchesSearch = channel.name.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesPlatform = filters.platform === '' || (channel.platform || 'slack').toLowerCase() === filters.platform.toLowerCase();
         const matchesStatus = filters.status === '' || (channel.status || 'active').toLowerCase() === filters.status.toLowerCase();
-        return matchesSearch && matchesPlatform && matchesStatus;
+        return isSlack && matchesSearch && matchesPlatform && matchesStatus;
     });
 
     if (isLoading) {
-        return <div className="p-12 text-center text-slate-500">Loading channels...</div>;
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div className="space-y-2">
+                        <div className="h-7 w-32 bg-slate-200 animate-pulse rounded-lg" />
+                        <div className="h-4 w-64 bg-slate-100 animate-pulse rounded-md" />
+                    </div>
+                    <div className="h-10 w-64 bg-slate-100 animate-pulse rounded-lg" />
+                </header>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="bg-slate-50 h-10 border-b border-slate-200" />
+                    <div className="p-6 space-y-6">
+                        {[1, 2, 3, 4, 5, 6].map(i => (
+                            <div key={i} className="flex items-center gap-6">
+                                <div className="h-4 w-1/4 bg-slate-100 animate-pulse rounded" />
+                                <div className="h-4 w-1/6 bg-slate-100 animate-pulse rounded" />
+                                <div className="h-5 w-20 bg-slate-100 animate-pulse rounded-md" />
+                                <div className="h-4 w-12 bg-slate-100 animate-pulse rounded" />
+                                <div className="h-4 w-1/4 bg-slate-100 animate-pulse rounded ml-auto" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -89,7 +102,6 @@ const ChannelsList = ({ userRole }) => {
                             <th className="px-6 py-3 uppercase tracking-wide">Name</th>
                             <th className="px-6 py-3 uppercase tracking-wide">Platform</th>
                             <th className="px-6 py-3 uppercase tracking-wide">Status</th>
-                            <th className="px-6 py-3 uppercase tracking-wide">Decisions</th>
                             <th className="px-6 py-3 uppercase tracking-wide">Last Activity</th>
                             {userRole === 'Admin' && <th className="px-6 py-3 text-right uppercase tracking-wide">Actions</th>}
                         </tr>
@@ -115,7 +127,6 @@ const ChannelsList = ({ userRole }) => {
                                 <td className="px-6 py-4">
                                     <StatusBadge status={channel.status || 'active'} />
                                 </td>
-                                <td className="px-6 py-4 text-slate-600 font-mono">{channel.decisions || 0}</td>
                                 <td className="px-6 py-4 text-slate-500">
                                     {channel.lastActive ? new Date(channel.lastActive).toLocaleString() : '-'}
                                 </td>
@@ -165,7 +176,7 @@ const ChannelsList = ({ userRole }) => {
                             </tr>
                         )) : (
                             <tr>
-                                <td colSpan={userRole === 'Admin' ? "6" : "5"} className="px-6 py-12 text-center text-slate-400">
+                                <td colSpan={userRole === 'Admin' ? "5" : "4"} className="px-6 py-12 text-center text-slate-400">
                                     No channels found via API.
                                 </td>
                             </tr>

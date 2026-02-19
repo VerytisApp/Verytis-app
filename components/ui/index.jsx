@@ -99,3 +99,4 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = "max-w-4xl"
         </div>
     );
 };
+export * from './Skeleton';

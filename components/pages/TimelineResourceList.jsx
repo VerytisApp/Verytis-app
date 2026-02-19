@@ -42,6 +42,14 @@ export default function TimelineResourceList() {
         r.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const resourceTypeMap = {
+        github: 'repository',
+        slack: 'channel',
+        trello: 'board'
+    };
+    const resourceType = resourceTypeMap[provider?.toLowerCase()] || 'resource';
+    const pluralResourceType = resourceType === 'repository' ? 'repositories' : `${resourceType}s`;
+
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400 animate-in fade-in">
@@ -69,7 +77,7 @@ export default function TimelineResourceList() {
                             <h1 className="text-2xl font-bold capitalize text-slate-900">{provider} Resources</h1>
                         </div>
                         <p className="text-sm text-slate-500 mt-1">
-                            Select a {provider === 'github' ? 'repository' : 'channel'} to view its timeline
+                            Select a {resourceType} to view its timeline
                         </p>
                     </div>
                 </div>
@@ -80,7 +88,7 @@ export default function TimelineResourceList() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                     type="text"
-                    placeholder={`Search ${provider === 'github' ? 'repositories' : 'channels'}...`}
+                    placeholder={`Search ${pluralResourceType}...`}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm font-medium"
@@ -101,10 +109,14 @@ export default function TimelineResourceList() {
                             className="p-4 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group flex flex-col h-full"
                         >
                             <div className="flex items-start gap-4 mb-4">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${provider === 'github' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-100'
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${provider === 'github' ? 'bg-slate-900 text-white' :
+                                        provider === 'trello' ? 'bg-blue-50 text-blue-600' :
+                                            'bg-white border border-slate-100'
                                     }`}>
                                     {provider === 'github' ? (
                                         <GitBranch className="w-5 h-5" />
+                                    ) : provider === 'trello' ? (
+                                        <Layers className="w-5 h-5" /> /* Trello Board Icon */
                                     ) : (
                                         <Hash className="w-5 h-5 text-slate-400" />
                                     )}

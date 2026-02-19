@@ -4,7 +4,7 @@ import { useState } from 'react';
 import {
     Activity, AlertCircle, AlertTriangle, ArrowUpRight, Clock, Download,
     FileText, Mail, MessageSquare, Shield, Zap, Hash,
-    TrendingUp, Flame, Trophy, UserCheck, UserX, BarChart3, Users, HelpCircle, Info, ChevronDown, CheckCircle, Lock, MousePointer2, RefreshCw
+    TrendingUp, Flame, Trophy, UserCheck, UserX, BarChart3, Users, HelpCircle, Info, ChevronDown, CheckCircle, Lock, MousePointer2, RefreshCw, Check
 } from 'lucide-react';
 import { Card, Button } from '../ui';
 import { MOCK_DECISION_METRICS, MOCK_RISK_METRICS, MOCK_TIMELINE_EVENTS, MOCK_CHANNELS, MOCK_TEAMS } from '../../data/mockData';
@@ -12,6 +12,7 @@ import { MOCK_DECISION_METRICS, MOCK_RISK_METRICS, MOCK_TIMELINE_EVENTS, MOCK_CH
 const AdminDashboard = () => {
     const [selectedTeam, setSelectedTeam] = useState('all');
     const [selectedChannel, setSelectedChannel] = useState('all');
+    const [activeDropdown, setActiveDropdown] = useState(null);
 
     // Filter Logic
     const availableTeams = [
@@ -26,12 +27,12 @@ const AdminDashboard = () => {
     // Compute dynamic metrics based on filters (simulated changes for demo)
     const isFiltered = selectedTeam !== 'all' || selectedChannel !== 'all';
 
-    // 1. Global Executive Performance (Dynamic)
-    const EXECUTIVE_METRICS = [
-        { label: "% Initiatives < 24h", value: isFiltered ? (selectedTeam === '1' ? "92%" : "84%") : "87%", trend: isFiltered ? "+5%" : "+2%", icon: Zap, color: "text-emerald-500", border: "border-t-emerald-500" },
-        { label: "Avg Signal-to-Action", value: isFiltered ? (selectedTeam === '1' ? "2.1h" : "5.5h") : "4.2h", trend: "-15m", icon: Clock, color: "text-blue-500", border: "border-t-blue-500" },
-        { label: "Closed Loop Rate", value: isFiltered ? "98%" : "94%", trend: "Stable", icon: RefreshCw, color: "text-blue-500", border: "border-t-blue-500" },
-        { label: "Abandoned / No Response", value: isFiltered ? "0" : "3", trend: "-1", icon: AlertCircle, color: "text-rose-500", border: "border-t-rose-500" }
+    // 1. Global Operational Performance (Admin View)
+    const ADMIN_OPS_METRICS = [
+        { label: "Global Ghost Work", value: isFiltered ? (selectedTeam === '1' ? "12%" : "9%") : "11%", trend: isFiltered ? "+2%" : "-1%", icon: AlertTriangle, color: "text-rose-500", border: "border-t-rose-500", help: "Untracked work ratio across all teams." },
+        { label: "Org Cycle Time", value: isFiltered ? (selectedTeam === '1' ? "1.8d" : "3.2d") : "2.5d", trend: "-4h", icon: Zap, color: "text-blue-500", border: "border-t-blue-500", help: "Average time from idea to production deployment." },
+        { label: "Total Code Churn", value: isFiltered ? "15%" : "18%", trend: "+3%", icon: RefreshCw, color: "text-amber-500", border: "border-t-amber-500", help: "Code rewritten within 24h of merge." },
+        { label: "Stagnant Projects", value: isFiltered ? "2" : "5", trend: "-1", icon: Hash, color: "text-indigo-500", border: "border-t-indigo-500", help: "Repositories with no activity > 30 days." }
     ];
 
     // 2. Engagement Data
@@ -66,7 +67,7 @@ const AdminDashboard = () => {
     if (currentTeam) {
         // Team-specific KPIs (simulated)
         const TEAM_METRICS = [
-            { label: "Team Decisions", value: availableChannels.reduce((sum, c) => sum + c.decisions, 0), trend: "+8%", icon: Activity, color: "text-emerald-500", border: "border-t-emerald-500" },
+            { label: "Total Ships", value: availableChannels.reduce((sum, c) => sum + c.decisions, 0), trend: "+8%", icon: Activity, color: "text-emerald-500", border: "border-t-emerald-500" },
             { label: "Avg Validation Time", value: selectedTeam === '1' ? "2.1h" : "3.5h", trend: "-20m", icon: Clock, color: "text-blue-500", border: "border-t-blue-500" },
             { label: "Pending Actions", value: Math.ceil(availableChannels.reduce((sum, c) => sum + c.decisions, 0) * 0.08), trend: "-2", icon: AlertCircle, color: "text-amber-500", border: "border-t-amber-500" },
             { label: "Loop Closure", value: "96%", trend: "Stable", icon: RefreshCw, color: "text-blue-500", border: "border-t-blue-500" }
@@ -84,7 +85,7 @@ const AdminDashboard = () => {
 
         return (
             <div className="space-y-8 animate-in fade-in duration-300">
-                <header className="flex justify-between items-end pb-4 border-b border-slate-200/60">
+                <header className="flex justify-between items-end pb-4 border-b border-slate-200/60 transition-all duration-300">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight text-slate-900">{currentTeam.name}</h1>
                         <p className="text-slate-500 mt-1 text-xs font-medium flex items-center gap-2">
@@ -92,37 +93,73 @@ const AdminDashboard = () => {
                             Team View • {availableChannels.length} Channels • Last synced 1 min ago
                         </p>
                     </div>
-                    <div className="flex gap-2 items-center">
+                    <div className="flex gap-2 items-center relative z-20">
                         {/* Team Filter */}
-                        <div className="relative group">
-                            <select
-                                className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
-                                value={selectedTeam}
-                                onChange={(e) => {
-                                    setSelectedTeam(e.target.value);
-                                    setSelectedChannel('all');
-                                }}
+                        <div className="relative">
+                            {activeDropdown === 'team' && <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)} />}
+                            <button
+                                onClick={() => setActiveDropdown(activeDropdown === 'team' ? null : 'team')}
+                                className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm hover:bg-slate-50 transition-all min-w-[140px] justify-between z-40 relative"
                             >
-                                {availableTeams.map(t => (
-                                    <option key={t.id} value={t.id}>{t.name}</option>
-                                ))}
-                            </select>
-                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                <span className="truncate">{availableTeams.find(t => t.id.toString() === selectedTeam.toString())?.name || 'All Teams'}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${activeDropdown === 'team' ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {activeDropdown === 'team' && (
+                                <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-xl border border-slate-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-64 overflow-y-auto">
+                                    {availableTeams.map(t => (
+                                        <button
+                                            key={t.id}
+                                            onClick={() => {
+                                                setSelectedTeam(t.id);
+                                                setSelectedChannel('all');
+                                                setActiveDropdown(null);
+                                            }}
+                                            className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center justify-between hover:bg-slate-50 transition-colors ${selectedTeam.toString() === t.id.toString() ? 'text-blue-600 bg-blue-50/50' : 'text-slate-600'}`}
+                                        >
+                                            {t.name}
+                                            {selectedTeam.toString() === t.id.toString() && <Check className="w-3 h-3" />}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Channel Filter */}
-                        <div className="relative group">
-                            <select
-                                className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
-                                value={selectedChannel}
-                                onChange={(e) => setSelectedChannel(e.target.value)}
+                        <div className="relative">
+                            {activeDropdown === 'channel' && <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)} />}
+                            <button
+                                onClick={() => setActiveDropdown(activeDropdown === 'channel' ? null : 'channel')}
+                                className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm hover:bg-slate-50 transition-all min-w-[140px] justify-between z-40 relative"
                             >
-                                <option value="all">All Channels</option>
-                                {availableChannels.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
-                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                <span className="truncate">{selectedChannel === 'all' ? 'All Channels' : availableChannels.find(c => c.id.toString() === selectedChannel.toString())?.name || 'All Channels'}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${activeDropdown === 'channel' ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {activeDropdown === 'channel' && (
+                                <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-xl border border-slate-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-64 overflow-y-auto">
+                                    <button
+                                        onClick={() => { setSelectedChannel('all'); setActiveDropdown(null); }}
+                                        className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center justify-between hover:bg-slate-50 transition-colors ${selectedChannel === 'all' ? 'text-blue-600 bg-blue-50/50' : 'text-slate-600'}`}
+                                    >
+                                        All Channels
+                                        {selectedChannel === 'all' && <Check className="w-3 h-3" />}
+                                    </button>
+                                    {availableChannels.map(c => (
+                                        <button
+                                            key={c.id}
+                                            onClick={() => {
+                                                setSelectedChannel(c.id);
+                                                setActiveDropdown(null);
+                                            }}
+                                            className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center justify-between hover:bg-slate-50 transition-colors ${selectedChannel.toString() === c.id.toString() ? 'text-blue-600 bg-blue-50/50' : 'text-slate-600'}`}
+                                        >
+                                            {c.name}
+                                            {selectedChannel.toString() === c.id.toString() && <Check className="w-3 h-3" />}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         <Button variant="secondary" icon={Download}>Team Report</Button>
@@ -152,10 +189,10 @@ const AdminDashboard = () => {
                         <div className="flex justify-between items-start mb-4">
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <TrendingUp className="w-4 h-4 text-blue-500" />
-                                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Decision Velocity (Team Trend)</h3>
+                                    <Activity className="w-4 h-4 text-blue-500" />
+                                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Shipping Velocity (Team Trend)</h3>
                                 </div>
-                                <p className="text-[10px] text-slate-400 mt-1 leading-tight">Daily decision volume for {currentTeam.name}.</p>
+                                <p className="text-[10px] text-slate-400 mt-1 leading-tight">Total items shipped by {currentTeam.name}.</p>
                             </div>
                             <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium h-fit">This Week</span>
                         </div>
@@ -224,7 +261,7 @@ const AdminDashboard = () => {
     // --- ADMIN/EXECUTIVE OVERVIEW (Global View) ---
     return (
         <div className="space-y-8 animate-in fade-in duration-300">
-            <header className="flex justify-between items-end pb-4 border-b border-slate-200/60">
+            <header className="flex justify-between items-end pb-4 border-b border-slate-200/60 transition-all duration-300">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-slate-900">Executive Overview</h1>
                     <p className="text-slate-500 mt-1 text-xs font-medium flex items-center gap-2">
@@ -232,50 +269,89 @@ const AdminDashboard = () => {
                         System Operational • Global Admin View • Last synced 1 min ago
                     </p>
                 </div>
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-2 items-center relative z-20">
                     {/* Team Filter */}
-                    <div className="relative group">
-                        <select
-                            className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
-                            value={selectedTeam}
-                            onChange={(e) => {
-                                setSelectedTeam(e.target.value);
-                                setSelectedChannel('all'); // Reset channel on team change
-                            }}
+                    <div className="relative">
+                        {activeDropdown === 'team' && <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)} />}
+                        <button
+                            onClick={() => setActiveDropdown(activeDropdown === 'team' ? null : 'team')}
+                            className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm hover:bg-slate-50 transition-all min-w-[140px] justify-between z-40 relative"
                         >
-                            {availableTeams.map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
-                        </select>
-                        <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <span className="truncate">{availableTeams.find(t => t.id.toString() === selectedTeam.toString())?.name || 'All Teams'}</span>
+                            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${activeDropdown === 'team' ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {activeDropdown === 'team' && (
+                            <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-xl border border-slate-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-64 overflow-y-auto">
+                                {availableTeams.map(t => (
+                                    <button
+                                        key={t.id}
+                                        onClick={() => {
+                                            setSelectedTeam(t.id);
+                                            setSelectedChannel('all');
+                                            setActiveDropdown(null);
+                                        }}
+                                        className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center justify-between hover:bg-slate-50 transition-colors ${selectedTeam.toString() === t.id.toString() ? 'text-blue-600 bg-blue-50/50' : 'text-slate-600'}`}
+                                    >
+                                        {t.name}
+                                        {selectedTeam.toString() === t.id.toString() && <Check className="w-3 h-3" />}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Channel Filter (Conditional) */}
-                    <div className={`relative group transition-opacity duration-200 ${selectedTeam === 'all' ? 'opacity-50 pointer-events-none grayscale' : 'opacity-100'}`}>
-                        <select
+                    <div className={`relative transition-opacity duration-200 ${selectedTeam === 'all' ? 'opacity-50 pointer-events-none grayscale' : 'opacity-100'}`}>
+                        {activeDropdown === 'channel' && <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)} />}
+                        <button
                             disabled={selectedTeam === 'all'}
-                            className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
-                            value={selectedChannel}
-                            onChange={(e) => setSelectedChannel(e.target.value)}
+                            onClick={() => setActiveDropdown(activeDropdown === 'channel' ? null : 'channel')}
+                            className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm hover:bg-slate-50 transition-all min-w-[140px] justify-between z-40 relative"
                         >
-                            <option value="all">All Channels</option>
-                            {availableChannels.map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                        </select>
-                        <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <span className="truncate">{selectedChannel === 'all' ? 'All Channels' : availableChannels.find(c => c.id.toString() === selectedChannel.toString())?.name || 'All Channels'}</span>
+                            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${activeDropdown === 'channel' ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {activeDropdown === 'channel' && (
+                            <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-xl border border-slate-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-64 overflow-y-auto">
+                                <button
+                                    onClick={() => { setSelectedChannel('all'); setActiveDropdown(null); }}
+                                    className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center justify-between hover:bg-slate-50 transition-colors ${selectedChannel === 'all' ? 'text-blue-600 bg-blue-50/50' : 'text-slate-600'}`}
+                                >
+                                    All Channels
+                                    {selectedChannel === 'all' && <Check className="w-3 h-3" />}
+                                </button>
+                                {availableChannels.map(c => (
+                                    <button
+                                        key={c.id}
+                                        onClick={() => {
+                                            setSelectedChannel(c.id);
+                                            setActiveDropdown(null);
+                                        }}
+                                        className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center justify-between hover:bg-slate-50 transition-colors ${selectedChannel.toString() === c.id.toString() ? 'text-blue-600 bg-blue-50/50' : 'text-slate-600'}`}
+                                    >
+                                        {c.name}
+                                        {selectedChannel.toString() === c.id.toString() && <Check className="w-3 h-3" />}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <Button variant="secondary" icon={Download}>Global Report</Button>
                 </div>
             </header>
 
-            {/* SECTION 1: Executive Performance */}
+            {/* SECTION 1: Operational Performance (Admin Level) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {EXECUTIVE_METRICS.map((m, i) => (
-                    <Card key={i} className={`p-5 flex flex-col justify-between h-32 border-t-4 ${m.border}`}>
+                {ADMIN_OPS_METRICS.map((m, i) => (
+                    <Card key={i} className={`p-5 flex flex-col justify-between h-32 border-t-4 ${m.border}`} title={m.help}>
                         <div className="flex justify-between items-center mb-1">
-                            <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wide">{m.label}</span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wide">{m.label}</span>
+                                <HelpCircle className="w-3 h-3 text-slate-300 hover:text-slate-500 cursor-help" />
+                            </div>
                             <m.icon className={`w-4 h-4 ${m.color}`} />
                         </div>
                         <div>
@@ -288,11 +364,11 @@ const AdminDashboard = () => {
 
             {/* SECTION 2: Engagement Mapping */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-                {/* Top Teams */}
+                {/* Top Teams - Productivity Based */}
                 <Card className="p-0 overflow-hidden flex flex-col">
                     <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
                         <Users className="w-4 h-4 text-blue-500" />
-                        <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Top 5 Initiator Teams</h3>
+                        <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Top Shipping Teams</h3>
                     </div>
                     <div className="divide-y divide-slate-100">
                         {TOP_TEAMS.map((team, idx) => (
@@ -302,8 +378,8 @@ const AdminDashboard = () => {
                                     <span className="text-xs font-bold text-slate-800">{team.name}</span>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-xs font-bold text-slate-900">{team.actions} <span className="text-[9px] font-normal text-slate-400">actions</span></div>
-                                    <div className="text-[9px] text-slate-400">Avg delay: {team.delay}</div>
+                                    <div className="text-xs font-bold text-slate-900">{team.actions} <span className="text-[9px] font-normal text-slate-400">ships</span></div>
+                                    <div className="text-[9px] text-slate-400">Avg cycle: {team.delay}</div>
                                 </div>
                             </div>
                         ))}
@@ -324,7 +400,7 @@ const AdminDashboard = () => {
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-6 w-full px-4">
-                        <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"></div><span className="text-[10px] text-slate-600">Decision (40%)</span></div>
+                        <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"></div><span className="text-[10px] text-slate-600">Ships (40%)</span></div>
                         <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-400"></div><span className="text-[10px] text-slate-600">Update (25%)</span></div>
                         <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-400"></div><span className="text-[10px] text-slate-600">Request (20%)</span></div>
                         <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-400"></div><span className="text-[10px] text-slate-600">Escalation (15%)</span></div>
@@ -429,6 +505,7 @@ const AdminDashboard = () => {
 
 const Dashboard = ({ userRole }) => {
     const [selectedChannel, setSelectedChannel] = useState('all');
+    const [activeDropdown, setActiveDropdown] = useState(null);
 
     if (userRole === 'Admin') {
         return <AdminDashboard />;
@@ -477,16 +554,29 @@ const Dashboard = ({ userRole }) => {
     });
 
     // Mock Data for New Features
+    // --- OPERATIONAL MOCK DATA (Hard KPIs) ---
+    const OPS_METRICS = currentChannel ? {
+        ghostWork: '8%',
+        cycleTime: '1.2d',
+        rework: '5%',
+        staleBranches: 1
+    } : {
+        ghostWork: '14%', // Aggregated
+        cycleTime: '2.4d',
+        rework: '12%',
+        staleBranches: 7
+    };
+
     const ALL_PERFORMANCE = [
-        { name: "Elena Ross", metric: "12m avg", type: "top", label: "Top Performer" },
-        { name: "Sarah Connor", metric: "18m avg", type: "top", label: "Consistent" },
-        { name: "Mike Ross", metric: "4.2h avg", type: "blocker", label: "Bottleneck" },
+        { name: "Elena Ross", metric: "0.8d Cycle", type: "top", label: "Fastest Shipper" },
+        { name: "Sarah Connor", metric: "98% Ticket Link", type: "top", label: "Process Hero" },
+        { name: "Mike Ross", metric: "35% Ghost Work", type: "blocker", label: "Rogue Coder" },
     ];
 
     const ALL_STORIES = [
-        { id: 1, text: "Elena unblocked #procurement in 2h", time: "10:30 AM", channel: "#procurement" },
-        { id: 2, text: "David fast-tracked Q4 Budget", time: "Yesterday", channel: "#legal-approvals" },
-        { id: 3, text: "Product Roadmap v2 approved", time: "2 days ago", channel: "#product-roadmap", team: "Engineering" },
+        { id: 1, text: "Elena merged 'Auth Fix' (2h cycle)", time: "10:30 AM", channel: "#engineering" },
+        { id: 2, text: "David pushed 5 commits without ticket", time: "Yesterday", channel: "#backend-dev" },
+        { id: 3, text: "Product Roadmap v2 deployed", time: "2 days ago", channel: "#releases", team: "Engineering" },
     ];
 
     const ALL_ALERTS = [
@@ -529,7 +619,7 @@ const Dashboard = ({ userRole }) => {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-300">
-            <header className="flex justify-between items-end pb-4 border-b border-slate-200/60">
+            <header className="flex justify-between items-end pb-4 border-b border-slate-200/60 transition-all duration-300">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
                     <p className="text-slate-500 mt-1 text-xs font-medium flex items-center gap-2">
@@ -537,84 +627,110 @@ const Dashboard = ({ userRole }) => {
                         System Operational • {userRole === 'Manager' ? 'Team View' : 'Global View'} • {currentChannel ? `Channel: ${currentChannel.name}` : 'All Channels'}
                     </p>
                 </div>
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-2 items-center relative z-20">
                     {/* Channel Filter */}
-                    <div className="relative group">
-                        <select
-                            className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-sm hover:bg-slate-50 transition-colors bg-no-repeat"
-                            value={selectedChannel}
-                            onChange={(e) => setSelectedChannel(e.target.value)}
+                    <div className="relative">
+                        {activeDropdown === 'channel' && <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)} />}
+                        <button
+                            onClick={() => setActiveDropdown(activeDropdown === 'channel' ? null : 'channel')}
+                            className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm hover:bg-slate-50 transition-all min-w-[140px] justify-between z-40 relative"
                         >
-                            <option value="all">All Channels</option>
-                            {availableChannels.map(channel => (
-                                <option key={channel.id} value={channel.id}>
-                                    {channel.name}
-                                </option>
-                            ))}
-                        </select>
-                        <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <span className="truncate">{selectedChannel === 'all' ? 'All Channels' : availableChannels.find(c => c.id.toString() === selectedChannel.toString())?.name || 'All Channels'}</span>
+                            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${activeDropdown === 'channel' ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {activeDropdown === 'channel' && (
+                            <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-xl border border-slate-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-64 overflow-y-auto">
+                                <button
+                                    onClick={() => { setSelectedChannel('all'); setActiveDropdown(null); }}
+                                    className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center justify-between hover:bg-slate-50 transition-colors ${selectedChannel === 'all' ? 'text-blue-600 bg-blue-50/50' : 'text-slate-600'}`}
+                                >
+                                    All Channels
+                                    {selectedChannel === 'all' && <Check className="w-3 h-3" />}
+                                </button>
+                                {availableChannels.map(channel => (
+                                    <button
+                                        key={channel.id}
+                                        onClick={() => {
+                                            setSelectedChannel(channel.id);
+                                            setActiveDropdown(null);
+                                        }}
+                                        className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center justify-between hover:bg-slate-50 transition-colors ${selectedChannel.toString() === channel.id.toString() ? 'text-blue-600 bg-blue-50/50' : 'text-slate-600'}`}
+                                    >
+                                        {channel.name}
+                                        {selectedChannel.toString() === channel.id.toString() && <Check className="w-3 h-3" />}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <Button variant="secondary" icon={Download}>Report</Button>
                 </div>
             </header>
 
-            {/* Row 1: Primary KPI Cards */}
+            {/* Row 1: OPERATIONAL & EFFICIENCY KPIs (The "Hard" Numbers) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="p-5 flex flex-col justify-between h-32 border-t-4 border-t-emerald-500" title="Total number of decisions detected across all monitored channels in the last 7 days.">
+                {/* KPI 1: Ghost Work */}
+                <Card className="p-5 flex flex-col justify-between h-32 border-t-4 border-t-rose-500 bg-rose-50/10" title="% of Commits/PRs not linked to a Trello Card.">
                     <div className="flex justify-between items-center mb-1">
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wide">Total Decisions</span>
-                            <HelpCircle className="w-3 h-3 text-slate-300 hover:text-slate-500 cursor-help" title="Decisions are validated actions, approvals, or rejections detected in conversations." />
-                        </div>
-                        <Activity className="w-4 h-4 text-emerald-500" />
-                    </div>
-                    <div>
-                        <div className="text-3xl font-bold text-slate-900 tracking-tight">{displayMetrics.decisions}</div>
-                        <div className="text-xs text-slate-500 mt-1 font-medium">{currentChannel ? 'In selected channel' : 'Across monitored channels'}</div>
-                    </div>
-                </Card>
-                <Card className="p-5 flex flex-col justify-between h-32 border-t-4 border-t-blue-500" title="Average time between a decision request and its validation.">
-                    <div className="flex justify-between items-center mb-1">
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wide">Avg Validation Time</span>
-                            <HelpCircle className="w-3 h-3 text-slate-300 hover:text-slate-500 cursor-help" title="Lower is better. Target: < 2h for critical decisions." />
-                        </div>
-                        <Clock className="w-4 h-4 text-blue-500" />
-                    </div>
-                    <div>
-                        <div className="text-3xl font-bold text-slate-900 tracking-tight">{displayMetrics.avgTime}</div>
-                        <div className="text-xs text-slate-500 mt-1 font-medium">To final approval</div>
-                    </div>
-                </Card>
-                <Card className="p-5 flex flex-col justify-between h-32 border-t-4 border-t-amber-500 bg-amber-50/10" title="Actions blocked or pending for more than 24h without resolution.">
-                    <div className="flex justify-between items-center mb-1">
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] font-bold uppercase text-amber-600 tracking-wide">Frictions (Blocked)</span>
-                            <HelpCircle className="w-3 h-3 text-amber-400 hover:text-amber-600 cursor-help" title="Frictions = Actions pending > 24h or explicitly rejected/blocked. Requires manual review." />
-                        </div>
-                        <AlertCircle className="w-4 h-4 text-amber-500" />
-                    </div>
-                    <div>
-                        <div className="text-3xl font-bold text-slate-900 tracking-tight">{displayMetrics.pending}</div>
-                        <div className="text-xs text-amber-600 mt-1 font-medium flex items-center gap-1">
-                            Action required
-                        </div>
-                    </div>
-                </Card>
-                <Card className="p-5 flex flex-col justify-between h-32 border-t-4 border-t-rose-500 bg-rose-50/10" title="Decisions with no assigned owner or owner has left the organization.">
-                    <div className="flex justify-between items-center mb-1">
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] font-bold uppercase text-rose-600 tracking-wide">Orphaned Decisions</span>
-                            <HelpCircle className="w-3 h-3 text-rose-400 hover:text-rose-600 cursor-help" title="Orphaned = Decision has no owner. Critical risk for compliance. Assign an owner immediately." />
+                            <span className="text-[11px] font-bold uppercase text-rose-600 tracking-wide">Ghost Work Ratio</span>
+                            <HelpCircle className="w-3 h-3 text-rose-400 hover:text-rose-600 cursor-help" title="Work performed without a ticket. High ratio = Hidden costs & lack of visibility." />
                         </div>
                         <AlertTriangle className="w-4 h-4 text-rose-500" />
                     </div>
                     <div>
-                        <div className="text-3xl font-bold text-slate-900 tracking-tight">{displayMetrics.orphaned}</div>
+                        <div className="text-3xl font-bold text-slate-900 tracking-tight">{OPS_METRICS.ghostWork}</div>
                         <div className="text-xs text-rose-600 mt-1 font-medium flex items-center gap-1">
-                            Missing owner
+                            Untracked activity detected
+                        </div>
+                    </div>
+                </Card>
 
+                {/* KPI 2: Cycle Time */}
+                <Card className="p-5 flex flex-col justify-between h-32 border-t-4 border-t-blue-500" title="Average time from First Commit to Production Deploy.">
+                    <div className="flex justify-between items-center mb-1">
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wide">Avg Cycle Time</span>
+                            <HelpCircle className="w-3 h-3 text-slate-300 hover:text-slate-500 cursor-help" title="Speed of delivery. Lower is better." />
+                        </div>
+                        <Zap className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <div>
+                        <div className="text-3xl font-bold text-slate-900 tracking-tight">{OPS_METRICS.cycleTime}</div>
+                        <div className="text-xs text-slate-500 mt-1 font-medium">Idea to Production</div>
+                    </div>
+                </Card>
+
+                {/* KPI 3: Rework / Churn */}
+                <Card className="p-5 flex flex-col justify-between h-32 border-t-4 border-t-amber-500" title="% of code rewritten within 24h of merge.">
+                    <div className="flex justify-between items-center mb-1">
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-bold uppercase text-amber-600 tracking-wide">Code Churn / Rework</span>
+                            <HelpCircle className="w-3 h-3 text-amber-400 hover:text-amber-600 cursor-help" title="High churn indicates unclear specs or poor quality." />
+                        </div>
+                        <RefreshCw className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <div>
+                        <div className="text-3xl font-bold text-slate-900 tracking-tight">{OPS_METRICS.rework}</div>
+                        <div className="text-xs text-amber-600 mt-1 font-medium">Re-written post-merge</div>
+                    </div>
+                </Card>
+
+                {/* KPI 4: Stale Branches */}
+                <Card className="p-5 flex flex-col justify-between h-32 border-t-4 border-t-indigo-500" title="Open branches with no activity over 7 days.">
+                    <div className="flex justify-between items-center mb-1">
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wide">Stale Branches</span>
+                            <HelpCircle className="w-3 h-3 text-slate-300 hover:text-slate-500 cursor-help" title="Abandoned work or blocked features cluttering the repo." />
+                        </div>
+                        <Hash className="w-4 h-4 text-indigo-500" />
+                    </div>
+                    <div>
+                        <div className="text-3xl font-bold text-slate-900 tracking-tight">{OPS_METRICS.staleBranches}</div>
+                        <div className="text-xs text-slate-500 mt-1 font-medium flex items-center gap-1">
+                            Inactive {'>'} 7 days
                         </div>
                     </div>
                 </Card>
@@ -627,10 +743,10 @@ const Dashboard = ({ userRole }) => {
                     <div className="flex justify-between items-start mb-4">
                         <div>
                             <div className="flex items-center gap-2">
-                                <TrendingUp className="w-4 h-4 text-blue-500" />
-                                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Decision Velocity (Trend)</h3>
+                                <Activity className="w-4 h-4 text-blue-500" />
+                                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Productivity Velocity (Tickets vs Commits)</h3>
                             </div>
-                            <p className="text-[10px] text-slate-400 mt-1 leading-tight">Daily decision volume. Higher bars indicate increased activity and processing speed.</p>
+                            <p className="text-[10px] text-slate-400 mt-1 leading-tight">Code output normalized against project tickets.</p>
                         </div>
                         <div className="flex gap-2">
                             <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium h-fit">This Week</span>
@@ -656,10 +772,10 @@ const Dashboard = ({ userRole }) => {
                     <div className="flex justify-between items-start mb-2">
                         <div>
                             <div className="flex items-center gap-2">
-                                <Flame className="w-4 h-4 text-rose-500" />
-                                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Friction Heatmap</h3>
+                                <Activity className="w-4 h-4 text-emerald-500" />
+                                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Activity Heatmap</h3>
                             </div>
-                            <p className="text-[10px] text-slate-400 mt-1 leading-tight max-w-xs">Visual overview of when bottlenecks occur most frequently during the week.</p>
+                            <p className="text-[10px] text-slate-400 mt-1 leading-tight max-w-xs">Visual overview of commit frequency and code pushes during the week.</p>
                         </div>
                     </div>
                     <div className="flex-1 flex flex-col gap-1 justify-center">

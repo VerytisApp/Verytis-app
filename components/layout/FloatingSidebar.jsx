@@ -6,13 +6,14 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, MessageSquare, FileText, Users, Clock,
-    Settings, LogOut, MoreVertical, Layers, ChevronLeft, Shield
+    Settings, LogOut, MoreVertical, Layers, ChevronLeft, Shield, ChevronDown, Check
 } from 'lucide-react';
 import IcareLogo from '../image/Gemini Generated Image (14).png';
 import { useRole } from '@/lib/providers';
 
 const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRole, onRoleChange, user, onLogout }) => {
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+    const [isUserSwitcherOpen, setIsUserSwitcherOpen] = useState(false);
     const profileMenuRef = useRef(null);
     const pathname = usePathname();
 
@@ -159,18 +160,41 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                         {isLoadingUsers && <span className="text-[8px] animate-pulse">Loading...</span>}
                     </div>
 
-                    <select
-                        className="w-full text-[10px] font-medium bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2 text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20"
-                        onChange={handleUserSwitch}
-                        value={contextUser?.id || ''}
-                    >
-                        <option value="" disabled>Select user...</option>
-                        {users.map(u => (
-                            <option key={u.id} value={u.id}>
-                                {u.full_name || u.email} ({u.role})
-                            </option>
-                        ))}
-                    </select>
+                    <div className="relative">
+                        {isUserSwitcherOpen && <div className="fixed inset-0 z-40" onClick={() => setIsUserSwitcherOpen(false)} />}
+                        <button
+                            onClick={() => setIsUserSwitcherOpen(!isUserSwitcherOpen)}
+                            className="w-full text-[10px] font-medium bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2 text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 text-left flex items-center justify-between transition-colors hover:bg-slate-100"
+                        >
+                            <span className="truncate">{contextUser ? `${contextUser.full_name || contextUser.email} (${contextUser.role})` : 'Select user...'}</span>
+                            <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isUserSwitcherOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {isUserSwitcherOpen && (
+                            <div className="absolute z-50 bottom-full left-0 w-full mb-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-64 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+                                {users.length === 0 ? (
+                                    <div className="px-2 py-1.5 text-[10px] text-slate-400 text-center">No users found</div>
+                                ) : (
+                                    users.map(u => (
+                                        <button
+                                            key={u.id}
+                                            onClick={() => {
+                                                handleUserSwitch({ target: { value: u.id } });
+                                                setIsUserSwitcherOpen(false);
+                                            }}
+                                            className={`w-full text-left px-2 py-1.5 text-[10px] hover:bg-slate-50 flex items-center justify-between transition-colors ${contextUser?.id === u.id ? 'bg-blue-50 text-blue-700' : 'text-slate-700'}`}
+                                        >
+                                            <div className="truncate pr-2">
+                                                <span className="font-medium">{u.full_name || u.email}</span>
+                                                <span className="text-slate-400 ml-1">({u.role})</span>
+                                            </div>
+                                            {contextUser?.id === u.id && <Check className="w-3 h-3 flex-shrink-0" />}
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 

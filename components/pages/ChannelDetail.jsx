@@ -309,11 +309,11 @@ const ChannelDetail = ({ userRole }) => {
 
             <div className="grid grid-cols-4 gap-4">
                 <Card className="p-4 bg-slate-50/50 border-slate-200">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Decisions</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Total Ships</span>
                     <div className="text-2xl font-bold text-slate-900 mt-1 tracking-tight">
                         {activities.filter(a => a.type === 'decision').length}
                     </div>
-                    <span className="text-[10px] text-slate-400 font-medium">Total logged</span>
+                    <span className="text-[10px] text-slate-400 font-medium">Logged activity</span>
                 </Card>
                 <Card className="p-4 bg-slate-50/50 border-slate-200">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Members</span>
@@ -336,7 +336,7 @@ const ChannelDetail = ({ userRole }) => {
                 <div className="lg:col-span-2 space-y-6">
                     <div className="space-y-2">
                         <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900">
-                            Recent Decisions ({activities.filter(a => a.type === 'decision').length})
+                            Recent Ships ({activities.filter(a => a.type === 'decision').length})
                         </h3>
                         <Card className="overflow-hidden border-slate-200">
                             {loadingActivities ? (
@@ -379,7 +379,7 @@ const ChannelDetail = ({ userRole }) => {
                                 </div>
                             ) : (
                                 <div className="p-8 text-center text-slate-400 text-sm">
-                                    No decisions logged yet.
+                                    No shipping activity logged yet.
                                 </div>
                             )}
                         </Card>

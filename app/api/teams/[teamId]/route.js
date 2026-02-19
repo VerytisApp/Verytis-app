@@ -184,6 +184,7 @@ export async function GET(req, { params }) {
                     },
                     time: a.created_at,
                     channel: channelName,
+                    platform: channel?.platform || (a.metadata?.repo ? 'github' : a.metadata?.board_id ? 'trello' : 'slack'),
                     actionType: actionType,
                     metadata: a.metadata
                 };

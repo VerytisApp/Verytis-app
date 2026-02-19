@@ -1,63 +1,39 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import Link from 'next/link';
-import { Plus, MoreHorizontal, Shield, FileText, Download, Pencil, Users, Archive, Trash2, X } from 'lucide-react';
-import { Card, Button, Modal } from '../ui';
+import { Plus, MoreHorizontal, Shield, FileText, Download, Pencil, Users, Archive, Trash2, X, ChevronDown, Check } from 'lucide-react';
+import { Card, Button, Modal, SkeletonTeamItem } from '../ui';
 import { SCOPES_CONFIG } from '@/lib/constants';
 
 const TeamsList = ({ userRole, currentUser }) => {
-    const [teams, setTeams] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const fetcher = (...args) => fetch(...args).then(res => res.json());
+
+    // SWR Hooks for data management
+    const { data: teamsData, isLoading: isTeamsLoading, mutate: mutateTeams } = useSWR(
+        currentUser?.id || userRole === 'Admin' ? `/api/teams${currentUser?.id ? `?userId=${currentUser.id}` : ''}` : null,
+        fetcher,
+        { revalidateOnFocus: false, dedupingInterval: 10000 }
+    );
+
+    const { data: usersData, isLoading: isUsersLoading } = useSWR('/api/users', fetcher, { revalidateOnFocus: false, dedupingInterval: 30000 });
+    const { data: channelsData, isLoading: isChannelsLoading } = useSWR('/api/resources/list', fetcher, { revalidateOnFocus: false, dedupingInterval: 30000 });
+
+    // Derived states
+    const teams = teamsData?.teams || [];
+    const availableUsers = usersData?.users || [];
+    const availableChannels = (channelsData?.resources || []).filter(r => r.type === 'channel');
+    const isLoading = isTeamsLoading && teams.length === 0; // Show loader only on first clear fetch
+
+    const [dropdownState, setDropdownState] = useState({ type: false, addUser: false, memberRole: null });
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [modalConfig, setModalConfig] = useState({ type: null, team: null });
     const [showAddMember, setShowAddMember] = useState(false);
-
-    // Data State
-    const [availableUsers, setAvailableUsers] = useState([]);
-    const [availableChannels, setAvailableChannels] = useState([]);
-
-    // Wizard State
     const [currentStep, setCurrentStep] = useState(1);
     const [teamFormData, setTeamFormData] = useState({
         name: '', description: '', type: 'operational', members: [], scopes: [], channels: []
     });
-
-    // Fetch Initial Data
-    useEffect(() => {
-        const fetchAllData = async () => {
-            setIsLoading(true);
-            try {
-                const userIdParam = currentUser?.id ? `?userId=${currentUser.id}` : '';
-                const [teamsRes, usersRes, channelsRes] = await Promise.all([
-                    fetch(`/api/teams${userIdParam}`),
-                    fetch('/api/users'),
-                    fetch('/api/resources/list')
-                ]);
-
-                if (teamsRes.ok) {
-                    const data = await teamsRes.json();
-                    setTeams(data.teams);
-                }
-
-                if (usersRes.ok) {
-                    const data = await usersRes.json();
-                    setAvailableUsers(data.users || []);
-                }
-
-                if (channelsRes.ok) {
-                    const data = await channelsRes.json();
-                    setAvailableChannels((data.resources || []).filter(r => r.type === 'channel'));
-                }
-
-            } catch (error) {
-                console.error('Failed to fetch data:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        if (currentUser?.id || userRole === 'Admin') fetchAllData();
-    }, [currentUser, userRole]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -73,7 +49,7 @@ const TeamsList = ({ userRole, currentUser }) => {
     const handleAction = (type, team) => {
         setActiveDropdown(null);
         if (type === 'archive') {
-            setTeams(teams.map(t => t.id === team.id ? { ...t, status: 'Archived' } : t));
+            mutateTeams({ ...teamsData, teams: teams.map(t => t.id === team.id ? { ...t, status: 'Archived' } : t) }, false);
         } else if (type === 'delete') {
             setModalConfig({ type: 'delete', team });
         } else {
@@ -82,7 +58,7 @@ const TeamsList = ({ userRole, currentUser }) => {
     };
 
     const confirmDelete = () => {
-        setTeams(teams.filter(t => t.id !== modalConfig.team.id));
+        mutateTeams({ ...teamsData, teams: teams.filter(t => t.id !== modalConfig.team.id) }, false);
         setModalConfig({ type: null, team: null });
         // TODO: Call API to delete
     };
@@ -91,7 +67,20 @@ const TeamsList = ({ userRole, currentUser }) => {
     const displayedTeams = teams;
 
     if (isLoading) {
-        return <div className="p-12 text-center text-slate-500">Loading teams...</div>;
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                <header className="flex justify-between items-end">
+                    <div className="space-y-2">
+                        <div className="h-7 w-32 bg-slate-200 animate-pulse rounded-lg" />
+                        <div className="h-4 w-64 bg-slate-100 animate-pulse rounded-md" />
+                    </div>
+                    {userRole === 'Admin' && <div className="h-9 w-28 bg-slate-200 animate-pulse rounded-lg" />}
+                </header>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[1, 2, 3, 4, 5, 6].map(i => <SkeletonTeamItem key={i} />)}
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -258,14 +247,36 @@ const TeamsList = ({ userRole, currentUser }) => {
                                 </div>
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-700 mb-1">Team Type</label>
-                                    <select
-                                        value={teamFormData.type}
-                                        onChange={(e) => setTeamFormData({ ...teamFormData, type: e.target.value })}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-                                    >
-                                        <option value="operational">Operational</option>
-                                        <option value="governance">Governance</option>
-                                    </select>
+                                    <div className="relative">
+                                        {dropdownState.type && <div className="fixed inset-0 z-10" onClick={() => setDropdownState({ ...dropdownState, type: false })} />}
+                                        <button
+                                            type="button"
+                                            onClick={() => setDropdownState({ ...dropdownState, type: !dropdownState.type })}
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                        >
+                                            <span className="capitalize">{teamFormData.type}</span>
+                                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${dropdownState.type ? 'rotate-180' : ''}`} />
+                                        </button>
+
+                                        {dropdownState.type && (
+                                            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 animate-in fade-in zoom-in-95 duration-200">
+                                                {['operational', 'governance'].map((type) => (
+                                                    <button
+                                                        key={type}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setTeamFormData({ ...teamFormData, type });
+                                                            setDropdownState({ ...dropdownState, type: false });
+                                                        }}
+                                                        className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center justify-between capitalize transition-colors ${teamFormData.type === type ? 'bg-blue-50 text-blue-700' : 'text-slate-700'}`}
+                                                    >
+                                                        {type}
+                                                        {teamFormData.type === type && <Check className="w-4 h-4" />}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
@@ -287,52 +298,90 @@ const TeamsList = ({ userRole, currentUser }) => {
                                         <label className="block text-xs font-semibold text-slate-700">Add Members</label>
                                         <span className="text-[10px] text-slate-400">{teamFormData.members.length} selected</span>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <select
-                                            className="flex-1 px-3 py-1.5 border border-slate-300 rounded-md text-sm"
-                                            onChange={(e) => {
-                                                const userId = e.target.value;
-                                                if (userId && !teamFormData.members.find(m => m.id === userId)) {
-                                                    const user = availableUsers.find(u => u.id === userId);
-                                                    if (user) {
-                                                        setTeamFormData({
-                                                            ...teamFormData,
-                                                            members: [...teamFormData.members, { ...user, role: 'Member' }] // Default role Member
-                                                        });
-                                                    }
-                                                }
-                                                e.target.value = "";
-                                            }}
+                                    <div className="relative">
+                                        {dropdownState.addUser && <div className="fixed inset-0 z-10" onClick={() => setDropdownState({ ...dropdownState, addUser: false })} />}
+                                        <button
+                                            type="button"
+                                            onClick={() => setDropdownState({ ...dropdownState, addUser: !dropdownState.addUser })}
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white hover:bg-slate-50 transition-colors"
                                         >
-                                            <option value="">Select a user to add...</option>
-                                            {availableUsers.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
-                                        </select>
+                                            <span className="text-slate-500">Select a user to add...</span>
+                                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${dropdownState.addUser ? 'rotate-180' : ''}`} />
+                                        </button>
+
+                                        {dropdownState.addUser && (
+                                            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto">
+                                                {availableUsers.filter(u => !teamFormData.members.find(m => m.id === u.id)).length === 0 ? (
+                                                    <div className="px-3 py-2 text-xs text-slate-400 text-center">No more users to add</div>
+                                                ) : (
+                                                    availableUsers
+                                                        .filter(u => !teamFormData.members.find(m => m.id === u.id))
+                                                        .map(u => (
+                                                            <button
+                                                                key={u.id}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setTeamFormData({
+                                                                        ...teamFormData,
+                                                                        members: [...teamFormData.members, { ...u, role: 'Member' }]
+                                                                    });
+                                                                    setDropdownState({ ...dropdownState, addUser: false });
+                                                                }}
+                                                                className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center justify-between text-slate-700 transition-colors"
+                                                            >
+                                                                <span>{u.name} <span className="text-slate-400 text-xs">({u.email})</span></span>
+                                                                <Plus className="w-3.5 h-3.5 text-slate-400" />
+                                                            </button>
+                                                        ))
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
+
                                     <div className="border border-slate-200 rounded-md max-h-32 overflow-y-auto bg-slate-50 min-h-[80px] p-2 space-y-1">
                                         {teamFormData.members.length === 0 ? (
                                             <p className="text-[11px] text-slate-400 text-center py-4">No members added yet.</p>
                                         ) : teamFormData.members.map(member => (
-                                            <div key={member.id} className="flex items-center justify-between text-xs bg-white p-2 rounded border border-slate-100 shadow-sm">
+                                            <div key={member.id} className="flex items-center justify-between text-xs bg-white p-2 rounded border border-slate-100 shadow-sm animate-in fade-in slide-in-from-top-1">
                                                 <span>{member.name}</span>
                                                 <div className="flex items-center gap-2">
-                                                    <select
-                                                        value={member.role}
-                                                        onChange={(e) => {
-                                                            setTeamFormData({
-                                                                ...teamFormData,
-                                                                members: teamFormData.members.map(m => m.id === member.id ? { ...m, role: e.target.value } : m)
-                                                            });
-                                                        }}
-                                                        className="text-[10px] py-0.5 px-1 border border-slate-200 rounded"
-                                                    >
-                                                        <option value="Member">Member</option>
-                                                        <option value="Manager">Manager</option>
-                                                    </select>
+                                                    <div className="relative">
+                                                        {dropdownState.memberRole === member.id && <div className="fixed inset-0 z-30" onClick={() => setDropdownState({ ...dropdownState, memberRole: null })} />}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setDropdownState({ ...dropdownState, memberRole: dropdownState.memberRole === member.id ? null : member.id })}
+                                                            className="text-[10px] py-0.5 px-2 border border-slate-200 rounded flex items-center gap-1 hover:bg-slate-50 bg-white transition-colors"
+                                                        >
+                                                            {member.role}
+                                                            <ChevronDown className="w-3 h-3 text-slate-400" />
+                                                        </button>
+                                                        {dropdownState.memberRole === member.id && (
+                                                            <div className="absolute right-0 top-full mt-1 w-24 bg-white border border-slate-200 rounded shadow-lg z-40 py-1 animate-in fade-in zoom-in-95 duration-200">
+                                                                {['Member', 'Manager'].map(role => (
+                                                                    <button
+                                                                        key={role}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setTeamFormData({
+                                                                                ...teamFormData,
+                                                                                members: teamFormData.members.map(m => m.id === member.id ? { ...m, role } : m)
+                                                                            });
+                                                                            setDropdownState({ ...dropdownState, memberRole: null });
+                                                                        }}
+                                                                        className={`w-full text-left px-2 py-1 text-[10px] hover:bg-slate-50 flex justify-between items-center transition-colors ${member.role === role ? 'text-blue-600 bg-blue-50' : 'text-slate-700'}`}
+                                                                    >
+                                                                        {role}
+                                                                        {member.role === role && <Check className="w-3 h-3" />}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                     <button
                                                         onClick={() => setTeamFormData({ ...teamFormData, members: teamFormData.members.filter(m => m.id !== member.id) })}
-                                                        className="text-slate-400 hover:text-rose-600"
+                                                        className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
                                                     >
-                                                        <X className="w-3 h-3" />
+                                                        <X className="w-3.5 h-3.5" />
                                                     </button>
                                                 </div>
                                             </div>
@@ -433,7 +482,7 @@ const TeamsList = ({ userRole, currentUser }) => {
                                                     status: 'Active',
                                                     created_at: newTeam.created_at
                                                 };
-                                                setTeams([viewTeam, ...teams]);
+                                                mutateTeams({ ...teamsData, teams: [viewTeam, ...teams] }, false);
                                                 setModalConfig({ type: null, team: null });
                                             }
                                         } catch (e) {

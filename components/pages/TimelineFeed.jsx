@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Download, Activity, CheckCircle, Settings, FileText, UserPlus, FilterX, XCircle, RefreshCw, Edit2, GitCommit, GitPullRequest, GitMerge, Archive as ArchiveIcon } from 'lucide-react';
+import { ArrowLeft, Download, Activity, CheckCircle, Settings, FileText, UserPlus, FilterX, XCircle, RefreshCw, Edit2, GitCommit, GitPullRequest, GitMerge, Archive as ArchiveIcon, Paperclip, CheckSquare, Layout, Award, Kanban, ListChecks, ArrowRightCircle, Trophy, ChevronDown, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Card, Button, PlatformIcon } from '@/components/ui';
 
@@ -14,9 +13,37 @@ export default function TimelineFeed({ userRole }) {
 
     // We already have the resourceId, so 'selectedChannelId' refers to that
     const [filterType, setFilterType] = useState('all');
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [resourceInfo, setResourceInfo] = useState(null);
+
+    const FILTER_OPTIONS = {
+        github: [
+            { value: 'all', label: 'All Events' },
+            { value: 'commits', label: 'Pushes' },
+            { value: 'prs', label: 'Pull Requests' },
+            { value: 'system', label: 'System' }
+        ],
+        trello: [
+            { value: 'all', label: 'All Events' },
+            { value: 'moves', label: 'Moves & Status' },
+            { value: 'tasks', label: 'Checklists & Tasks' },
+            { value: 'team', label: 'Team & Members' },
+            { value: 'files', label: 'Files & Attachments' },
+            { value: 'system', label: 'System' }
+        ],
+        default: [
+            { value: 'all', label: 'All Events' },
+            { value: 'code', label: 'Code Activity' },
+            { value: 'decisions', label: 'Decisions Only' },
+            { value: 'system', label: 'System & Meta' }
+        ]
+    };
+
+    const currentProvider = provider?.toLowerCase();
+    const currentOptions = FILTER_OPTIONS[currentProvider] || FILTER_OPTIONS.default;
+    const selectedLabel = currentOptions.find(o => o.value === filterType)?.label || 'All Events';
 
     // Fetch Resource Info (Name, etc.)
     useEffect(() => {
@@ -98,21 +125,53 @@ export default function TimelineFeed({ userRole }) {
         };
     }, [resourceId]);
 
+    // Format Action Name Helper
+    const formatActionName = (action) => {
+        if (!action) return 'Unknown Action';
+        if (action === 'CARD_COMPLETED') return 'Card Completed';
+        if (action === 'CARD_MOVED') return 'Card Moved';
+        if (action === 'CARD_ARCHIVED') return 'Card Archived';
+        if (action === 'CHECKLIST_DONE') return 'Checklist Done';
+        if (action === 'MEMBER_ASSIGNED') return 'Member Assigned';
+        if (action === 'ATTACHMENT_ADDED') return 'Attachment Added';
+        return action;
+    };
+
+    // Helper for loose matching
+    const matchAction = (action, keywords) => {
+        if (!action) return false;
+        const lower = action.toLowerCase();
+        return keywords.some(k => lower.includes(k));
+    };
+
     // Filter events
     const filteredEvents = events.filter(event => {
         if (filterType === 'all') return true;
 
+        const currentProvider = provider?.toLowerCase();
+        const action = event.action;
+
         // GitHub Specific Filters
-        if (provider === 'github') {
-            if (filterType === 'commits' && event.action === 'Pushed Commit') return true;
-            if (filterType === 'prs' && ['Opened PR', 'Merged PR'].includes(event.action)) return true;
+        if (currentProvider === 'github') {
+            if (filterType === 'commits' && action === 'Pushed Commit') return true;
+            if (filterType === 'prs' && ['Opened PR', 'Merged PR'].includes(action)) return true;
+            if (filterType === 'system' && ['system', 'anonymous'].includes(event.type)) return true;
+            return false;
+        }
+
+        // Trello Specific Filters (Robust Matching)
+        if (currentProvider === 'trello') {
+            if (filterType === 'moves' && matchAction(action, ['move', 'archive', 'complete', 'status'])) return true;
+            if (filterType === 'tasks' && matchAction(action, ['checklist', 'task', 'todo', 'check'])) return true;
+            if (filterType === 'team' && matchAction(action, ['member', 'assign', 'join'])) return true;
+            if (filterType === 'files' && matchAction(action, ['attachment', 'file', 'upload'])) return true;
             if (filterType === 'system' && ['system', 'anonymous'].includes(event.type)) return true;
             return false;
         }
 
         // Default / Slack Filters
         if (filterType === 'decisions' && event.type === 'decision') return true;
-        if (filterType === 'code' && (event.type === 'file' || event.type === 'comment' || event.action === 'Merged PR')) return true;
+        if (filterType === 'code' && (event.type === 'file' || event.type === 'comment' || action === 'Merged PR')) return true;
         if (filterType === 'system' && ['system', 'anonymous'].includes(event.type)) return true;
         return false;
     });
@@ -126,6 +185,8 @@ export default function TimelineFeed({ userRole }) {
 
     const getEventIcon = (event) => {
         let style = { icon: Activity, color: 'text-slate-400' };
+        const currentProvider = provider?.toLowerCase();
+        const action = event.action;
 
         if (event.type === 'decision') {
             const decisionStyles = {
@@ -136,15 +197,15 @@ export default function TimelineFeed({ userRole }) {
                 'Archive': { icon: ArchiveIcon, color: 'text-slate-600' },
                 'Merged PR': { icon: GitMerge, color: 'text-purple-600' }
             };
-            style = decisionStyles[event.action] || decisionStyles['Approval'];
+            style = decisionStyles[action] || decisionStyles['Approval'];
         } else if (event.type === 'file') {
-            if (event.action === 'Pushed Commit') {
+            if (action === 'Pushed Commit') {
                 style = { icon: GitCommit, color: 'text-orange-500' };
             } else {
                 style = { icon: FileText, color: 'text-orange-500' };
             }
         } else if (event.type === 'comment') {
-            if (event.action === 'Opened PR') {
+            if (action === 'Opened PR') {
                 style = { icon: GitPullRequest, color: 'text-blue-500' };
             } else {
                 style = { icon: GitCommit, color: 'text-blue-500' };
@@ -155,13 +216,23 @@ export default function TimelineFeed({ userRole }) {
             style = { icon: UserPlus, color: 'text-amber-500' };
         }
 
+        // Trello Specific Actions - ROBUST MATCHING
+        else if (currentProvider === 'trello') {
+            if (matchAction(action, ['move'])) style = { icon: ArrowRightCircle, color: 'text-orange-500' };
+            else if (matchAction(action, ['member', 'assign'])) style = { icon: UserPlus, color: 'text-purple-500' };
+            else if (matchAction(action, ['attachment', 'file'])) style = { icon: Paperclip, color: 'text-slate-500' };
+            else if (matchAction(action, ['checklist', 'check'])) style = { icon: ListChecks, color: 'text-emerald-500' };
+            else if (matchAction(action, ['complete'])) style = { icon: Trophy, color: 'text-amber-500' };
+            else if (matchAction(action, ['archive'])) style = { icon: ArchiveIcon, color: 'text-slate-400' };
+        }
+
         const Icon = style.icon;
         return <Icon className={`w-3.5 h-3.5 ${style.color}`} />;
     };
 
     return (
         <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300 max-w-5xl mx-auto px-4 pb-12">
-            <header className="flex items-center justify-between pb-4 border-b border-slate-200 mt-6">
+            <header className="flex items-center justify-between pb-4 border-b border-slate-200 mt-6 relative z-50">
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => router.back()}
@@ -181,27 +252,36 @@ export default function TimelineFeed({ userRole }) {
                     </div>
                 </div>
 
-                <div className="flex gap-2">
-                    <select
-                        value={filterType}
-                        onChange={(e) => setFilterType(e.target.value)}
-                        className="pl-3 pr-8 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-900/5 cursor-pointer hover:bg-slate-50 shadow-sm"
+                <div className="relative">
+                    <button
+                        onClick={() => setIsFilterOpen(!isFilterOpen)}
+                        className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-medium hover:bg-slate-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-slate-900/5"
                     >
-                        <option value="all">All Events</option>
-                        {provider === 'github' ? (
-                            <>
-                                <option value="commits">Pushes</option>
-                                <option value="prs">Pull Requests</option>
-                                <option value="system">System</option>
-                            </>
-                        ) : (
-                            <>
-                                <option value="code">Code Activity</option>
-                                <option value="decisions">Decisions Only</option>
-                                <option value="system">System & Meta</option>
-                            </>
-                        )}
-                    </select>
+                        <span className="text-slate-700">{selectedLabel}</span>
+                        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isFilterOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIsFilterOpen(false)} />
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                {currentOptions.map((option) => (
+                                    <button
+                                        key={option.value}
+                                        onClick={() => {
+                                            setFilterType(option.value);
+                                            setIsFilterOpen(false);
+                                        }}
+                                        className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center justify-between hover:bg-slate-50 transition-colors ${filterType === option.value ? 'text-blue-600 bg-blue-50/50' : 'text-slate-600'
+                                            }`}
+                                    >
+                                        {option.label}
+                                        {filterType === option.value && <Check className="w-3 h-3" />}
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </div>
             </header>
 
@@ -248,11 +328,12 @@ export default function TimelineFeed({ userRole }) {
                                                 <div className="flex justify-between items-start">
                                                     <div>
                                                         <div className="flex items-center gap-2 mb-1">
-                                                            <span className="font-bold text-slate-900 text-xs">{event.action}</span>
+                                                            <span className="font-bold text-slate-900 text-xs">{formatActionName(event.action)}</span>
                                                             <span className="text-[10px] text-slate-400">•</span>
                                                             <span className="text-xs text-slate-600 font-medium">{event.target}</span>
                                                         </div>
                                                         <div className="flex items-center gap-2 text-[10px] text-slate-500">
+
                                                             <span className="font-semibold text-slate-700">{event.actor}</span>
                                                             <span className="text-slate-300">|</span>
                                                             <span className="font-medium">{event.role}</span>

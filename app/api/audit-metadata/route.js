@@ -17,7 +17,7 @@ export async function GET() {
         // Fetch Resources (Channels) with Team Info
         const { data: resources, error: resError } = await supabase
             .from('monitored_resources')
-            .select('*, teams ( id, name )');
+            .select('*, teams ( id, name ), integrations ( provider )');
 
         if (resError) throw resError;
 

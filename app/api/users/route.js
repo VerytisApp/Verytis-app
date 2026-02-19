@@ -17,10 +17,15 @@ export async function GET(req) {
         const { data: users, error } = await supabase
             .from('profiles')
             .select(`
-                id, full_name, email, avatar_url, role, status, job_title, slack_user_id,
+                id, full_name, email, avatar_url, role, status, job_title, slack_user_id, social_profiles,
+                created_at, updated_at,
                 team_members (
                     role,
                     teams (id, name)
+                ),
+                connections (
+                    provider,
+                    status
                 )
             `)
             .eq('organization_id', TEST_ORG_ID);
@@ -47,7 +52,11 @@ export async function GET(req) {
                 initials: (user.full_name || user.email).slice(0, 2).toUpperCase(),
                 teams: allTeams, // All teams they belong to
                 managedTeams, // List of teams they manage
-                slackId: user.slack_user_id // Verification Status
+                slackId: user.slack_user_id, // Verification Status
+                createdAt: user.created_at,
+                updatedAt: user.updated_at,
+                socialProfiles: user.social_profiles || {},
+                connections: user.connections || []
             };
         });
 

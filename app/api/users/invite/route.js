@@ -190,7 +190,8 @@ export async function POST(req) {
                 full_name: name || email.split('@')[0],
                 role: (role || 'member').toLowerCase(),
                 status: 'pending',
-                avatar_url: ''
+                avatar_url: '',
+                updated_at: new Date().toISOString()
             }])
             .select()
             .single();

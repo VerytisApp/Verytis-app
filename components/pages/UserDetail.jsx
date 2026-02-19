@@ -1,41 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRight, Shield, FileText, Download, Mail, Activity, GitCommit, CheckCircle, XCircle, Clock, Fingerprint, Globe, Key } from 'lucide-react';
-import { Card, Button, StatusBadge, PlatformIcon, ToggleSwitch, Modal } from '../ui';
+import { Card, Button, StatusBadge, PlatformIcon, ToggleSwitch, Modal, SkeletonDashboard } from '../ui';
 import { MOCK_USERS, MOCK_TEAMS, MOCK_CHANNELS, MOCK_RECENT_DECISIONS, SCOPES_CONFIG } from '../../data/mockData';
 
 const UserDetail = () => {
     const { userId } = useParams();
-    const [user, setUser] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [scopeModal, setScopeModal] = useState({ isOpen: false, title: '', teams: [] });
+    const fetcher = (...args) => fetch(...args).then(res => res.json());
 
-    useEffect(() => {
-        const fetchUser = async () => {
-            setIsLoading(true);
-            try {
-                const res = await fetch(`/api/users/${userId}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setUser(data.user);
-                } else {
-                    setError('User not found');
-                }
-            } catch (err) {
-                console.error(err);
-                setError('Failed to load user');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        if (userId) fetchUser();
-    }, [userId]);
+    // SWR Hook for user profile
+    const { data: userData, error: userError, isLoading: isUserLoading, mutate: mutateUser } = useSWR(
+        userId ? `/api/users/${userId}` : null,
+        fetcher,
+        { revalidateOnFocus: false, dedupingInterval: 10000 }
+    );
 
-    if (isLoading) return <div className="text-center py-12 text-slate-500">Loading profile...</div>;
+    const user = userData?.user;
+    const isLoading = isUserLoading && !user;
+    const error = userError;
+
+    if (isLoading) {
+        return (
+            <div className="p-8 animate-in fade-in duration-500">
+                <SkeletonDashboard />
+            </div>
+        );
+    }
 
     if (error || !user) {
         return (
@@ -59,7 +54,7 @@ const UserDetail = () => {
             ? currentScopes.filter(s => s !== scopeTitle)
             : [...currentScopes, scopeTitle];
 
-        setUser({ ...user, scopes: newScopes });
+        mutateUser({ ...userData, user: { ...user, scopes: newScopes } }, false);
         // TODO: Call API to persist
     };
 
@@ -245,11 +240,14 @@ const UserDetail = () => {
 
                                         // In real app: await fetch('/api/users/update-socials', { body: JSON.stringify(updatedSocials) })
                                         // Here we simulate local update
-                                        setUser(prev => ({
-                                            ...prev,
-                                            social_profiles: updatedSocials,
-                                            social_temp: updatedSocials // reset temp to match saved
-                                        }));
+                                        mutateUser({
+                                            ...userData,
+                                            user: {
+                                                ...user,
+                                                social_profiles: updatedSocials,
+                                                social_temp: updatedSocials // reset temp to match saved
+                                            }
+                                        }, false);
                                         alert("Connections updated! Verify via Webhooks now.");
                                     }}
                                     className="text-[10px] bg-emerald-600 text-white px-2 py-1 rounded font-bold hover:bg-emerald-700 transition"

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Download, Activity, CheckCircle, Settings, FileText, UserPlus, FilterX, XCircle, RefreshCw, Edit2, GitCommit, Archive as ArchiveIcon } from 'lucide-react';
-import { Card, Button, PlatformIcon } from '../ui';
+import { ArrowLeft, Download, Activity, CheckCircle, Settings, FileText, UserPlus, FilterX, XCircle, RefreshCw, Edit2, GitCommit, Archive as ArchiveIcon, ChevronDown, Check } from 'lucide-react';
+import { Card, Button, PlatformIcon, SkeletonTimelineItem } from '../ui';
 import { MOCK_CHANNELS, MOCK_TIMELINE_EVENTS, MOCK_TEAMS } from '../../data/mockData';
 
 const Timeline = ({ userRole }) => {
@@ -11,50 +12,28 @@ const Timeline = ({ userRole }) => {
     const router = useRouter();
     const [selectedChannelId, setSelectedChannelId] = useState(channelId || null);
     const [filterType, setFilterType] = useState('all');
-    const [events, setEvents] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [channels, setChannels] = useState([]);
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const fetcher = (...args) => fetch(...args).then(res => res.json());
+
+    // SWR Hook for channels
+    const { data: channelsData } = useSWR('/api/resources/list', fetcher, {
+        revalidateOnFocus: false,
+        dedupingInterval: 30000
+    });
+    const channels = channelsData?.resources || [];
+
+    // SWR Hook for events
+    const { data: eventsData, isLoading: isEventsLoading } = useSWR(
+        selectedChannelId ? `/api/activity?channelId=${selectedChannelId}` : null,
+        fetcher,
+        { revalidateOnFocus: false, dedupingInterval: 10000 }
+    );
+    const events = eventsData?.events || [];
+    const loading = isEventsLoading && events.length === 0;
 
     useEffect(() => {
         setSelectedChannelId(channelId || null);
     }, [channelId]);
-
-    // Fetch real channels from API
-    useEffect(() => {
-        const fetchChannels = async () => {
-            try {
-                const res = await fetch('/api/resources/list');
-                if (res.ok) {
-                    const data = await res.json();
-                    setChannels(data.resources || []);
-                }
-            } catch (e) {
-                console.error('Error fetching channels:', e);
-            }
-        };
-        fetchChannels();
-    }, []);
-
-    // Fetch real events when channel is selected
-    useEffect(() => {
-        const fetchEvents = async () => {
-            if (!selectedChannelId) return;
-
-            setLoading(true);
-            try {
-                const res = await fetch(`/api/activity?channelId=${selectedChannelId}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setEvents(data.events || []);
-                }
-            } catch (e) {
-                console.error('Error fetching events:', e);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchEvents();
-    }, [selectedChannelId]);
 
     // Role-based logic helpers
     const canViewScope = userRole !== 'Member';
@@ -187,15 +166,43 @@ const Timeline = ({ userRole }) => {
                 </div>
 
                 <div className="flex gap-2">
-                    <select
-                        value={filterType}
-                        onChange={(e) => setFilterType(e.target.value)}
-                        className="pl-3 pr-8 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-900/5 cursor-pointer hover:bg-slate-50 shadow-sm"
-                    >
-                        <option value="all">All Events</option>
-                        <option value="decisions">Decisions Only</option>
-                        <option value="system">System & Meta</option>
-                    </select>
+                    <div className="relative">
+                        <button
+                            onClick={() => setIsFilterOpen(!isFilterOpen)}
+                            className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-medium hover:bg-slate-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-slate-900/5"
+                        >
+                            <span className="text-slate-700">
+                                {filterType === 'all' ? 'All Events' : filterType === 'decisions' ? 'Decisions Only' : 'System & Meta'}
+                            </span>
+                            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {isFilterOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsFilterOpen(false)} />
+                                <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                    {[
+                                        { value: 'all', label: 'All Events' },
+                                        { value: 'decisions', label: 'Decisions Only' },
+                                        { value: 'system', label: 'System & Meta' }
+                                    ].map((option) => (
+                                        <button
+                                            key={option.value}
+                                            onClick={() => {
+                                                setFilterType(option.value);
+                                                setIsFilterOpen(false);
+                                            }}
+                                            className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center justify-between hover:bg-slate-50 transition-colors ${filterType === option.value ? 'text-blue-600 bg-blue-50/50' : 'text-slate-600'
+                                                }`}
+                                        >
+                                            {option.label}
+                                            {filterType === option.value && <Check className="w-3 h-3" />}
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
                     {canExport && <Button variant="secondary" icon={Download} className="text-xs">Export</Button>}
                 </div>
             </header>

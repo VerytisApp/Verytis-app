@@ -62,6 +62,7 @@ export default async function ActivityDetailsPage({ params }) {
             case 'MEMBER_ASSIGNED': return 'Member Assigned';
             case 'ATTACHMENT_ADDED': return 'Attachment Added';
             case 'CHECKLIST_DONE': return 'Checklist Completed';
+            case 'CARD_COMPLETED': return 'Card Completed';
             case 'CARD_ARCHIVED': return 'Card Archived';
             default: return type.replace(/_/g, ' ');
         }

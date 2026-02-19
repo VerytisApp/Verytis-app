@@ -224,12 +224,12 @@ async function logTrelloActivity(actionType, board, actor, summary, extraMetadat
     let organizationId = null;
     let resourceId = null;
 
-    // 1. Resolve resource from monitored_resources (by board name or external_id)
-    if (board) {
+    // 1. Resolve resource from monitored_resources (by external_id = Trello board ID)
+    if (board?.id) {
         const { data: resource } = await supabase
             .from('monitored_resources')
             .select('id, team_id, teams(organization_id)')
-            .or(`external_id.eq.${board.id},name.eq.${board.name}`)
+            .eq('external_id', board.id)
             .maybeSingle();
 
         if (resource) {
@@ -237,7 +237,7 @@ async function logTrelloActivity(actionType, board, actor, summary, extraMetadat
             organizationId = resource.teams?.organization_id;
             console.log(`📍 Trello Resource Found: ${resourceId} (Org: ${organizationId})`);
         } else {
-            console.log(`⚠️ Trello board "${board.name}" not found in monitored_resources`);
+            console.log(`⚠️ Trello board "${board.name}" (${board.id}) not found in monitored_resources`);
         }
     }
 
