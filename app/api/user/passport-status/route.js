@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getValidGitHubToken } from '@/lib/github';
+import { decryptToken } from '@/lib/encryption';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,7 +72,8 @@ export async function GET(req) {
         let debugInfo = { mode: 'init' };
 
         // Check recursively for token in known locations
-        const slackAccessToken = slackIntegration?.access_token || slackIntegration?.settings?.bot_token || slackIntegration?.settings?.access_token;
+        let slackAccessToken = slackIntegration?.access_token || slackIntegration?.settings?.bot_token || slackIntegration?.settings?.access_token;
+        slackAccessToken = decryptToken(slackAccessToken);
 
         // --- SLACK STATUS ---
         if (profile.slack_user_id) {

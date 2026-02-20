@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { WebClient } from '@slack/web-api';
+import { decryptToken } from '@/lib/encryption';
 import { createClient } from '@supabase/supabase-js';
 
 export async function GET(req) {
@@ -31,7 +32,7 @@ export async function GET(req) {
         return NextResponse.json({ error: 'No Slack access token found for this organization' }, { status: 401 });
     }
 
-    const client = new WebClient(token);
+    const client = new WebClient(decryptToken(token));
 
     try {
         const result = await client.conversations.list({

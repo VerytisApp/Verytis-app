@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { encryptToken } from '../../../../../lib/encryption';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,7 +106,7 @@ export async function GET(req) {
                     avatar_url: userData.avatar_url,
                     html_url: userData.html_url,
                     connected_at: new Date().toISOString(),
-                    access_token: accessToken // Store token for user-specific actions
+                    access_token: encryptToken(accessToken) // Store token securely encrypted
                 }
             };
 
@@ -151,8 +152,8 @@ export async function GET(req) {
             name: userData.login,
             external_id: String(userData.id),
             settings: {
-                access_token: data.access_token,
-                refresh_token: data.refresh_token,
+                access_token: encryptToken(data.access_token),
+                refresh_token: encryptToken(data.refresh_token),
                 expires_in: data.expires_in,
                 refresh_token_expires_in: data.refresh_token_expires_in,
                 token_type: data.token_type,

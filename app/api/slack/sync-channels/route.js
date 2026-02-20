@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { WebClient } from '@slack/web-api';
+import { decryptToken } from '@/lib/encryption';
 
 export async function POST() {
     const TEST_ORG_ID = '5db477f6-c893-4ec4-9123-b12160224f70';
@@ -22,7 +23,7 @@ export async function POST() {
             return NextResponse.json({ error: 'No Slack token found' }, { status: 401 });
         }
 
-        const client = new WebClient(integration.settings.bot_token);
+        const client = new WebClient(decryptToken(integration.settings.bot_token));
 
         // 2. Get all monitored resources for this integration
         const { data: resources } = await supabase.from('monitored_resources')

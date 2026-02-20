@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { WebClient } from '@slack/web-api';
+import { decryptToken } from '@/lib/encryption';
 
 export async function GET(req, { params }) {
     const { channelId } = params; // This is the monitored_resource ID (UUID)
@@ -32,7 +33,7 @@ export async function GET(req, { params }) {
             return NextResponse.json({ error: 'No Slack token' }, { status: 401 });
         }
 
-        const client = new WebClient(integration.settings.bot_token);
+        const client = new WebClient(decryptToken(integration.settings.bot_token));
 
         // 3. Get channel members from Slack
         const membersResult = await client.conversations.members({
