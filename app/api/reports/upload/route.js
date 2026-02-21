@@ -10,6 +10,8 @@ export async function POST(req) {
         const formData = await req.formData();
         const file = formData.get('file');
         const platform = formData.get('platform') || 'Unknown';
+        const actorId = formData.get('actor_id');
+        const orgId = formData.get('organization_id');
 
         if (!file) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -60,6 +62,17 @@ export async function POST(req) {
         if (dbError && dbError.code !== '23505') {
             console.error("Database insert failed:", dbError);
             return NextResponse.json({ error: 'Failed to record export footprint' }, { status: 500 });
+        }
+
+        // 6. Log to activity_logs for audit trails (if successful or if it already exists)
+        if (!dbError || dbError.code === '23505') {
+            await supabase.from('activity_logs').insert({
+                organization_id: orgId || null,
+                actor_id: actorId || null,
+                action_type: 'PDF_REPORT_EXPORTED',
+                summary: fileName,
+                metadata: { file_hash: fileHash, platform }
+            });
         }
 
         return NextResponse.json({

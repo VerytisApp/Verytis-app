@@ -56,7 +56,7 @@ function DashboardContent({ children }) {
             <Modal
                 isOpen={activeModal === 'integrations'}
                 onClose={() => setActiveModal(null)}
-                title="Passport ID Société"
+                title="Company Passport ID"
             >
                 <IntegrationsSettings teamId={params?.teamId} />
             </Modal>

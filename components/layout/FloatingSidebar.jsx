@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, MessageSquare, FileText, Users, Clock,
-    Settings, LogOut, MoreVertical, Layers, ChevronLeft, Shield, ChevronDown, Check
+    Settings, LogOut, MoreVertical, Layers, ChevronLeft, Shield, ChevronDown, Check, Bot
 } from 'lucide-react';
 import IcareLogo from '../image/Gemini Generated Image (14).png';
 import { useRole } from '@/lib/providers';
@@ -73,6 +73,7 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
         { path: '/stacks', label: 'Stacks', icon: Layers, roles: ['Admin', 'Manager', 'Member'] }, // Added Stacks
         { path: '/users', label: 'Users', icon: Shield, roles: ['Admin'] }, // Changed icon to Shield for Users to avoid dupe
         { path: '/channels', label: 'Channels', icon: MessageSquare, roles: ['Admin', 'Manager', 'Member'] },
+        { path: '/agents', label: 'AI Agents', icon: Bot, roles: ['Admin'] }, // 🤖 AI Agents Telemetry
         { path: '/timeline', label: 'Timeline', icon: Clock, roles: ['Admin', 'Manager', 'Member'] },
         { path: '/reports', label: 'Reports', icon: FileText, roles: ['Admin', 'Manager', 'Member'] },
     ];

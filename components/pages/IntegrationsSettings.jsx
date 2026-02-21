@@ -39,9 +39,9 @@ const GitHubRepositoriesView = ({ teamId }) => {
                 <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <img src="https://www.google.com/s2/favicons?domain=github.com&sz=64" alt="GitHub" className="w-6 h-6 opacity-50" />
                 </div>
-                <h3 className="text-sm font-bold text-slate-900">Aucun dépôt accessible</h3>
+                <h3 className="text-sm font-bold text-slate-900">No accessible repository</h3>
                 <p className="text-slate-500 text-xs mt-2 max-w-sm mx-auto">
-                    Assurez-vous d'avoir donné accès aux dépôts lors de l'installation.
+                    Ensure you have granted access to repositories during installation.
                 </p>
             </div>
         );
@@ -111,7 +111,7 @@ const TrelloBoardsView = ({ teamId }) => {
         return (
             <div className="text-center py-12">
                 <div className="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-3"></div>
-                <p className="text-xs text-slate-400 font-medium">Chargement des boards...</p>
+                <p className="text-xs text-slate-400 font-medium">Loading boards...</p>
             </div>
         );
     }
@@ -122,9 +122,9 @@ const TrelloBoardsView = ({ teamId }) => {
                 <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <img src="https://www.google.com/s2/favicons?domain=trello.com&sz=64" alt="Trello" className="w-6 h-6 opacity-50" />
                 </div>
-                <h3 className="text-sm font-bold text-slate-900">Aucun board trouvé</h3>
+                <h3 className="text-sm font-bold text-slate-900">No boards found</h3>
                 <p className="text-slate-500 text-xs mt-2 max-w-sm mx-auto">
-                    Vérifiez que votre compte Trello a des boards ouverts.
+                    Check that your Trello account has open boards.
                 </p>
             </div>
         );
@@ -134,7 +134,7 @@ const TrelloBoardsView = ({ teamId }) => {
         <div className="space-y-4">
             <div className="flex justify-between items-center mb-2">
                 <p className="text-sm text-slate-500">
-                    Boards actifs ({boards.length})
+                    Active boards ({boards.length})
                 </p>
                 <div className="px-2 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded uppercase tracking-wide border border-emerald-100">
                     Sync Active
@@ -158,7 +158,7 @@ const TrelloBoardsView = ({ teamId }) => {
                             rel="noopener noreferrer"
                             className="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
                         >
-                            Voir
+                            View
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                         </a>
                     </div>
@@ -194,7 +194,7 @@ const IntegrationsSettings = ({ teamId }) => {
                     ...prev,
                     slack: {
                         connected: true,
-                        lastSync: 'Connecté',
+                        lastSync: 'Connected',
                         workspaceName: dataSlack.teamName || null
                     }
                 }));
@@ -208,7 +208,7 @@ const IntegrationsSettings = ({ teamId }) => {
                     ...prev,
                     github: {
                         connected: true,
-                        lastSync: 'Connecté',
+                        lastSync: 'Connected',
                         workspaceName: dataGithub.username || null
                     }
                 }));
@@ -222,7 +222,7 @@ const IntegrationsSettings = ({ teamId }) => {
                     ...prev,
                     trello: {
                         connected: true,
-                        lastSync: 'Connecté',
+                        lastSync: 'Connected',
                         workspaceName: dataTrello.name || null
                     }
                 }));
@@ -255,7 +255,7 @@ const IntegrationsSettings = ({ teamId }) => {
                 const app = params.get('app') || 'slack';
                 setConnections(prev => ({
                     ...prev,
-                    [app]: { connected: true, lastSync: 'À l\'instant' }
+                    [app]: { connected: true, lastSync: 'Just now' }
                 }));
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
@@ -363,13 +363,13 @@ const IntegrationsSettings = ({ teamId }) => {
             logo: "https://www.google.com/s2/favicons?domain=slack.com&sz=128",
             bgColor: 'bg-[#4A154B]/5',
             borderColor: 'border-[#4A154B]/10',
-            description: "Activez l'audit trail certifié pour vos canaux Slack. Capturez les décisions, validations et preuves en temps réel.",
-            features: ['Certification des Echanges', 'Traçabilité Temporelle', 'Preuves d\'Audit', 'Recontextualisation des Décisions'],
+            description: "Activate the certified audit trail for your Slack channels. Capture decisions, validations and proofs in real-time.",
+            features: ['Communication Certification', 'Temporal Traceability', 'Audit Proofs', 'Decision Recontextualization'],
             permissions: [
-                'Accès aux Messages (Canaux/Groupes)',
-                'Identification Utilisateurs (Email)',
-                'Gestion de Fichiers & Preuves',
-                'Publication de Messages'
+                'Message Access (Channels/Groups)',
+                'User Identification (Email)',
+                'File & Proof Management',
+                'Message Publishing'
             ]
         },
         {
@@ -379,9 +379,9 @@ const IntegrationsSettings = ({ teamId }) => {
             logo: "https://www.google.com/s2/favicons?domain=github.com&sz=128",
             bgColor: 'bg-slate-50',
             borderColor: 'border-slate-200',
-            description: "Synchronisation des métadonnées de code pour la traçabilité des modifications et des validations (Commits & PRs uniquement).",
+            description: "Code metadata synchronization for traceability of modifications and validations (Commits & PRs only).",
             features: ['Code Audit', 'Commit Tracking', 'PR Validation'],
-            permissions: ['Lecture Repositories', 'Lecture Historique Commits', 'Lecture Pull Requests']
+            permissions: ['Read Repositories', 'Read Commit History', 'Read Pull Requests']
         },
         {
             id: 'trello',
@@ -390,9 +390,9 @@ const IntegrationsSettings = ({ teamId }) => {
             logo: "https://www.google.com/s2/favicons?domain=trello.com&sz=128",
             bgColor: 'bg-[#0079BF]/5',
             borderColor: 'border-[#0079BF]/10',
-            description: "Connectez vos boards Trello pour tracer les décisions projet, les mouvements de cartes et les validations d'équipe.",
+            description: "Connect your Trello boards to trace project decisions, card movements, and team validations.",
             features: ['Board Audit Trail', 'Card Movement Tracking', 'Decision Traceability', 'Checklist Validation'],
-            permissions: ['Lecture des Boards', 'Lecture des Cartes & Listes', 'Lecture des Membres', 'Lecture de l\'Activité']
+            permissions: ['Read Boards', 'Read Cards & Lists', 'Read Members', 'Read Activity']
         }
     ];
 
@@ -424,7 +424,7 @@ const IntegrationsSettings = ({ teamId }) => {
                 body: JSON.stringify({ channels: selectedList })
             });
             if (res.ok) {
-                alert('Canaux importés avec succès !');
+                alert('Channels successfully imported!');
                 setSelectedChannels(new Set()); // Reset selection
             }
         } catch (e) {
@@ -440,7 +440,7 @@ const IntegrationsSettings = ({ teamId }) => {
             <div className="w-64 bg-slate-50 border-r border-slate-200 p-4 flex flex-col gap-4">
                 {/* ... existing sidebar ... */}
                 <div>
-                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">Applications Disponibles</h3>
+                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">Available Applications</h3>
                     <div className="space-y-2">
                         {apps.map(app => (
                             <button
@@ -459,7 +459,7 @@ const IntegrationsSettings = ({ teamId }) => {
                                     <div className="font-semibold text-slate-900">{app.name}</div>
                                     <div className={`text-[10px] font-medium mt-0.5 flex items-center gap-1.5 ${connections[app.id].connected ? 'text-emerald-600' : 'text-slate-400'}`}>
                                         <span className={`w-1.5 h-1.5 rounded-full ${connections[app.id].connected ? 'bg-emerald-500' : 'bg-slate-300'}`}></span>
-                                        {connections[app.id].connected ? 'Connecté' : 'Non configuré'}
+                                        {connections[app.id].connected ? 'Connected' : 'Not configured'}
                                     </div>
                                     {connections[app.id].connected && connections[app.id].workspaceName && (
                                         <div className="text-[10px] text-slate-500 mt-0.5 truncate">
@@ -618,11 +618,11 @@ const IntegrationsSettings = ({ teamId }) => {
                                                                     <svg className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" /></svg>
                                                                     <div>
                                                                         <span className="text-sm font-semibold text-slate-900">#{channel.name}</span>
-                                                                        {channel.is_private && <span className="ml-2 text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">Privé</span>}
+                                                                        {channel.is_private && <span className="ml-2 text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">Private</span>}
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                            <span className="text-xs font-medium text-slate-500">{channel.num_members} membres</span>
+                                                            <span className="text-xs font-medium text-slate-500">{channel.num_members} members</span>
                                                         </div>
                                                     ))}
                                                 </div>
