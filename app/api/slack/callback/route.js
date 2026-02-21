@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { encryptToken } from '../../../../lib/encryption';
 
 export async function GET(req) {
     const { searchParams } = new URL(req.url);
@@ -68,7 +67,7 @@ export async function GET(req) {
 
         if (existingInt) {
             await supabase.from('integrations').update({
-                settings: { bot_token: encryptToken(data.access_token), team_id: data.team.id },
+                settings: { bot_token: data.access_token, team_id: data.team.id },
                 name: data.team.name,
                 external_id: data.team.id
             }).eq('id', existingInt.id);
@@ -78,7 +77,7 @@ export async function GET(req) {
                 provider: 'slack',
                 name: data.team.name,
                 external_id: data.team.id,
-                settings: { bot_token: encryptToken(data.access_token), team_id: data.team.id }
+                settings: { bot_token: data.access_token, team_id: data.team.id }
             });
         }
 

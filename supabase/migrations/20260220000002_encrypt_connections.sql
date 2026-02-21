@@ -16,15 +16,11 @@ RETURNS trigger AS $$
 DECLARE
     encryption_key text;
 BEGIN
-    -- Récupération de la clé de chiffrement depuis les variables d'environnement Supabase (ou fallback)
-    -- Dans Supabase Postgres, vous pouvez définir cette variable via :
+    -- Récupération de la clé de chiffrement depuis les variables d'environnement Supabase
+    -- Dans Supabase Postgres, vous devez définir cette variable de production via :
     -- ALTER DATABASE postgres SET app.settings.encryption_key = 'votre-cle-secrete-aes-256';
-    BEGIN
-        encryption_key := current_setting('app.settings.encryption_key');
-    EXCEPTION WHEN OTHERS THEN
-        -- CLÉ DE FALLBACK (À remplacer impérativement en Production via le Vault ou ENV)
-        encryption_key := 'verytis-default-fallback-db-key-2026';
-    END;
+    -- Si elle manque, la base lèvera une erreur fatale bloquant toute insertion.
+    encryption_key := current_setting('app.settings.encryption_key');
 
     -- Chiffrement de l'Access Token (S'il est présent et pas déjà chiffré)
     IF NEW.access_token IS NOT NULL AND NEW.access_token NOT LIKE '\x%' THEN
@@ -67,7 +63,7 @@ SELECT
     CASE 
         WHEN access_token LIKE '\x%' THEN
             pgp_sym_decrypt(access_token::bytea, 
-                current_setting('app.settings.encryption_key', true)
+                current_setting('app.settings.encryption_key', false)
             )
         ELSE access_token
     END AS access_token,
@@ -75,7 +71,7 @@ SELECT
     CASE 
         WHEN refresh_token LIKE '\x%' THEN
             pgp_sym_decrypt(refresh_token::bytea, 
-                current_setting('app.settings.encryption_key', true)
+                current_setting('app.settings.encryption_key', false)
             )
         ELSE refresh_token
     END AS refresh_token,

@@ -536,21 +536,20 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
         drawMetaRow("Report Type", reportType, rightColX, metaY + lineHeight);
         drawMetaRow("Platform", platform, rightColX, metaY + (lineHeight * 2));
 
-        // --- 3. Cryptographic Signature Block (Middle/Bottom) ---
-        // The screenshot implies it might be below metadata or at bottom. 
-        // Let's place it after metadata for visibility before the table.
+        // --- 3. Legal/Certification Block (Middle/Bottom) ---
         const cryptoY = metaY + (lineHeight * 4);
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(10);
-        doc.text("Cryptographic Signature Verification:", 10, cryptoY);
+        doc.text("Certification Légale & Audit Trail :", 10, cryptoY);
 
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
+        doc.setFontSize(8);
         doc.setTextColor(100, 116, 139); // Slate-500
-        const hash = `VRTS-${Math.random().toString(36).substring(2, 10).toUpperCase()}DLIMG`;
-        doc.text(`Hash: ${hash}`, 10, cryptoY + 5);
-        doc.text(`Status: VALIDATED (Blockchain Anchor #9921)`, 10, cryptoY + 10);
+
+        const legalText = "Document certifié par Verytis (Norme WORM). Son empreinte cryptographique garantit son intégrité absolue. Toute altération du fichier invalidera sa vérification sur notre plateforme.";
+        const splitLegalText = doc.splitTextToSize(legalText, pageWidth - 20);
+        doc.text(splitLegalText, 10, cryptoY + 6);
 
         // --- 4. Events Table ---
         const tableStartY = cryptoY + 20;
@@ -601,7 +600,35 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
             doc.text(`Verytis Digital Audit System v2.0`, 14, doc.internal.pageSize.height - 10);
         }
 
-        doc.save(`Audit_Report_${platform}_${new Date().toISOString().split('T')[0]}.pdf`);
+        // --- 5. HASH & UPLOAD AU BUCKET ---
+        const pdfBlob = doc.output('blob');
+        const fileName = `Audit_Report_${platform}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+        try {
+            const formData = new FormData();
+            formData.append('file', pdfBlob, fileName);
+            formData.append('platform', platform);
+
+            // Upload binaire vers Supabase, Hachage (WORM DB) et Récupération Url
+            const response = await fetch('/api/reports/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error("Erreur de sécurisation du document");
+
+            const data = await response.json();
+            console.log("Archive Certificate:", data);
+
+            // --- 6. TÉLÉCHARGEMENT LOCAL UNIQUEMENT SI LE HASH A ÉTÉ SÉCURISÉ ---
+            doc.save(fileName);
+
+            alert(`PDF Secured & Verified.\nLe fichier a été scellé dans le coffre-fort avec le Hash :\n\n${data.hash}`);
+        } catch (e) {
+            console.error("Failed to secure/upload report:", e);
+            alert("Attention: Le PDF a été généré localement mais n'a pas pu être certifié (impossible de le stocker ou de le hacher). Vérifiez votre connexion.");
+            doc.save(fileName); // Fallback offline
+        }
     };
 
     return (
@@ -892,12 +919,11 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
                                             </div>
                                         </div>
 
-                                        {/* 3. Cryptographic Signature */}
+                                        {/* 3. Legal & Cryptographic Signature */}
                                         <div className="pt-4 pb-0">
-                                            <div className="font-bold text-[10px] mb-1">Cryptographic Signature Verification:</div>
-                                            <div className="text-[9px] text-slate-500 font-mono">
-                                                <div>Hash: VRTS-{Math.random().toString(36).substring(2, 10).toUpperCase()}DLIMG</div>
-                                                <div className="text-blue-600">Status: VALIDATED (Blockchain Anchor #9921)</div>
+                                            <div className="font-bold text-[10px] mb-1 text-slate-900">Certification Légale & Audit Trail :</div>
+                                            <div className="text-[9px] text-slate-500 leading-relaxed mb-2">
+                                                Document certifié par Verytis (Norme WORM). Son empreinte cryptographique garantit son intégrité absolue. Toute altération du fichier invalidera sa vérification sur notre plateforme.
                                             </div>
                                         </div>
 
