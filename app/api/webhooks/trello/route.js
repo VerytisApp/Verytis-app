@@ -78,27 +78,38 @@ export async function POST(req) {
             return NextResponse.json({ status: 'no_action' });
         }
 
-        // 0. ATOMIC INSERT (Race Condition Prevention)
-        // We use .upsert with onConflict on 'provider,external_id' which now has a UNIQUE constraint.
+        // 0. ATOMIC INSERT & IDEMPOTENCY (Optimized)
         if (action.id) {
+            // Resolve Organization ID for strict isolation
+            let eventOrgId = null;
+            if (action.data?.board?.id) {
+                const { data: res } = await supabase
+                    .from('monitored_resources')
+                    .select('teams(organization_id)')
+                    .eq('external_id', action.data.board.id)
+                    .maybeSingle();
+                eventOrgId = res?.teams?.organization_id;
+            }
+
             const { data: upsertData, error: upsertError } = await supabase.from('webhook_events').upsert({
                 provider: 'trello',
                 external_id: action.id,
                 event_type: action.type,
                 payload: body,
+                organization_id: eventOrgId,
                 status: 'completed'
             }, {
                 onConflict: 'provider,external_id',
                 ignoreDuplicates: true
-            }).select('id');
+            }).select('id').maybeSingle();
 
             if (upsertError) {
-                console.error(`❌ Failed to queue Trello event: ${action.id}`, upsertError);
-                return NextResponse.json({ error: 'Failed to log event' }, { status: 500 });
+                console.error(`❌ Failed to log Trello event: ${action.id}`, upsertError);
+                return NextResponse.json({ error: 'Persistence Failure' }, { status: 500 });
             }
 
-            if (!upsertData || upsertData.length === 0) {
-                console.log(`⚠️ Trello Webhook Replay Detected (Event: ${action.id}). Skipping.`);
+            if (!upsertData) {
+                console.log(`⏭️ Trello Webhook Replay Detected (Event: ${action.id}). Skipping.`);
                 return NextResponse.json({ status: 'already_processed' });
             }
         }

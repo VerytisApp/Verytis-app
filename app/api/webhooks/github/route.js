@@ -40,29 +40,52 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
 
-        const deliveryId = req.headers.get('x-github-delivery');
+        const deliveryId = req.headers.get('x-hub-signature-256'); // Wait, x-github-delivery is better for ID
+        const deliveryIdActual = req.headers.get('x-github-delivery');
         const body = JSON.parse(rawBody);
 
-        // 1. ATOMIC INSERT (Race Condition Prevention)
-        // We use .upsert with onConflict on 'external_id' which now has a UNIQUE constraint.
-        const { error: queueError } = await supabase.from('webhook_events').upsert({
+        // 1. MULTI-TENANT ISOLATION: Resolve Organization ID
+        const installationId = body.installation?.id;
+        let organizationId = null;
+
+        if (installationId) {
+            const { data: integratedOrg } = await supabase
+                .from('integrations')
+                .select('organization_id')
+                .eq('provider', 'github')
+                .filter('settings->>installation_id', 'eq', String(installationId))
+                .maybeSingle();
+
+            if (integratedOrg) {
+                organizationId = integratedOrg.organization_id;
+            }
+        }
+
+        // 2. ATOMIC INSERT & IDEMPOTENCY (Optimized)
+        const { data: upsertData, error: queueError } = await supabase.from('webhook_events').upsert({
             provider: 'github',
-            external_id: deliveryId,
+            external_id: deliveryIdActual,
             event_type: eventType,
             payload: body,
+            organization_id: organizationId, // STRICT ISOLATION
             headers: {
-                'x-github-delivery': deliveryId || 'unknown',
+                'x-github-delivery': deliveryIdActual || 'unknown',
                 'x-github-event': eventType
             },
             status: 'pending'
         }, {
             onConflict: 'provider,external_id',
             ignoreDuplicates: true
-        });
+        }).select('id').maybeSingle();
 
         if (queueError) {
             console.error('❌ Failed to queue GitHub webhook:', queueError);
-            return NextResponse.json({ error: 'Failed to queue event' }, { status: 500 });
+            return NextResponse.json({ error: 'Persistence Failure' }, { status: 500 });
+        }
+
+        if (!upsertData) {
+            console.log(`⏭️ GitHub Webhook Replay Detected (Delivery: ${deliveryIdActual}). Skipping.`);
+            return NextResponse.json({ status: 'already_processed' });
         }
 
         console.log(`✅ GitHub Webhook queued successfully`);

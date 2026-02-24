@@ -193,19 +193,32 @@ async function handleFiles(files) {
     const attachments = [];
 
     for (const file of files) {
+        // 1. OOM PROTECTION: Check file size before fetch (10MB limit)
+        if (file.size > 10 * 1024 * 1024) {
+            console.warn(`⚠️ [SLACK_FILES] Skipping large file: ${file.name} (${file.size} bytes)`);
+            continue;
+        }
+
         try {
             const response = await fetch(file.url_private_download, {
                 headers: { 'Authorization': `Bearer ${SLACK_BOT_TOKEN}` }
             });
             const buffer = await response.arrayBuffer();
-            const fileName = `${Date.now()}_${file.name}`;
+
+            // 2. PATH TRAVERSAL PROTECTION: UUID-based naming
+            const extension = file.name.split('.').pop();
+            const fileName = `${crypto.randomUUID()}.${extension}`;
 
             const { data, error } = await supabase.storage
                 .from('proofs')
                 .upload(fileName, buffer, { contentType: file.mimetype });
 
             if (!error) {
-                attachments.push({ name: file.name, url: data.path, type: file.mimetype });
+                attachments.push({
+                    original_name: file.name,
+                    storage_path: data.path,
+                    type: file.mimetype
+                });
             }
         } catch (err) { console.error("Erreur fichier:", err); }
     }
@@ -232,36 +245,9 @@ export async function POST(req) {
             const event = body.event;
             const eventId = body.event_id;
 
-            // 0. ATOMIC INSERT (Race Condition Prevention)
-            // We use .upsert with onConflict on 'provider,external_id' which now has a UNIQUE constraint.
-            const { error: upsertError } = await supabase.from('webhook_events').upsert({
-                provider: 'slack',
-                external_id: eventId,
-                event_type: event.type,
-                payload: body,
-                status: 'completed' // Slack is processed synchronously here
-            }, {
-                onConflict: 'provider,external_id',
-                ignoreDuplicates: true
-            });
-
-            if (upsertError) {
-                console.error(`❌ Failed to queue Slack event: ${eventId}`, upsertError);
-                return NextResponse.json({ error: 'Failed to log event' }, { status: 500 });
-            }
-
-            // If the upsert ignored a duplicate, we should technically stop here if we want strict idempotency.
-            // But since Slack sends retries that we WANT to process if they failed before, 
-            // the UNIQUE constraint handles the "already exists" case.
-            // However, Supabase upsert with ignoreDuplicates doesn't return whether it inserted or not easily.
-            // Given the original logic was return already_processed, I'll stick to a slightly safer pattern if needed.
-            // Actually, ignoreDuplicates: true will just NOT insert. 
-            // BUT, the code below processes the event. If it's a replay, we should NOT process it.
-            // To fix this properly, I'll use a check AFTER upsert or use a special return.
-            // Actually, the most robust way in SQL is: INSERT ... ON CONFLICT DO NOTHING RETURNING id;
-            // If ID is null, it's a skip.
-
-            const { data: upsertData } = await supabase.from('webhook_events').upsert({
+            // 0. ATOMIC INSERT & IDEMPOTENCY (Optimized)
+            // Single DB call to check/insert with unique constraint handling.
+            const { data: upsertData, error: upsertError } = await supabase.from('webhook_events').upsert({
                 provider: 'slack',
                 external_id: eventId,
                 event_type: event.type,
@@ -270,10 +256,15 @@ export async function POST(req) {
             }, {
                 onConflict: 'provider,external_id',
                 ignoreDuplicates: true
-            }).select('id');
+            }).select('id').maybeSingle();
 
-            if (!upsertData || upsertData.length === 0) {
-                console.log(`⚠️ Slack Webhook Replay Detected (Event: ${eventId}). Skipping.`);
+            if (upsertError) {
+                console.error(`❌ Failed to log Slack event: ${eventId}`, upsertError);
+                return NextResponse.json({ error: 'Persistence Failure' }, { status: 500 });
+            }
+
+            if (!upsertData) {
+                console.log(`⏭️ Slack Webhook Replay Detected (Event: ${eventId}). Skipping.`);
                 return NextResponse.json({ status: 'already_processed' });
             }
 
@@ -384,6 +375,23 @@ export async function POST(req) {
                     }
                 }
 
+                // 3. MULTI-TENANT ISOLATION: Resolve Organization ID
+                const slackTeamId = body.team_id;
+                let organizationId = null;
+
+                if (slackTeamId) {
+                    const { data: integratedOrg } = await supabase
+                        .from('integrations')
+                        .select('organization_id')
+                        .eq('provider', 'slack')
+                        .eq('external_id', slackTeamId)
+                        .maybeSingle();
+
+                    if (integratedOrg) {
+                        organizationId = integratedOrg.organization_id;
+                    }
+                }
+
                 const { type, content } = classifyMessage(event.text);
                 const attachments = await handleFiles(event.files);
 
@@ -403,7 +411,7 @@ export async function POST(req) {
                     // Build summary based on action type
                     let summary = content;
                     if (finalActionType === 'FILE_SHARED') {
-                        const fileNames = attachments.map(a => a.name).join(', ');
+                        const fileNames = attachments.map(a => a.original_name).join(', ');
                         summary = content || `Shared: ${fileNames}`;
                     }
 
@@ -425,6 +433,7 @@ export async function POST(req) {
 
                     await supabase.from('activity_logs').insert({
                         actor_id: userId,
+                        organization_id: organizationId, // STRICT ISOLATION
                         action_type: finalActionType,
                         summary: summary,
                         metadata: {
@@ -433,11 +442,12 @@ export async function POST(req) {
                             attachments: attachments,
                             is_anonymous: !isVerified,
                             slack_user_id: slackUserId,
-                            slack_user_name: slackUserName
+                            slack_user_name: slackUserName,
+                            slack_team_id: slackTeamId
                         }
                     });
 
-                    console.log(`💾 Logged: [${finalActionType}] - ${attachments.length} files - User: ${slackUserName || userId || 'Unknown'}`);
+                    console.log(`💾 Logged: [${finalActionType}] - ${attachments.length} files - User: ${slackUserName || userId || 'Unknown'} (Org: ${organizationId})`);
 
                     // React to confirm logging
                     if (isVerified) {
