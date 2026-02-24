@@ -41,6 +41,7 @@ export async function POST(req) {
         }
 
         const deliveryId = req.headers.get('x-github-delivery');
+        const body = JSON.parse(rawBody);
 
         // 1. ATOMIC INSERT (Race Condition Prevention)
         // We use .upsert with onConflict on 'external_id' which now has a UNIQUE constraint.
