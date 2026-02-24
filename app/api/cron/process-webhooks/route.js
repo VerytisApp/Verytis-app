@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { scrubText, scrubObject } from '@/lib/security/scrubber';
 
 export const dynamic = 'force-dynamic';
 
@@ -174,21 +175,24 @@ async function logGitHubActivity(supabase, actionType, repository, githubUsernam
         method = 'SOCIAL_LINK';
     }
 
-    // 3. Log Activity
+    // 3. Log Activity (Scrubbed for GDPR/WORM Compliance)
+    const redactedSummary = scrubText(`${summary} in ${repository.full_name}`);
+    const redactedMetadata = scrubObject({
+        platform: 'GitHub',
+        repo: repository.full_name,
+        github_user: githubUsername,
+        identification_method: method,
+        is_anonymous: !isVerified,
+        ...extraMetadata
+    });
+
     const { error: logError } = await supabase.from('activity_logs').insert({
         actor_id: userId,
         organization_id: organizationId,
         resource_id: resourceId,
         action_type: actionType,
-        summary: `${summary} in ${repository.full_name}`,
-        metadata: {
-            platform: 'GitHub',
-            repo: repository.full_name,
-            github_user: githubUsername,
-            identification_method: method,
-            is_anonymous: !isVerified,
-            ...extraMetadata
-        }
+        summary: redactedSummary,
+        metadata: redactedMetadata
     });
 
     if (logError) {

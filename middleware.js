@@ -1,47 +1,57 @@
 import { NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware'
+import { globalRateLimiter, createCustomLimiter } from '@/lib/security/upstash';
 
-// SIMPLE IN-MEMORY RATE LIMITER (FOR DEMO/ENTERPRISE SKELETON)
-// Note: In Production, use Redis (Upstash) for shared state.
-const rateLimitMap = new Map();
+// 1. Specialized Limiters for Enterprise Scale
+const webhookLimiter = createCustomLimiter(50, '60 s'); // 50 requests/min for webhooks
+const ingestionLimiter = createCustomLimiter(200, '60 s'); // 200 requests/min for AI Telemetry
 
 export async function middleware(request) {
     const ip = request.ip || request.headers.get('x-forwarded-for') || '127.0.0.1';
+    const path = request.nextUrl.pathname;
 
-    // 1. IP WHITELISTING (Skeleton for Enterprise)
-    // const WHITELIST = process.env.ALLOWED_IPS?.split(',') || [];
-    // if (WHITELIST.length > 0 && !WHITELIST.includes(ip)) {
-    //    return new NextResponse('Access Denied', { status: 403 });
-    // }
+    let limitResult;
 
-    // 2. BASIC RATE LIMITING
-    const now = Date.now();
-    const windowMs = 60 * 1000; // 1 minute
-    const maxRequests = 100;
+    // 1. ROUTE-SPECIFIC GLOBAL RATE LIMITING (Upstash Redis)
+    try {
+        if (path.startsWith('/api/webhooks')) {
+            limitResult = await webhookLimiter.limit(`ratelimit_webhook_${ip}`);
+        } else if (path.startsWith('/api/ingest')) {
+            limitResult = await ingestionLimiter.limit(`ratelimit_ingest_${ip}`);
+        } else {
+            limitResult = await globalRateLimiter.limit(`ratelimit_general_${ip}`);
+        }
 
-    const rateData = rateLimitMap.get(ip) || { count: 0, startTime: now };
-
-    if (now - rateData.startTime > windowMs) {
-        rateData.count = 1;
-        rateData.startTime = now;
-    } else {
-        rateData.count++;
+        if (!limitResult.success) {
+            console.warn(`🚨 [GLOBAL_RATE_LIMIT] Exceeded for IP: ${ip} on path: ${path}`);
+            return new NextResponse('Too Many Requests', {
+                status: 429,
+                headers: {
+                    'X-RateLimit-Limit': limitResult.limit.toString(),
+                    'X-RateLimit-Remaining': limitResult.remaining.toString(),
+                    'X-RateLimit-Reset': limitResult.reset.toString(),
+                }
+            });
+        }
+    } catch (e) {
+        // FAIL-SAFE: If Upstash is down, log and allow the request in fallback mode
+        // to prevent hard failure of the entire app.
+        console.error('⚠️ [RATE_LIMIT_ERROR] Upstash connection failed:', e);
     }
 
-    rateLimitMap.set(ip, rateData);
-
-    if (rateData.count > maxRequests) {
-        console.warn(`🚨 Rate limit exceeded for IP: ${ip}`);
-        return new NextResponse('Too Many Requests', { status: 429 });
-    }
-
-    // 3. CORE SESSION & AUTH
+    // 2. CORE SESSION & AUTH
     const response = await updateSession(request);
 
-    // 4. SECURITY HEADERS REINFORCEMENT
+    // 3. SECURITY HEADERS REINFORCEMENT & RATE LIMIT HEADERS
     response.headers.set('X-Frame-Options', 'DENY');
     response.headers.set('X-Content-Type-Options', 'nosniff');
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+    if (limitResult) {
+        response.headers.set('X-RateLimit-Limit', limitResult.limit.toString());
+        response.headers.set('X-RateLimit-Remaining', limitResult.remaining.toString());
+        response.headers.set('X-RateLimit-Reset', limitResult.reset.toString());
+    }
 
     return response;
 }
@@ -53,8 +63,9 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
+         * - internal-telemetry-01 (Sentry tunnel route)
          * Feel free to modify this pattern to include more paths.
          */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|favicon.ico|internal-telemetry-01|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }

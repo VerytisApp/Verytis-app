@@ -1,5 +1,4 @@
-
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
@@ -36,16 +35,7 @@ export async function POST(req) {
         const { u: userId, s: slackId, e: slackEmail, n: nonce } = payload;
 
         // Use service role admin client
-        const supabaseAdmin = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL,
-            process.env.SUPABASE_SERVICE_ROLE_KEY,
-            {
-                auth: {
-                    autoRefreshToken: false,
-                    persistSession: false
-                }
-            }
-        );
+        const supabaseAdmin = createAdminClient();
 
         // 2. Security Nonce Check (Ensures ONLY the LATEST link is valid)
         const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);

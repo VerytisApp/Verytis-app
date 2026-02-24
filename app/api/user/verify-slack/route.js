@@ -1,5 +1,5 @@
 
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
@@ -36,10 +36,7 @@ export async function GET(req) {
 
         const { u: userId, s: slackId, e: slackEmail } = payload;
 
-        const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL,
-            process.env.SUPABASE_SERVICE_ROLE_KEY
-        );
+        const supabase = createAdminClient();
 
         // 2. Perform the Link in PROFILES table
         // We update the profile with the Slack ID.

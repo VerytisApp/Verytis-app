@@ -1,5 +1,5 @@
-
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,6 +7,26 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const channelId = searchParams.get('channelId');
     const encoder = new TextEncoder();
+
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        return new Response('Unauthorized', { status: 401 });
+    }
+
+    // Resolve Org ID for strict isolation
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+
+    if (!profile?.organization_id) {
+        return new Response('Organization not found', { status: 400 });
+    }
+
+    const organizationId = profile.organization_id;
 
     const stream = new ReadableStream({
         async start(controller) {
@@ -16,17 +36,13 @@ export async function GET(req) {
                 } catch (e) { }
             };
 
-            const supabase = createClient(
-                process.env.NEXT_PUBLIC_SUPABASE_URL,
-                process.env.SUPABASE_SERVICE_ROLE_KEY
-            );
-
             let targetSlackChannelId = null;
             if (channelId) {
                 const { data: resource } = await supabase
                     .from('monitored_resources')
                     .select('external_id')
                     .eq('id', channelId)
+                    .eq('integrations.organization_id', organizationId) // Safety
                     .single();
                 if (resource) targetSlackChannelId = resource.external_id;
             }
@@ -45,6 +61,7 @@ export async function GET(req) {
                             id, created_at, action_type, summary, metadata, actor_id,
                             profiles:actor_id ( full_name, email, role )
                         `)
+                        .eq('organization_id', organizationId)
                         .gt('created_at', lastCheck)
                         .order('created_at', { ascending: true }); // Get oldest new logs first to advance timestamp correctly
 

@@ -10,9 +10,11 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@sentry/nextjs": "^10.39.0",
     "@slack/web-api": "^7.13.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.93.3",
+    "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.2",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",

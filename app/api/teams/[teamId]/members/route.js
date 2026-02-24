@@ -1,5 +1,4 @@
-
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
 export async function POST(req, { params }) {
@@ -10,12 +9,19 @@ export async function POST(req, { params }) {
         return NextResponse.json({ error: 'Team ID and User ID are required' }, { status: 400 });
     }
 
-    const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('organization_id')
+            .eq('id', user.id)
+            .single();
+
+        if (!profile?.organization_id) return NextResponse.json({ error: 'Organization not found' }, { status: 400 });
         const { data, error } = await supabase
             .from('team_members')
             .insert([{
@@ -37,8 +43,6 @@ export async function POST(req, { params }) {
 
 export async function DELETE(req, { params }) {
     const { teamId } = await params;
-    // Extract userId from query params or body. DELETE with body is discouraged but supported by some.
-    // Better to use URL query param ?userId=...
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
 
@@ -46,10 +50,10 @@ export async function DELETE(req, { params }) {
         return NextResponse.json({ error: 'Team ID and User ID are required' }, { status: 400 });
     }
 
-    const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
         const { error } = await supabase
@@ -75,10 +79,10 @@ export async function PATCH(req, { params }) {
         return NextResponse.json({ error: 'Team ID, User ID, and Role are required' }, { status: 400 });
     }
 
-    const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
         // 1. Update team member role

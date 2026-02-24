@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { createClient } from '@supabase/supabase-js';
+import { scrubText, scrubObject } from '@/lib/security/scrubber';
 
 // Strict Schema for AI Ingestion
 const IngestionSchema = z.object({
@@ -74,17 +76,20 @@ export async function POST(req) {
 
         const body = validation.data;
 
-        // 6. ATOMIC INSERT
+        // 6. ATOMIC INSERT (Scrubbed for GDPR/WORM Compliance)
+        const redactedSummary = scrubText(`Agent Step: ${body.step}`);
+        const redactedMetadata = scrubObject({
+            ...body,
+            ingested_at: new Date().toISOString(),
+            request_id: REQUEST_ID
+        });
+
         const { error: insertError } = await supabase.from('activity_logs').insert({
             organization_id: agent.organization_id,
             agent_id: agent.id,
             action_type: 'AI_TELEMETRY',
-            summary: `Agent Step: ${body.step}`,
-            metadata: {
-                ...body,
-                ingested_at: new Date().toISOString(),
-                request_id: REQUEST_ID
-            }
+            summary: redactedSummary,
+            metadata: redactedMetadata
         });
 
         if (insertError) {

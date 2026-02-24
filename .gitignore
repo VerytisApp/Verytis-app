@@ -8,3 +8,6 @@ server_debug.log
 next_server.log
 ngrok_output.log
 trello_debug.log
+
+# Sentry Config File
+.env.sentry-build-plugin

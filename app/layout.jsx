@@ -1,9 +1,15 @@
+import * as Sentry from '@sentry/nextjs';
 import './globals.css';
 
-export const metadata = {
-    title: 'ICARE Admin Console | Governance Dashboard',
-    description: 'Enterprise governance and compliance dashboard',
-};
+export function generateMetadata() {
+    return {
+        title: 'ICARE Admin Console | Governance Dashboard',
+        description: 'Enterprise governance and compliance dashboard',
+        other: {
+            ...Sentry.getTraceData(),
+        },
+    };
+}
 
 export default function RootLayout({ children }) {
     return (

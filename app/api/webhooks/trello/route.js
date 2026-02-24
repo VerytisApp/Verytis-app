@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { scrubText, scrubObject } from '@/lib/security/scrubber';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -297,22 +298,25 @@ async function logTrelloActivity(actionType, board, actor, summary, extraMetadat
         }
     }
 
-    // 3. Insert Activity Log
+    // 3. Insert Activity Log (Scrubbed for GDPR/WORM Compliance)
+    const redactedSummary = scrubText(`${summary} on ${board?.name || 'Trello'}`);
+    const redactedMetadata = scrubObject({
+        platform: 'Trello',
+        board_name: board?.name,
+        board_id: board?.id,
+        trello_user: actor?.username || actor?.fullName,
+        identification_method: method,
+        is_anonymous: !isVerified,
+        ...extraMetadata
+    });
+
     const { error: logError } = await supabase.from('activity_logs').insert({
         actor_id: userId,
         organization_id: organizationId,
         resource_id: resourceId,
         action_type: actionType,
-        summary: `${summary} on ${board?.name || 'Trello'}`,
-        metadata: {
-            platform: 'Trello',
-            board_name: board?.name,
-            board_id: board?.id,
-            trello_user: actor?.username || actor?.fullName,
-            identification_method: method,
-            is_anonymous: !isVerified,
-            ...extraMetadata
-        }
+        summary: redactedSummary,
+        metadata: redactedMetadata
     });
 
     if (logError) {

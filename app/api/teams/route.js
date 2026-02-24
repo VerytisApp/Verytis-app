@@ -1,12 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
     const supabase = createClient();
-    const adminClient = createAdminClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -51,8 +49,8 @@ export async function GET(req) {
             }
         }
 
-        // QUERY - Use admin client to bypass RLS for member counts, but ALWAYS filter by orgId
-        let query = adminClient
+        // QUERY - Use session client to enforce RLS
+        let query = supabase
             .from('teams')
             .select(`
                 *,
@@ -117,11 +115,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-    const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-
+    const supabase = createClient();
     try {
         const body = await req.json();
         const { name, description, type, organization_id, members, channels, scopes } = body;

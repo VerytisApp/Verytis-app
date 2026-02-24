@@ -1,4 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
 export async function POST(req) {
@@ -12,13 +13,11 @@ export async function POST(req) {
             );
         }
 
-        const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL,
-            process.env.SUPABASE_SERVICE_ROLE_KEY
-        );
+        const supabaseAdmin = createAdminClient();
+        const supabase = createClient(); // For profile update with RLS if session exists
 
         // 1. Update password using admin API
-        const { error: passwordError } = await supabase.auth.admin.updateUserById(
+        const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
             userId,
             { password }
         );
@@ -29,7 +28,7 @@ export async function POST(req) {
         }
 
         // 2. Update profile in database
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile, error: profileError } = await supabaseAdmin
             .from('profiles')
             .update({
                 full_name,

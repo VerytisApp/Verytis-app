@@ -1,17 +1,38 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import crypto from 'crypto';
+import { scrubText, scrubObject } from '@/lib/security/scrubber';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Allows up to 60s for PDF upload if Vercel plan supports it
 
 export async function POST(req) {
     try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const formData = await req.formData();
         const file = formData.get('file');
         const platform = formData.get('platform') || 'Unknown';
-        const actorId = formData.get('actor_id');
-        const orgId = formData.get('organization_id');
+        // const actorId = formData.get('actor_id'); 
+        // const orgIdRaw = formData.get('organization_id'); 
+
+        // Resolve Profile to get the REAL organization_id (Tenant Isolation)
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('organization_id')
+            .eq('id', user.id)
+            .single();
+
+        if (!profile?.organization_id) {
+            return NextResponse.json({ error: 'Organization not found' }, { status: 400 });
+        }
+
+        const orgId = profile.organization_id;
+        const actorId = user.id;
 
         if (!file) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -27,14 +48,11 @@ export async function POST(req) {
         const fileName = file.name || `Audit_Report_${Date.now()}.pdf`;
         const filePath = `${platform}/${fileHash}_${fileName}`;
 
-        // 3. Initialiser Supabase (Service Role pour contourner les potentielles RLS et garantir l'upload)
-        const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL,
-            process.env.SUPABASE_SERVICE_ROLE_KEY
-        );
+        // 3. Admin client for WORM storage (Append-only)
+        const supabaseAdmin = createAdminClient();
 
         // 4. Uploader le fichier dans le bucket "reports" (WORM/Append-Only)
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
             .from('reports')
             .upload(filePath, buffer, {
                 contentType: 'application/pdf',
@@ -47,11 +65,11 @@ export async function POST(req) {
         }
 
         // Récupérer l'URL Publique (si bucket public, ou signée si privé)
-        const { data: urlData } = supabase.storage.from('reports').getPublicUrl(filePath);
+        const { data: urlData } = supabaseAdmin.storage.from('reports').getPublicUrl(filePath);
         const fileUrl = urlData.publicUrl;
 
         // 5. Inscrire la Trace indélébile (Hash + Metadata) dans la DB `report_exports`
-        const { error: dbError } = await supabase.from('report_exports').insert({
+        const { error: dbError } = await supabaseAdmin.from('report_exports').insert({
             file_hash: fileHash,
             file_url: fileUrl,
             platform: platform,
@@ -64,14 +82,17 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Failed to record export footprint' }, { status: 500 });
         }
 
-        // 6. Log to activity_logs for audit trails (if successful or if it already exists)
+        // 6. Log to activity_logs for audit trails (Scrubbed for GDPR/WORM Compliance)
         if (!dbError || dbError.code === '23505') {
-            await supabase.from('activity_logs').insert({
-                organization_id: orgId || null,
-                actor_id: actorId || null,
+            const redactedSummary = scrubText(fileName);
+            const redactedMetadata = scrubObject({ file_hash: fileHash, platform });
+
+            await supabaseAdmin.from('activity_logs').insert({
+                organization_id: orgId, // SECURELY DERIVED
+                actor_id: actorId, // SECURELY DERIVED
                 action_type: 'PDF_REPORT_EXPORTED',
-                summary: fileName,
-                metadata: { file_hash: fileHash, platform }
+                summary: redactedSummary,
+                metadata: redactedMetadata
             });
         }
 

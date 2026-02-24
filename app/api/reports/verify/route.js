@@ -1,5 +1,5 @@
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -20,11 +20,8 @@ export async function POST(req) {
         // 2. Refaire un HASH Local (SHA-256) pour comparaison stricte
         const computedHash = crypto.createHash('sha256').update(buffer).digest('hex');
 
-        // 3. Initialiser Supabase et vérifier l'existence du Hash dans l'index
-        const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL,
-            process.env.SUPABASE_SERVICE_ROLE_KEY
-        );
+        // 3. Initialiser Supabase (Anonymous Client with RLS)
+        const supabase = createClient();
 
         const { data: record, error } = await supabase
             .from('report_exports')

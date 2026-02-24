@@ -1,14 +1,13 @@
-
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
 export async function GET(req, { params }) {
     const { userId } = await params;
 
-    const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const supabase = createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
         const { data: user, error } = await supabase
@@ -52,10 +51,10 @@ export async function PATCH(req, { params }) {
     const { userId } = await params;
     const body = await req.json();
 
-    const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const supabase = createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
         // Map frontend fields to DB fields if necessary
@@ -137,10 +136,10 @@ export async function PATCH(req, { params }) {
 export async function DELETE(req, { params }) {
     const { userId } = await params;
 
-    const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const supabase = createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
         // In a real app, we might soft delete or just remove from org. 

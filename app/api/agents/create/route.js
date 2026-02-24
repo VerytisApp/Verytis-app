@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
+import { scrubText, scrubObject } from '@/lib/security/scrubber';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,13 +58,16 @@ export async function POST(req) {
             return NextResponse.json({ error: insertError.message }, { status: 500 });
         }
 
-        // 6.5 Log to activity_logs
+        // 6.5 Log to activity_logs (Scrubbed for GDPR/WORM Compliance)
+        const redactedSummary = scrubText(name);
+        const redactedMetadata = scrubObject({ agent_id: agent.id });
+
         await supabase.from('activity_logs').insert({
             organization_id: profile.organization_id,
             actor_id: user.id,
             action_type: 'AI_AGENT_REGISTERED',
-            summary: name,
-            metadata: { agent_id: agent.id }
+            summary: redactedSummary,
+            metadata: redactedMetadata
         });
 
         // 7. Return Raw Key Once

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { scrubText, scrubObject } from '@/lib/security/scrubber';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,13 +82,19 @@ export async function PATCH(req, { params }) {
 
         if (updateError) return NextResponse.json({ error: 'Failed to update agent status' }, { status: 500 });
 
-        // Log the security action
+        // Log the security action (Scrubbed for GDPR/WORM Compliance)
+        const redactedSummary = scrubText(`${agent.name} status changed to ${status}`);
+        const redactedMetadata = scrubObject({
+            agent_id: agentId,
+            previous_status: agent.status === status ? 'unknown' : (status === 'active' ? 'suspended' : 'active')
+        });
+
         await supabase.from('activity_logs').insert({
             organization_id: profile.organization_id,
             actor_id: user.id,
             action_type: status === 'suspended' ? 'AGENT_KILLED' : 'AGENT_REACTIVATED',
-            summary: `${agent.name} status changed to ${status}`,
-            metadata: { agent_id: agentId, previous_status: agent.status === status ? 'unknown' : (status === 'active' ? 'suspended' : 'active') }
+            summary: redactedSummary,
+            metadata: redactedMetadata
         });
 
         return NextResponse.json({ success: true, agent });

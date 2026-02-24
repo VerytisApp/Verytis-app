@@ -1,22 +1,18 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
 export async function DELETE(req) {
-    const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY,
-        {
-            auth: {
-                persistSession: false
-            }
-        }
-    );
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        const { userId, provider } = await req.json();
+        const { provider } = await req.json();
+        const userId = user.id;
 
-        if (!userId || !provider) {
-            return NextResponse.json({ error: 'Missing userId or provider' }, { status: 400 });
+        if (!provider) {
+            return NextResponse.json({ error: 'Missing provider' }, { status: 400 });
         }
 
         console.log(`Disconnecting ${provider} for user ${userId}`);

@@ -1,23 +1,23 @@
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
     try {
-        const { userId, token, member } = await req.json();
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
 
-        if (!userId || !token || !member) {
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const { token, member } = await req.json();
+        const targetUserId = user.id;
+
+        if (!token || !member) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL,
-            process.env.SUPABASE_SERVICE_ROLE_KEY
-        );
-
-        const targetUserId = userId;
-        console.log('Trello save-member: mapping userId', userId, 'to', targetUserId);
+        console.log('Trello save-member: mapping userId to', targetUserId);
 
         // Get current profile
         const { data: profile } = await supabase

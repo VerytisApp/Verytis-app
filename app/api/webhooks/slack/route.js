@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { scrubText, scrubObject } from '@/lib/security/scrubber';
 
 const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN;
 const SLACK_SIGNING_SECRET = process.env.SLACK_SIGNING_SECRET;
@@ -431,20 +432,24 @@ export async function POST(req) {
                         }
                     }
 
+                    // Scrub PII from summary and metadata before insertion (GDPR/WORM Compliance)
+                    const redactedSummary = scrubText(summary);
+                    const redactedMetadata = scrubObject({
+                        slack_channel: event.channel,
+                        ts: event.ts,
+                        attachments: attachments,
+                        is_anonymous: !isVerified,
+                        slack_user_id: slackUserId,
+                        slack_user_name: slackUserName,
+                        slack_team_id: slackTeamId
+                    });
+
                     await supabase.from('activity_logs').insert({
                         actor_id: userId,
                         organization_id: organizationId, // STRICT ISOLATION
                         action_type: finalActionType,
-                        summary: summary,
-                        metadata: {
-                            slack_channel: event.channel,
-                            ts: event.ts,
-                            attachments: attachments,
-                            is_anonymous: !isVerified,
-                            slack_user_id: slackUserId,
-                            slack_user_name: slackUserName,
-                            slack_team_id: slackTeamId
-                        }
+                        summary: redactedSummary,
+                        metadata: redactedMetadata
                     });
 
                     console.log(`💾 Logged: [${finalActionType}] - ${attachments.length} files - User: ${slackUserName || userId || 'Unknown'} (Org: ${organizationId})`);
