@@ -57,7 +57,7 @@ async function seedMegaV5() {
         { email: 'robert.security@verytis.com', name: 'Robert Foss', role: 'member', title: 'Senior Security Architect', prov: 'github' },
         { email: 'alice.ciso@verytis.com', name: 'Alice Thorne', role: 'member', title: 'CISO', prov: 'slack' },
         { email: 'sarah.product@verytis.com', name: 'Sarah Jenkins', role: 'member', title: 'VP of Product', prov: 'trello' },
-        { email: 'david.sre@verytis.com', name: 'David Miller', role: 'member', title: 'Infrastructure Lead', prov: 'microsoft_teams' },
+        { email: 'david.sre@verytis.com', name: 'David Miller', role: 'member', title: 'Infrastructure Lead', prov: 'slack' },
         { email: 'brooklyn.legal@verytis.com', name: 'Brooklyn Simmons', role: 'member', title: 'Legal Auditor', prov: 'slack' },
         { email: 'cameron.eng@verytis.com', name: 'Cameron Williamson', role: 'member', title: 'Software Engineer', prov: 'github' },
         { email: 'jenny.hr@verytis.com', name: 'Jenny Wilson', role: 'member', title: 'HR Compliance', prov: 'slack' },
@@ -66,7 +66,7 @@ async function seedMegaV5() {
         { email: 'wade.sec@verytis.com', name: 'Wade Warren', role: 'member', title: 'Security Analyst', prov: 'github' },
         { email: 'esther.pm@verytis.com', name: 'Esther Howard', role: 'member', title: 'Project Manager', prov: 'trello' },
         { email: 'kristin.qa@verytis.com', name: 'Kristin Watson', role: 'member', title: 'QA Lead', prov: 'github' },
-        { email: 'albert.it@verytis.com', name: 'Albert Flores', role: 'member', title: 'IT Manager', prov: 'microsoft_teams' },
+        { email: 'albert.it@verytis.com', name: 'Albert Flores', role: 'member', title: 'IT Manager', prov: 'slack' },
         { email: 'kathryn.legal@verytis.com', name: 'Kathryn Murphy', role: 'member', title: 'Legal Counsel', prov: 'slack' },
         { email: 'admin.demo@verytis.com', name: 'Demo Admin', role: 'admin', title: 'System Administrator', prov: 'github' }
     ];
@@ -151,8 +151,7 @@ async function seedMegaV5() {
     const ints = [
         { provider: 'slack', name: 'Verytis-Slack', eid: 'T01' },
         { provider: 'github', name: 'Verytis-GitHub', eid: 'GH01' },
-        { provider: 'trello', name: 'Verytis-Trello', eid: 'TR01' },
-        { provider: 'microsoft_teams', name: 'Verytis-MSTeams', eid: 'MS01' }
+        { provider: 'trello', name: 'Verytis-Trello', eid: 'TR01' }
     ];
     const { data: intDocs } = await supabase.from('integrations').insert(ints.map(i => ({
         organization_id: orgId, provider: i.provider, name: i.name, external_id: i.eid

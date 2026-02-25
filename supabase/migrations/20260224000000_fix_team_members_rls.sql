@@ -10,7 +10,7 @@ CREATE POLICY "Org isolation for Team Members" ON public.team_members
     EXISTS (
       SELECT 1 FROM public.teams t
       WHERE t.id = public.team_members.team_id
-      AND t.organization_id = get_auth_org_id()
+      AND t.organization_id = public.get_auth_org_id_claim()
     )
   );
 

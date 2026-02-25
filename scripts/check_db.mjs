@@ -20,7 +20,7 @@ async function checkSchema() {
     if (eErr) {
         // If exec_sql fails, try another way or just try to insert and catch error
         console.log('exec_sql not available, testing via dummy insert...');
-        const testProviders = ['slack', 'github', 'trello', 'teams', 'microsoft_teams'];
+        const testProviders = ['slack', 'github', 'trello'];
         for (const p of testProviders) {
             const { error } = await supabase.from('integrations').insert({
                 organization_id: '00000000-0000-0000-0000-000000000000', // Dummy

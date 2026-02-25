@@ -4,15 +4,19 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
-import { ChevronRight, Clock, Download, CheckCircle, GitCommit, UserPlus, FileText, XCircle, RefreshCw, Edit2, Archive as ArchiveIcon } from 'lucide-react';
+import { ChevronRight, Clock, Download, CheckCircle, GitCommit, UserPlus, FileText, XCircle, RefreshCw, Edit2, Archive as ArchiveIcon, Trash2 } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon } from '../ui';
+import { useToast } from '../ui/Toast';
+import ArchiveConfirmModal from '../ui/ArchiveConfirmModal';
 
 const ChannelDetail = ({ userRole }) => {
+    const { showToast } = useToast();
     const { channelId } = useParams();
     const router = useRouter();
 
     // State for real data
     const [channel, setChannel] = useState(null);
+    const [showUnlinkModal, setShowUnlinkModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [members, setMembers] = useState([]);
     const [loadingMembers, setLoadingMembers] = useState(false);
@@ -62,10 +66,9 @@ const ChannelDetail = ({ userRole }) => {
         fetchChannel();
     }, [channelId]);
 
-    // Fetch members when channel is loaded (and it's a real channel, not mock)
     useEffect(() => {
         const fetchMembers = async () => {
-            if (!channel || !channelId || channelId.length < 30) return; // Skip if mock ID (short)
+            if (!channelId || channelId.length < 30) return;
 
             setLoadingMembers(true);
             try {
@@ -73,6 +76,14 @@ const ChannelDetail = ({ userRole }) => {
                 if (res.ok) {
                     const data = await res.json();
                     setMembers(data.members || []);
+                    // Update total count directly if available, avoiding infinite loop by using functional update 
+                    // and checking value before setting state.
+                    if (data.total !== undefined) {
+                        setChannel(prev => {
+                            if (prev && prev.members === data.total) return prev;
+                            return prev ? { ...prev, members: data.total } : null;
+                        });
+                    }
                 }
             } catch (e) {
                 console.error('Error fetching members:', e);
@@ -81,7 +92,7 @@ const ChannelDetail = ({ userRole }) => {
             }
         };
         fetchMembers();
-    }, [channel, channelId]);
+    }, [channelId]); // Only depend on channelId to break the update loop
 
     // State for activities
     const [activities, setActivities] = useState([]);
@@ -189,6 +200,36 @@ const ChannelDetail = ({ userRole }) => {
             eventSource.close();
         };
     }, [channelId]);
+
+    const handleUnlink = async () => {
+        try {
+            const res = await fetch(`/api/resources/${channelId}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast({
+                    title: 'Resource Unlinked',
+                    message: 'The channel has been successfully archived and removed.',
+                    type: 'success'
+                });
+                router.push('/channels');
+            } else {
+                const err = await res.json();
+                showToast({
+                    title: 'Error',
+                    message: err.error || err.message || 'Failed to unlink resource',
+                    type: 'error'
+                });
+            }
+        } catch (err) {
+            console.error('Unlink error:', err);
+            showToast({
+                title: 'Error',
+                message: 'An error occurred during unlinking',
+                type: 'error'
+            });
+        } finally {
+            setShowUnlinkModal(false);
+        }
+    };
 
     const refreshActivities = useCallback(async () => {
         setLoadingActivities(true);
@@ -302,16 +343,23 @@ const ChannelDetail = ({ userRole }) => {
                     </div>
                     <div className="flex gap-2">
                         <Button variant="secondary" icon={Clock} onClick={() => router.push(`/timeline/${channel.platform}/${channel.id}`)}>View Timeline</Button>
-                        {canExport && <Button variant="secondary" icon={Download}>Export</Button>}
+                        <button
+                            onClick={() => setShowUnlinkModal(true)}
+                            className="p-2 text-slate-400 hover:text-red-800 hover:bg-red-50 border border-slate-200 rounded-lg transition-all flex items-center gap-2 text-xs font-bold"
+                            title="Unlink Resource"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Unlink
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-3 gap-4">
                 <Card className="p-4 bg-slate-50/50 border-slate-200">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Total Ships</span>
                     <div className="text-2xl font-bold text-slate-900 mt-1 tracking-tight">
-                        {activities.filter(a => a.type === 'decision').length}
+                        {activities.filter(a => a.type === 'decision' && a.actor !== 'User X').length}
                     </div>
                     <span className="text-[10px] text-slate-400 font-medium">Logged activity</span>
                 </Card>
@@ -325,27 +373,22 @@ const ChannelDetail = ({ userRole }) => {
                     <div className="text-2xl font-bold text-slate-900 mt-1 tracking-tight">{channel.type}</div>
                     <span className="text-[10px] text-slate-400 font-medium">Access level</span>
                 </Card>
-                <Card className="p-4 bg-slate-50/50 border-slate-200">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Created</span>
-                    <div className="text-2xl font-bold text-slate-900 mt-1 tracking-tight">240d</div>
-                    <span className="text-[10px] text-slate-400 font-medium">Ago</span>
-                </Card>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
                     <div className="space-y-2">
                         <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900">
-                            Recent Ships ({activities.filter(a => a.type === 'decision').length})
+                            Recent Ships ({activities.filter(a => a.type === 'decision' && a.actor !== 'User X').length})
                         </h3>
                         <Card className="overflow-hidden border-slate-200">
                             {loadingActivities ? (
                                 <div className="p-6 text-center">
                                     <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
                                 </div>
-                            ) : activities.filter(a => a.type === 'decision').length > 0 ? (
+                            ) : activities.filter(a => a.type === 'decision' && a.actor !== 'User X').length > 0 ? (
                                 <div className="divide-y divide-slate-100">
-                                    {activities.filter(a => a.type === 'decision').slice(0, 5).map(activity => {
+                                    {activities.filter(a => a.type === 'decision' && a.actor !== 'User X').slice(0, 5).map(activity => {
                                         const styles = {
                                             'Approval': { icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
                                             'Rejection': { icon: XCircle, color: 'text-rose-600', bg: 'bg-rose-50' },
@@ -404,7 +447,7 @@ const ChannelDetail = ({ userRole }) => {
                                 </div>
                             ) : activities.length > 0 ? (
                                 <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
-                                    {activities.slice(0, 10).map(activity => {
+                                    {activities.filter(a => a.actor !== 'User X').slice(0, 10).map(activity => {
                                         let style = { icon: UserPlus, color: 'text-slate-500', bg: 'bg-slate-100' };
 
                                         if (activity.type === 'decision') {
@@ -500,7 +543,7 @@ const ChannelDetail = ({ userRole }) => {
                                 {channel.members > members.length && (
                                     <div className="border-t border-slate-100 p-3 text-center bg-slate-50/50">
                                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                            +{channel.members - members.length} more members
+                                            +{channel.members - members.length} (user X)
                                         </span>
                                     </div>
                                 )}
@@ -515,6 +558,22 @@ const ChannelDetail = ({ userRole }) => {
                 </div>
             </div>
 
+
+            <ArchiveConfirmModal
+                isOpen={showUnlinkModal}
+                onClose={() => setShowUnlinkModal(false)}
+                onConfirm={handleUnlink}
+                title="Unlink Resource"
+                subtitle={channel?.name ? `"${channel.name}" will be removed from active monitoring` : ''}
+                details={[
+                    'Capture a full snapshot of this resource and its activity history',
+                    'Seal the snapshot with a SHA-256 integrity hash',
+                    'Transfer the record to the Archive Vault for permanent audit retention',
+                    'Remove the resource from active monitoring',
+                ]}
+                confirmLabel="Unlink & Archive"
+                variant="warning"
+            />
 
         </div>
     );

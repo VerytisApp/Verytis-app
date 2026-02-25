@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, MessageSquare, FileText, Users, Clock,
-    Settings, LogOut, MoreVertical, Layers, ChevronLeft, Shield, ChevronDown, Check, Bot
+    Settings, LogOut, MoreVertical, Layers, ChevronLeft, Shield, ChevronDown, Check, Bot, Archive
 } from 'lucide-react';
 import IcareLogo from '../image/Gemini Generated Image (14).png';
 import { useRole } from '@/lib/providers';

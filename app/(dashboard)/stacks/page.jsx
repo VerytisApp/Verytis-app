@@ -34,6 +34,7 @@ export default function StacksPage() {
         fetchTeams();
     }, []);
 
+
     if (loading) {
         return (
             <div className="space-y-6 p-8">
@@ -69,7 +70,9 @@ export default function StacksPage() {
                                     <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100">
                                         <Layers className="w-5 h-5 text-blue-600" />
                                     </div>
-                                    <StatusBadge status="Active" />
+                                    <div className="flex items-center gap-2">
+                                        <StatusBadge status="Active" />
+                                    </div>
                                 </div>
 
                                 <h3 className="text-base font-bold text-slate-900 mb-1 group-hover:text-blue-600 transition-colors">

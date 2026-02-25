@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users, Activity, Settings, Bot, ShieldAlert, Copy, Cpu, RefreshCw, Layers, CheckCircle2 } from 'lucide-react';
+import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users, Activity, Settings, Bot, ShieldAlert, Copy, Cpu, RefreshCw, Layers, CheckCircle2, Clock } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon, Modal, EmptyState } from '../ui';
+import ArchiveConfirmModal from '../ui/ArchiveConfirmModal';
+import { useToast } from '../ui/Toast';
 
 const fetcher = (url) => fetch(url).then(r => r.json());
 
@@ -49,15 +51,47 @@ async function logAiAction() {
 };
 
 export default function AiAgents({ userRole }) {
+    const { showToast } = useToast();
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
     const [formData, setFormData] = useState({ name: '', description: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Store new agent to display API key once
     const [newAgentResult, setNewAgentResult] = useState(null);
+    const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
 
     const { data, error, isLoading, mutate } = useSWR('/api/agents', fetcher);
     const agents = data?.agents || [];
+
+    const handleDeleteAgent = async (agentId) => {
+        console.log('🗑️ Deleting agent:', agentId);
+        try {
+            const res = await fetch(`/api/agents/${agentId}`, { method: 'DELETE' });
+            if (res.ok) {
+                console.log('✅ Agent deleted successfully');
+                showToast({
+                    title: 'Agent Deleted',
+                    message: 'The agent has been permanently archived.',
+                    type: 'success'
+                });
+                // Force a full revalidation from server
+                await mutate();
+            } else {
+                const err = await res.json();
+                console.error('❌ Delete failed:', err);
+                showToast({
+                    title: 'Deletion Failed',
+                    message: err.error || err.message || 'Could not delete agent.',
+                    type: 'error'
+                });
+            }
+        } catch (err) {
+            console.error('💥 Delete error:', err);
+            alert('An error occurred during deletion');
+        } finally {
+            setDeleteTarget(null);
+        }
+    };
 
     const handleRegister = async (e) => {
         e.preventDefault();
@@ -129,10 +163,37 @@ export default function AiAgents({ userRole }) {
                                     <p className="text-xs text-slate-500 mt-0.5">{agent.description || 'No description provided'}</p>
                                 </div>
                                 <div className="flex flex-col items-end gap-2">
-                                    <StatusBadge status={agent.status} />
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setDeleteTarget({ id: agent.id, name: agent.name })}
+                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                            title="Delete Agent"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                        <StatusBadge status={agent.status} />
+                                    </div>
                                     <Link href={`/agents/${agent.id}`} className="text-[10px] font-semibold text-slate-500 hover:text-indigo-600 border border-slate-200 bg-white px-2 py-1 rounded transition-colors">
                                         View Full Audit
                                     </Link>
+                                </div>
+                            </div>
+
+                            {/* AGENT STATS BAR */}
+                            <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[10px] font-semibold text-slate-600">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-1">
+                                        <Cpu className="w-3 h-3 text-indigo-500" />
+                                        <span>Model: <span className="text-slate-900">{agent.model}</span></span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <Activity className="w-3 h-3 text-emerald-500" />
+                                        <span>Avg Cost: <span className="text-slate-900">${agent.avg_cost}</span></span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3 text-slate-400" />
+                                    <span>Last Active: <span className="text-slate-900">{new Date(agent.last_activity).toLocaleTimeString()}</span></span>
                                 </div>
                             </div>
 
@@ -263,6 +324,22 @@ export default function AiAgents({ userRole }) {
                     </form>
                 )}
             </Modal>
+
+            <ArchiveConfirmModal
+                isOpen={!!deleteTarget}
+                onClose={() => setDeleteTarget(null)}
+                onConfirm={() => handleDeleteAgent(deleteTarget?.id)}
+                title="Delete Agent"
+                subtitle={deleteTarget?.name ? `"${deleteTarget.name}" will be permanently removed` : ''}
+                details={[
+                    'Take a full snapshot of the agent\'s configuration, telemetry, and cost history',
+                    'Seal the snapshot with a SHA-256 integrity hash',
+                    'Transfer the record to the Archive Vault for permanent audit retention',
+                    'Permanently remove the agent from active service',
+                ]}
+                confirmLabel="Delete & Archive"
+                variant="danger"
+            />
         </div>
     );
 }

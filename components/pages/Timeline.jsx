@@ -2,17 +2,25 @@
 
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Download, Activity, CheckCircle, Settings, FileText, UserPlus, FilterX, XCircle, RefreshCw, Edit2, GitCommit, Archive as ArchiveIcon, ChevronDown, Check } from 'lucide-react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { ArrowLeft, Download, Activity, CheckCircle, Settings, FileText, UserPlus, FilterX, XCircle, RefreshCw, Edit2, GitCommit, Archive as ArchiveIcon, ChevronDown, Check, Trash2 } from 'lucide-react';
 import { Card, Button, PlatformIcon, SkeletonTimelineItem } from '../ui';
+import { useToast } from '../ui/Toast';
+import ArchiveConfirmModal from '../ui/ArchiveConfirmModal';
 import { MOCK_CHANNELS, MOCK_TIMELINE_EVENTS, MOCK_TEAMS } from '../../data/mockData';
 
-const Timeline = ({ userRole }) => {
+const Timeline = ({ userRole, teamId: propTeamId, isEmbedded = false }) => {
+    const { showToast } = useToast();
     const { channelId } = useParams();
+    const searchParams = useSearchParams();
+    const urlTeamId = searchParams.get('teamId');
+    const teamId = propTeamId || urlTeamId;
+
     const router = useRouter();
     const [selectedChannelId, setSelectedChannelId] = useState(channelId || null);
     const [filterType, setFilterType] = useState('all');
     const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [archiveTarget, setArchiveTarget] = useState(null); // { id, summary }
     const fetcher = (...args) => fetch(...args).then(res => res.json());
 
     // SWR Hook for channels
@@ -23,8 +31,8 @@ const Timeline = ({ userRole }) => {
     const channels = channelsData?.resources || [];
 
     // SWR Hook for events
-    const { data: eventsData, isLoading: isEventsLoading } = useSWR(
-        selectedChannelId ? `/api/activity?channelId=${selectedChannelId}` : null,
+    const { data: eventsData, isLoading: isEventsLoading, mutate: mutateEvents } = useSWR(
+        teamId ? `/api/activity?teamId=${teamId}` : (selectedChannelId ? `/api/activity?channelId=${selectedChannelId}` : null),
         fetcher,
         { revalidateOnFocus: false, dedupingInterval: 10000 }
     );
@@ -35,6 +43,35 @@ const Timeline = ({ userRole }) => {
         setSelectedChannelId(channelId || null);
     }, [channelId]);
 
+    const handleArchiveEvent = async (eventId) => {
+        try {
+            const res = await fetch(`/api/activity/${eventId}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast({
+                    title: 'Event Archived',
+                    message: 'The event has been moved to the Archive Vault.',
+                    type: 'success'
+                });
+                mutateEvents();
+            } else {
+                showToast({
+                    title: 'Error',
+                    message: 'Failed to archive event.',
+                    type: 'error'
+                });
+            }
+        } catch (err) {
+            console.error('Archive event error:', err);
+            showToast({
+                title: 'Error',
+                message: 'An error occurred while archiving.',
+                type: 'error'
+            });
+        } finally {
+            setArchiveTarget(null);
+        }
+    };
+
     // Role-based logic helpers
     const canViewScope = userRole !== 'Member';
 
@@ -42,7 +79,7 @@ const Timeline = ({ userRole }) => {
     const visibleChannels = channels.length > 0 ? channels : MOCK_CHANNELS;
 
     // STATE: Selection Screen
-    if (!selectedChannelId) {
+    if (!selectedChannelId && !teamId) {
         return (
             <div className="space-y-8 animate-in fade-in duration-300">
                 <header className="text-center max-w-2xl mx-auto py-16">
@@ -89,7 +126,9 @@ const Timeline = ({ userRole }) => {
     }
 
     // STATE: Timeline View
-    const selectedChannel = visibleChannels.find(c => c.id.toString() === selectedChannelId.toString()) || { name: 'Channel', platform: 'slack' };
+    const selectedChannel = teamId
+        ? { name: 'Unified History', platform: 'Audit Bridge', team: 'Archived Context' }
+        : (visibleChannels.find(c => c.id.toString() === selectedChannelId.toString()) || { name: 'Channel', platform: 'slack' });
     const parentTeam = selectedChannel ? MOCK_TEAMS.find(t => t.name === selectedChannel.team) : null;
 
     // Export permission logic
@@ -104,9 +143,12 @@ const Timeline = ({ userRole }) => {
     });
 
     const groupedEvents = filteredEvents.reduce((groups, event) => {
-        const date = new Date(event.timestamp).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-        if (!groups[date]) groups[date] = [];
-        groups[date].push(event);
+        const d = new Date(event.timestamp);
+        const dateKey = d.toISOString().split('T')[0]; // Stable key: YYYY-MM-DD
+        const displayDate = d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+
+        if (!groups[dateKey]) groups[dateKey] = { label: displayDate, items: [] };
+        groups[dateKey].items.push(event);
         return groups;
     }, {});
 
@@ -137,144 +179,173 @@ const Timeline = ({ userRole }) => {
     };
 
     return (
-        <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-            <header className="flex items-center justify-between pb-4 border-b border-slate-200">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => router.push('/timeline')}
-                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors border border-transparent hover:border-slate-200"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                    </button>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-lg font-bold tracking-tight text-slate-900">{selectedChannel?.name}</h1>
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-100 text-slate-600 border border-slate-200">
-                                {selectedChannel?.platform}
-                            </span>
+        <>
+            <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
+                <header className="flex items-center justify-between pb-4 border-b border-slate-200">
+                    <div className="flex items-center gap-4">
+                        {!isEmbedded && (
+                            <button
+                                onClick={() => router.push('/timeline')}
+                                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors border border-transparent hover:border-slate-200"
+                            >
+                                <ArrowLeft className="w-4 h-4" />
+                            </button>
+                        )}
+                        <div key={`header-context-${selectedChannelId}-${teamId}`}>
+                            <div className="flex items-center gap-2">
+                                <h1 key="channel-name" className="text-lg font-bold tracking-tight text-slate-900">{selectedChannel?.name}</h1>
+                                <span key="channel-platform" className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-100 text-slate-600 border border-slate-200">
+                                    {selectedChannel?.platform}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5 font-medium">
+                                <span key="team-label">{selectedChannel?.team}</span>
+                                {canViewScope && (
+                                    <>
+                                        <span key="scope-dot" className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                        <span key="scope-label">{selectedChannel?.scope}</span>
+                                    </>
+                                )}
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5 font-medium">
-                            <span>{selectedChannel?.team}</span>
-                            {canViewScope && (
+                    </div>
+
+                    <div className="flex gap-2">
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-medium hover:bg-slate-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-slate-900/5"
+                            >
+                                <span className="text-slate-700">
+                                    {filterType === 'all' ? 'All Events' : filterType === 'decisions' ? 'Decisions Only' : 'System & Meta'}
+                                </span>
+                                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {isFilterOpen && (
                                 <>
-                                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                    <span>{selectedChannel?.scope}</span>
+                                    <div className="fixed inset-0 z-40" onClick={() => setIsFilterOpen(false)} />
+                                    <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                        {[
+                                            { value: 'all', label: 'All Events' },
+                                            { value: 'decisions', label: 'Decisions Only' },
+                                            { value: 'system', label: 'System & Meta' }
+                                        ].map((option) => (
+                                            <button
+                                                key={option.value}
+                                                onClick={() => {
+                                                    setFilterType(option.value);
+                                                    setIsFilterOpen(false);
+                                                }}
+                                                className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center justify-between hover:bg-slate-50 transition-colors ${filterType === option.value ? 'text-blue-600 bg-blue-50/50' : 'text-slate-600'
+                                                    }`}
+                                            >
+                                                {option.label}
+                                                {filterType === option.value && <Check className="w-3 h-3" />}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </>
                             )}
                         </div>
                     </div>
-                </div>
+                </header>
 
-                <div className="flex gap-2">
-                    <div className="relative">
-                        <button
-                            onClick={() => setIsFilterOpen(!isFilterOpen)}
-                            className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-medium hover:bg-slate-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-slate-900/5"
-                        >
-                            <span className="text-slate-700">
-                                {filterType === 'all' ? 'All Events' : filterType === 'decisions' ? 'Decisions Only' : 'System & Meta'}
-                            </span>
-                            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
-                        </button>
+                <div className="relative min-h-[400px] pt-4">
+                    <div className="absolute left-[19px] top-0 bottom-0 w-px bg-slate-200" />
 
-                        {isFilterOpen && (
-                            <>
-                                <div className="fixed inset-0 z-40" onClick={() => setIsFilterOpen(false)} />
-                                <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-100 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
-                                    {[
-                                        { value: 'all', label: 'All Events' },
-                                        { value: 'decisions', label: 'Decisions Only' },
-                                        { value: 'system', label: 'System & Meta' }
-                                    ].map((option) => (
-                                        <button
-                                            key={option.value}
-                                            onClick={() => {
-                                                setFilterType(option.value);
-                                                setIsFilterOpen(false);
-                                            }}
-                                            className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center justify-between hover:bg-slate-50 transition-colors ${filterType === option.value ? 'text-blue-600 bg-blue-50/50' : 'text-slate-600'
-                                                }`}
-                                        >
-                                            {option.label}
-                                            {filterType === option.value && <Check className="w-3 h-3" />}
-                                        </button>
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                    </div>
-                    {canExport && <Button variant="secondary" icon={Download} className="text-xs">Export</Button>}
-                </div>
-            </header>
-
-            <div className="relative min-h-[400px] pt-4">
-                <div className="absolute left-[19px] top-0 bottom-0 w-px bg-slate-200" />
-
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                        <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mb-3"></div>
-                        <p className="text-xs font-medium">Loading events...</p>
-                    </div>
-                ) : Object.keys(groupedEvents).length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                        <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center mb-3">
-                            <FilterX className="w-6 h-6 opacity-50" />
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                            <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mb-3"></div>
+                            <p className="text-xs font-medium">Loading events...</p>
                         </div>
-                        <p className="text-xs font-bold uppercase tracking-wide">No events recorded yet</p>
-                        <p className="text-[10px] mt-1 max-w-xs text-center">
-                            Send messages with action emojis (✅❌🔁✏️💬) in Slack to start logging events.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="space-y-8">
-                        {Object.entries(groupedEvents).map(([date, events]) => (
-                            <div key={date}>
-                                <div className="flex items-center gap-4 mb-4 sticky top-0 bg-[#FAFAFA] z-10 py-2">
-                                    <div className="w-[10px]"></div>
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">{date}</span>
-                                </div>
-                                <div className="space-y-3">
-                                    {events.map(event => (
-                                        <div key={event.id} className="relative pl-10 group">
-                                            <div className="absolute left-3 top-3.5 w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm z-10 group-hover:border-slate-400 transition-colors">
-                                                {getEventIcon(event)}
-                                            </div>
-                                            <Card className="p-3 hover:shadow-md transition-shadow group-hover:border-slate-300">
-                                                <div className="flex justify-between items-start">
-                                                    <div>
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="font-bold text-slate-900 text-xs">{event.action}</span>
-                                                            <span className="text-[10px] text-slate-400">•</span>
-                                                            <span className="text-xs text-slate-600 font-medium">{event.target}</span>
+                    ) : Object.keys(groupedEvents).length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                            <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center mb-3">
+                                <FilterX className="w-6 h-6 opacity-50" />
+                            </div>
+                            <p className="text-xs font-bold uppercase tracking-wide">No events recorded yet</p>
+                            <p className="text-[10px] mt-1 max-w-xs text-center">
+                                Send messages with action emojis (✅❌🔁✏️💬) in Slack to start logging events.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-8">
+                            {Object.entries(groupedEvents).map(([dateKey, group], index) => (
+                                <div key={`group-${dateKey}-${index}`}>
+                                    <div className="flex items-center gap-4 mb-4 sticky top-0 bg-[#FAFAFA] z-10 py-2" key={`sticky-${dateKey}`}>
+                                        <div className="w-[10px]"></div>
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
+                                            {group.label}
+                                        </span>
+                                    </div>
+                                    <div className="space-y-3" key={`items-${dateKey}`}>
+                                        {group.items.map((event, eIndex) => (
+                                            <div key={event.id || `evt-${dateKey}-${eIndex}`} className="relative pl-10 group">
+                                                <div className="absolute left-3 top-3.5 w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm z-10 group-hover:border-slate-400 transition-colors">
+                                                    {getEventIcon(event)}
+                                                </div>
+                                                <Card className="p-3 hover:shadow-md transition-shadow group-hover:border-slate-300">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="font-bold text-slate-900 text-xs">{event.action}</span>
+                                                                <span className="text-[10px] text-slate-400">•</span>
+                                                                <span className="text-xs text-slate-600 font-medium">{event.target}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                                                                <span className="font-semibold text-slate-700">{event.actor}</span>
+                                                                <span className="text-slate-300">|</span>
+                                                                <span className="font-medium">{event.role}</span>
+                                                                {event.meta && (
+                                                                    <>
+                                                                        <span className="text-slate-300">|</span>
+                                                                        <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-600 border border-slate-200">
+                                                                            {event.meta}
+                                                                        </span>
+                                                                    </>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                                                            <span className="font-semibold text-slate-700">{event.actor}</span>
-                                                            <span className="text-slate-300">|</span>
-                                                            <span className="font-medium">{event.role}</span>
-                                                            {event.meta && (
-                                                                <>
-                                                                    <span className="text-slate-300">|</span>
-                                                                    <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-600 border border-slate-200">
-                                                                        {event.meta}
-                                                                    </span>
-                                                                </>
-                                                            )}
+                                                        <div className="flex items-center gap-3">
+                                                            <button
+                                                                onClick={() => setArchiveTarget({ id: event.id, summary: event.summary })}
+                                                                className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-red-500 transition-all"
+                                                                title="Archive This Event"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                            <span className="text-[10px] text-slate-400 font-mono">
+                                                                {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
                                                         </div>
                                                     </div>
-                                                    <span className="text-[10px] text-slate-400 font-mono">
-                                                        {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                    </span>
-                                                </div>
-                                            </Card>
-                                        </div>
-                                    ))}
+                                                </Card>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
+            <ArchiveConfirmModal
+                isOpen={!!archiveTarget}
+                onClose={() => setArchiveTarget(null)}
+                onConfirm={() => handleArchiveEvent(archiveTarget?.id)}
+                title="Archive Event"
+                subtitle={archiveTarget?.summary ? `"${archiveTarget.summary.substring(0, 60)}..."` : 'This event will be transferred to the Vault'}
+                details={[
+                    'Capture a complete snapshot of this activity log entry (actor, action, metadata)',
+                    'Generate a SHA-256 integrity hash for tamper-proof verification',
+                    'Transfer the record to the Archive Vault under the source application',
+                    'Remove the event from the active Timeline view',
+                ]}
+                confirmLabel="Archive Event"
+                variant="warning"
+            />
+        </>
     );
 };
 

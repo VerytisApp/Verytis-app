@@ -24,7 +24,9 @@ export async function GET(req) {
         .select('id, settings, name')
         .eq('organization_id', targetOrgId)
         .eq('provider', 'github')
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
     const isConnected = !!(data && (data.settings?.access_token || data.settings?.installation_id));
 

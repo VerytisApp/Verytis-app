@@ -200,6 +200,31 @@ export default function AdminSecuritySettings() {
                 </div>
             </Card>
 
+            {/* Archive Vault Access */}
+            <Card className="p-6 border-2 border-blue-100 bg-gradient-to-r from-blue-50/50 to-slate-50">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                            <Shield className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                Coffre-fort d'Archive
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700 uppercase tracking-wide">Vault</span>
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-0.5">Zone sécurisée de conservation immuable des données. Accès en lecture seule.</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => window.open('/vault', '_blank')}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-all shadow-sm hover:shadow-md"
+                    >
+                        <Shield className="w-3.5 h-3.5" />
+                        Accéder au Vault
+                    </button>
+                </div>
+            </Card>
+
             <Card className="p-6">
                 <h3 className="text-sm font-semibold text-slate-900 mb-4">Admin Session Management</h3>
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded border border-slate-100">

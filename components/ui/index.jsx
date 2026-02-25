@@ -29,8 +29,6 @@ export const PlatformIcon = ({ platform }) => {
     switch (platform.toLowerCase()) {
         case 'slack':
             return <img src={getFavicon('slack.com')} alt="Slack" className="w-4 h-4" />;
-        case 'teams':
-            return <img src={getFavicon('teams.microsoft.com')} alt="Teams" className="w-4 h-4" />;
         case 'google workspace':
             return <img src={getFavicon('workspace.google.com')} alt="Google Workspace" className="w-4 h-4" />;
         case 'microsoft 365':

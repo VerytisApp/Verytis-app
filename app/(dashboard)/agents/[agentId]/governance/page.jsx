@@ -46,9 +46,6 @@ export default function AgentGovernanceDeepDive({ params }) {
                         Detailed compliance metrics, access controls, and boundary enforcement logs for this agent.
                     </p>
                 </div>
-                <Button variant="secondary" icon={FileText}>
-                    Export SOC2 Compliance Report
-                </Button>
             </header>
 
             {/* Content */}

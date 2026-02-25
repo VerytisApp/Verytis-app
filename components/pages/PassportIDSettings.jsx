@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { Shield, CheckCircle, XCircle, RefreshCw, AlertCircle } from 'lucide-react';
 import { Card } from '../ui';
+import { useToast } from '../ui/Toast';
 
 import { useRole } from '@/lib/providers';
 
 const PassportIDSettings = () => {
+    const { showToast } = useToast();
     const { currentUser, setCurrentUser } = useRole();
     const [passportStatus, setPassportStatus] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -180,7 +182,7 @@ const PassportIDSettings = () => {
 
     const handleDisconnect = async (provider) => {
         console.log('handleDisconnect called for:', provider);
-        if (!confirm(`Are you sure you want to disconnect ${provider}?`)) {
+        if (!confirm(`⚠️ DISCONNECT WARNING: This action will revoke access to ${provider}. A full fingerprint of your identity and recent activity will be archived in the Archive Vault before disconnection for audit purposes. Proceed?`)) {
             console.log('User cancelled disconnect');
             return;
         }
@@ -201,16 +203,29 @@ const PassportIDSettings = () => {
             console.log('Disconnect response status:', res.status);
             if (res.ok) {
                 console.log('Disconnect successful, refreshing status...');
+                showToast({
+                    title: 'Service Disconnected',
+                    message: `Your ${provider} identity has been safely archived and unlinked.`,
+                    type: 'success'
+                });
                 // Refresh status
                 await fetchPassportStatus();
             } else {
                 const err = await res.json();
                 console.error('Disconnect failed:', err);
-                throw new Error(err.error || 'Failed to disconnect');
+                showToast({
+                    title: 'Error',
+                    message: err.error || 'Failed to disconnect service.',
+                    type: 'error'
+                });
             }
         } catch (e) {
             console.error('Disconnect error:', e);
-            alert('Failed to disconnect: ' + e.message);
+            showToast({
+                title: 'Error',
+                message: 'An error occurred during disconnection.',
+                type: 'error'
+            });
         } finally {
             setIsLoading(false);
         }
@@ -504,10 +519,11 @@ const PassportIDSettings = () => {
             </div>
 
             {/* Footer Note */}
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                <p className="text-[10px] text-slate-500 leading-relaxed">
-                    <strong>Note:</strong> To connect or disconnect services, please contact your organization administrator.
-                    This view is read-only and reflects the current state of your Passport ID.
+            <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-100 flex items-start gap-3">
+                <Shield className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-blue-700 leading-relaxed font-medium">
+                    <strong>Immutability Notice:</strong> Every connection and disconnection event is cryptographically hashed and stored in the <strong>Archive Vault</strong>.
+                    Verytis ensures a permanent audit trail for all identity life-cycle events.
                 </p>
             </div>
 

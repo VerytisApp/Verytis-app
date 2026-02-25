@@ -54,11 +54,7 @@ export async function PATCH(req, { params }) {
         const { agentId } = params;
         const supabase = createClient();
         const body = await req.json();
-        const { status } = body;
-
-        if (!['active', 'suspended'].includes(status)) {
-            return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
-        }
+        const { status, policies } = body;
 
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -71,36 +67,129 @@ export async function PATCH(req, { params }) {
 
         if (!profile?.organization_id) return NextResponse.json({ error: 'Organization not found' }, { status: 400 });
 
-        // Update agent status if it belongs to the org
+        // Build the update payload dynamically
+        const updatePayload = {};
+
+        // Handle status change (Kill Switch)
+        if (status) {
+            if (!['active', 'suspended'].includes(status)) {
+                return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+            }
+            updatePayload.status = status;
+        }
+
+        // Handle policies update (Guardrails)
+        if (policies) {
+            // Merge with existing policies to allow partial updates
+            const { data: existing } = await supabase
+                .from('ai_agents')
+                .select('policies')
+                .eq('id', agentId)
+                .eq('organization_id', profile.organization_id)
+                .single();
+
+            updatePayload.policies = { ...(existing?.policies || {}), ...policies };
+        }
+
+        if (Object.keys(updatePayload).length === 0) {
+            return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+        }
+
+        // Apply the update
         const { data: agent, error: updateError } = await supabase
             .from('ai_agents')
-            .update({ status })
+            .update(updatePayload)
             .eq('id', agentId)
             .eq('organization_id', profile.organization_id)
             .select()
             .single();
 
-        if (updateError) return NextResponse.json({ error: 'Failed to update agent status' }, { status: 500 });
+        if (updateError) return NextResponse.json({ error: 'Failed to update agent' }, { status: 500 });
 
-        // Log the security action (Scrubbed for GDPR/WORM Compliance)
-        const redactedSummary = scrubText(`${agent.name} status changed to ${status}`);
-        const redactedMetadata = scrubObject({
-            agent_id: agentId,
-            previous_status: agent.status === status ? 'unknown' : (status === 'active' ? 'suspended' : 'active')
-        });
+        // Log security-sensitive actions to the audit trail
+        if (status) {
+            const redactedSummary = scrubText(`${agent.name} status changed to ${status}`);
+            const redactedMetadata = scrubObject({
+                agent_id: agentId,
+                previous_status: agent.status === status ? 'unknown' : (status === 'active' ? 'suspended' : 'active')
+            });
 
-        await supabase.from('activity_logs').insert({
-            organization_id: profile.organization_id,
-            actor_id: user.id,
-            action_type: status === 'suspended' ? 'AGENT_KILLED' : 'AGENT_REACTIVATED',
-            summary: redactedSummary,
-            metadata: redactedMetadata
-        });
+            await supabase.from('activity_logs').insert({
+                organization_id: profile.organization_id,
+                actor_id: user.id,
+                action_type: status === 'suspended' ? 'AGENT_KILLED' : 'AGENT_REACTIVATED',
+                summary: redactedSummary,
+                metadata: redactedMetadata
+            });
+        }
+
+        if (policies) {
+            await supabase.from('activity_logs').insert({
+                organization_id: profile.organization_id,
+                actor_id: user.id,
+                action_type: 'AGENT_POLICIES_UPDATED',
+                summary: scrubText(`${agent.name} policies updated`),
+                metadata: scrubObject({ agent_id: agentId, updated_fields: Object.keys(policies) })
+            });
+        }
 
         return NextResponse.json({ success: true, agent });
 
     } catch (error) {
-        console.error('Error updating agent status:', error);
+        console.error('Error updating agent:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
+
+export async function DELETE(req, { params }) {
+    try {
+        const { agentId } = params;
+        const supabase = createClient();
+
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('organization_id')
+            .eq('id', user.id)
+            .single();
+
+        if (!profile?.organization_id) return NextResponse.json({ error: 'Organization not found' }, { status: 400 });
+
+        // Fetch agent name before deletion for the audit log
+        const { data: agent } = await supabase
+            .from('ai_agents')
+            .select('name')
+            .eq('id', agentId)
+            .eq('organization_id', profile.organization_id)
+            .single();
+
+        if (!agent) return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+
+        // Delete agent — the BEFORE DELETE trigger (fn_archive_on_delete) will
+        // automatically snapshot the full agent record into archive_items
+        const { error: deleteError } = await supabase
+            .from('ai_agents')
+            .delete()
+            .eq('id', agentId)
+            .eq('organization_id', profile.organization_id);
+
+        if (deleteError) throw deleteError;
+
+        // Log the deletion to the audit trail
+        await supabase.from('activity_logs').insert({
+            organization_id: profile.organization_id,
+            actor_id: user.id,
+            action_type: 'AGENT_DELETED',
+            summary: scrubText(`Agent "${agent.name}" was permanently deleted and archived`),
+            metadata: scrubObject({ agent_id: agentId, agent_name: agent.name })
+        });
+
+        return NextResponse.json({ success: true });
+
+    } catch (error) {
+        console.error('Error deleting agent:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

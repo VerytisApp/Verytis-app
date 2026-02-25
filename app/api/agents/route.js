@@ -39,11 +39,24 @@ export async function GET() {
 
         if (logsError) throw logsError;
 
-        // Attach logs to agents
-        const enrichedAgents = agents.map(agent => ({
-            ...agent,
-            telemetry: telemetryLogs.filter(log => log.agent_id === agent.id)
-        }));
+        // Attach logs and calculate summary stats for each agent
+        const enrichedAgents = agents.map(agent => {
+            const agentLogs = telemetryLogs.filter(log => log.agent_id === agent.id);
+
+            // Heuristic for "model" and "cost"
+            const latestLogWithModel = agentLogs.find(l => l.metadata?.ai_context?.model);
+            const totalCost = agentLogs.reduce((acc, l) => acc + (l.metadata?.metrics?.cost_usd || 0), 0);
+            const avgCost = agentLogs.length > 0 ? totalCost / agentLogs.length : 0;
+            const lastActivity = agentLogs.length > 0 ? agentLogs[0].created_at : agent.created_at;
+
+            return {
+                ...agent,
+                model: latestLogWithModel?.metadata?.ai_context?.model || 'gpt-4',
+                avg_cost: avgCost.toFixed(4),
+                last_activity: lastActivity,
+                telemetry: agentLogs
+            };
+        });
 
         return NextResponse.json({ agents: enrichedAgents });
 

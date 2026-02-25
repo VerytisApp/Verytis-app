@@ -24,10 +24,12 @@ export async function GET(req) {
         .select('id, settings, name')
         .eq('organization_id', targetOrgId)
         .eq('provider', 'slack')
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
     // 3. Determine status
-    const isConnected = !!(data && data.settings?.bot_token);
+    const isConnected = !!(data && (data.settings?.bot_token || data.settings?.access_token));
 
     return NextResponse.json({
         connected: isConnected,

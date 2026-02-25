@@ -309,7 +309,6 @@ const UserDetail = () => {
                         <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                             {[
                                 { name: 'Slack', status: 'Connected', id: 'U-SLK-9921', sync: '1 min ago', color: 'bg-[#4A154B]' },
-                                { name: 'Microsoft Teams', status: 'Connected', id: 'U-MSF-5542', sync: '5 mins ago', color: 'bg-[#6264A7]' },
                                 { name: 'Outlook', status: 'Revoked', id: 'U-MSF-0012', sync: '3 days ago', color: 'bg-[#0078D4]' },
                                 { name: 'Gmail', status: 'Connected', id: 'U-GGL-1120', sync: '2 hours ago', color: 'bg-[#EA4335]' }
                             ].map((app, idx) => (

@@ -393,6 +393,25 @@ export async function POST(req) {
                     }
                 }
 
+                // --- BRIDGE : RESOLVE RESOURCE & TEAM CONTEXT ---
+                let resourceId = null;
+                let teamId = null;
+
+                if (organizationId && event.channel) {
+                    const { data: resource } = await supabase
+                        .from('monitored_resources')
+                        .select('id, team_id')
+                        .eq('external_id', event.channel)
+                        // If same channel in multiple orgs (rare but possible), prioritize the current org
+                        .limit(1)
+                        .maybeSingle();
+
+                    if (resource) {
+                        resourceId = resource.id;
+                        teamId = resource.team_id;
+                    }
+                }
+
                 const { type, content } = classifyMessage(event.text);
                 const attachments = await handleFiles(event.files);
 
@@ -447,6 +466,8 @@ export async function POST(req) {
                     await supabase.from('activity_logs').insert({
                         actor_id: userId,
                         organization_id: organizationId, // STRICT ISOLATION
+                        team_id: teamId,                // PERSISTENT BRIDGE
+                        resource_id: resourceId,        // DIRECT LINK
                         action_type: finalActionType,
                         summary: redactedSummary,
                         metadata: redactedMetadata

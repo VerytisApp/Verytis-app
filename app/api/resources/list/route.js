@@ -93,7 +93,7 @@ export async function GET() {
                 status: 'active', // 'active' | 'paused'
                 lastActive: effectiveLastActive,
                 decisions: 0, // Mock for now
-                numMembers: contributorCount, // Real contributor count
+                numMembers: contributorCount, // Real contributor count from activity logs
                 isPrivate: meta.is_private || false
             };
         });

@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const channelId = searchParams.get('channelId');
+    const teamId = searchParams.get('teamId');
 
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -79,7 +80,9 @@ export async function GET(req) {
             .not('action_type', 'in', '("DISCUSSION","DISCUSSION_ANONYMOUS")');
 
         // ── 3. Apply Resource Filter ────────────────────────────────────
-        if (channelId) {
+        if (teamId) {
+            query = query.eq('team_id', teamId);
+        } else if (channelId) {
             if (isAgent) {
                 query = query.eq('agent_id', channelId);
             } else {
@@ -96,13 +99,30 @@ export async function GET(req) {
         }
 
         // ── 4. Execute ──────────────────────────────────────────────────
-        const { data: logs, error } = await query
+        const { data: logs, error: logsError } = await query
             .order('created_at', { ascending: false })
             .limit(50);
 
-        if (error) throw error;
+        if (logsError) throw logsError;
 
-        // ── 5. Map to UI Format ─────────────────────────────────────────
+        // ── 5. Resolve Agent Names (Manual Join due to WORM policy) ─────
+        // We do this manually because the FK was removed to allow agent deletion 
+        // without violating WORM (immutability) protection on activity_logs.
+        const agentIds = [...new Set(logs?.filter(l => l.agent_id).map(l => l.agent_id) || [])];
+        let agentMap = {};
+
+        if (agentIds.length > 0) {
+            const { data: agents } = await supabase
+                .from('ai_agents')
+                .select('id, name')
+                .in('id', agentIds);
+
+            if (agents) {
+                agentMap = agents.reduce((acc, a) => ({ ...acc, [a.id]: a.name }), {});
+            }
+        }
+
+        // ── 6. Map to UI Format ─────────────────────────────────────────
         const events = (logs || []).map(log => {
             let actorName;
             let role;
@@ -112,6 +132,12 @@ export async function GET(req) {
                 actorName = log.profiles.full_name;
                 role = log.profiles.role || 'Member';
                 email = log.profiles.email;
+            } else if (log.agent_id && agentMap[log.agent_id]) {
+                actorName = agentMap[log.agent_id];
+                role = 'AI Agent';
+            } else if (log.agent_id) {
+                actorName = log.metadata?.agent_name || 'AI Agent';
+                role = 'AI Agent';
             } else {
                 actorName = log.metadata?.slack_user_name || log.metadata?.github_user || 'User X';
                 role = 'Not connected';

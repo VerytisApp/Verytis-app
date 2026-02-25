@@ -144,12 +144,11 @@ async function seedMegaDemo() {
     })));
 
     // 6. INTEGRATIONS & RESOURCES
-    console.log('🔌 Connecting Enterprise Stacks (Slack, GitHub, Trello, MS Teams)...');
+    console.log('🔌 Connecting Enterprise Stacks (Slack, GitHub, Trello)...');
     const integrations = [
         { provider: 'slack', name: 'Verytis Enterprise Slack', ext: 'T0001' },
         { provider: 'github', name: 'GitHub Org (Verytis)', ext: 'GH001' },
-        { provider: 'trello', name: 'Global Product Board', ext: 'TR001' },
-        { provider: 'microsoft_teams', name: 'MS Teams (Corporate)', ext: 'MS001' }
+        { provider: 'trello', name: 'Global Product Board', ext: 'TR001' }
     ];
 
     const { data: intDocs, error: iErr } = await supabase.from('integrations').insert(integrations.map(i => ({
@@ -176,9 +175,7 @@ async function seedMegaDemo() {
         { int: 'github', name: 'auth-service', type: 'repo', team: 'Security & Risk' },
         { int: 'github', name: 'governance-v3', type: 'repo', team: 'Core Engineering' },
         { int: 'trello', name: 'Product Roadmap', type: 'folder', team: 'Product Leadership' },
-        { int: 'trello', name: 'Tech Debt Ledger', type: 'folder', team: 'Core Engineering' },
-        { int: 'microsoft_teams', name: 'Executive Oversight', type: 'channel', team: 'Product Leadership' },
-        { int: 'microsoft_teams', name: 'Ops Sync', type: 'channel', team: 'Cloud Infrastructure' }
+        { int: 'trello', name: 'Tech Debt Ledger', type: 'folder', team: 'Core Engineering' }
     ];
 
     const { data: resDocs } = await supabase.from('monitored_resources').insert(resources.map(r => ({

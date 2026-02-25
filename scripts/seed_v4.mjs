@@ -45,7 +45,7 @@ async function seedMegaDemo() {
         { email: 'bob.foss@verytis.com', name: 'Robert Foss', role: 'member', title: 'Senior Security Architect', prov: 'github' },
         { email: 'alice.thorne@verytis.com', name: 'Alice Thorne', role: 'member', title: 'CISO', prov: 'slack' },
         { email: 'sarah.jenkins@verytis.com', name: 'Sarah Jenkins', role: 'member', title: 'Lead Product Manager', prov: 'trello' },
-        { email: 'david.miller@verytis.com', name: 'David Miller', role: 'member', title: 'SRE Lead', prov: 'microsoft_teams' },
+        { email: 'david.miller@verytis.com', name: 'David Miller', role: 'member', title: 'SRE Lead', prov: 'slack' },
         { email: 'brooklyn.simmons@verytis.com', name: 'Brooklyn Simmons', role: 'member', title: 'Legal Auditor', prov: 'slack' }
     ];
 
@@ -129,8 +129,7 @@ async function seedMegaDemo() {
     const ints = [
         { provider: 'slack', name: 'Slack' },
         { provider: 'github', name: 'GitHub' },
-        { provider: 'trello', name: 'Trello' },
-        { provider: 'microsoft_teams', name: 'Teams' }
+        { provider: 'trello', name: 'Trello' }
     ];
     const { data: intDocs, error: iErr } = await supabase.from('integrations').insert(ints.map(i => ({
         ...i, organization_id: orgId, external_id: `EXT_${i.provider}`

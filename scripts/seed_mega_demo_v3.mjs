@@ -71,7 +71,7 @@ async function seedMegaDemo() {
         { email: 'bob.foss@verytis.com', name: 'Robert Foss', role: 'member', title: 'Senior Security Architect', prov: 'github' },
         { email: 'alice.thorne@verytis.com', name: 'Alice Thorne', role: 'member', title: 'CISO', prov: 'slack' },
         { email: 'sarah.jenkins@verytis.com', name: 'Sarah Jenkins', role: 'member', title: 'Lead Product Manager', prov: 'trello' },
-        { email: 'david.miller@verytis.com', name: 'David Miller', role: 'member', title: 'SRE Lead', prov: 'microsoft_teams' },
+        { email: 'david.miller@verytis.com', name: 'David Miller', role: 'member', title: 'SRE Lead', prov: 'slack' },
         { email: 'brooklyn.simmons@verytis.com', name: 'Brooklyn Simmons', role: 'member', title: 'Legal Auditor', prov: 'slack' }
     ];
 
@@ -164,12 +164,11 @@ async function seedMegaDemo() {
     await supabase.from('team_members').insert(members);
 
     // 6. INTEGRATIONS & RESOURCES
-    console.log('🔌 Powering stacks (Slack, GitHub, Trello, M365)...');
+    console.log('🔌 Powering stacks (Slack, GitHub, Trello)...');
     const integrations = [
         { provider: 'slack', name: 'Verytis-HQ Slack', ext: 'T001' },
         { provider: 'github', name: 'Verytis-Enterprise GH', ext: 'ORG_V' },
-        { provider: 'trello', name: 'Strategic Roadmap', ext: 'B_ROAD' },
-        { provider: 'microsoft_teams', name: 'Corporate Teams', ext: 'MS_HQ' }
+        { provider: 'trello', name: 'Strategic Roadmap', ext: 'B_ROAD' }
     ];
 
     const { data: intDocs } = await supabase.from('integrations').insert(integrations.map(i => ({
@@ -188,8 +187,7 @@ async function seedMegaDemo() {
         { int: 'slack', name: 'audit-log', type: 'channel', team: 'Governance & Risk', ext: 'C_AUDIT' },
         { int: 'github', name: 'verytis-monorepo', type: 'repo', team: 'Architecture & Ops', ext: 'R_MONO' },
         { int: 'github', name: 'auth-guard', type: 'repo', team: 'Security Response', ext: 'R_AUTH' },
-        { int: 'trello', name: 'Feature Roadmap', type: 'folder', team: 'Product Enablement', ext: 'F_ROAD' },
-        { int: 'microsoft_teams', name: 'Cloud Sync', type: 'channel', team: 'Architecture & Ops', ext: 'MS_CLOUD' }
+        { int: 'trello', name: 'Feature Roadmap', type: 'folder', team: 'Product Enablement', ext: 'F_ROAD' }
     ];
 
     const { data: resDocs } = await supabase.from('monitored_resources').insert(resourceConfigs.map(rc => ({

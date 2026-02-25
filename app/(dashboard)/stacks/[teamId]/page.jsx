@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, PlatformIcon, StatusBadge, Button, ActivityFeed, Modal } from '@/components/ui';
+import ArchiveConfirmModal from '@/components/ui/ArchiveConfirmModal';
+import { useToast } from '@/components/ui/Toast';
 import { createClient } from '@/lib/supabase/client';
 import {
     Layers, ChevronRight, Settings, Plus, Info,
@@ -12,8 +14,11 @@ import {
 } from 'lucide-react';
 
 export default function StackDetailPage() {
+    const { showToast } = useToast();
     const { teamId } = useParams();
-    const router = useRouter(); // Initialize router
+    const router = useRouter();
+    const [deleteResourceTarget, setDeleteResourceTarget] = useState(null); // { id, name }
+    const [showDeleteStack, setShowDeleteStack] = useState(false);
     const [team, setTeam] = useState(null);
     const [members, setMembers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -33,7 +38,7 @@ export default function StackDetailPage() {
     // Load Real Data
     const fetchTeamData = async () => {
         try {
-            const res = await fetch(`/api/teams/${teamId}`);
+            const res = await fetch(`/api/teams/${teamId}`, { cache: 'no-store' });
             if (!res.ok) throw new Error('Failed to fetch team');
             const data = await res.json();
 
@@ -183,38 +188,59 @@ export default function StackDetailPage() {
 
     // Delete Handlers
     const handleDeleteResource = async (resourceId) => {
-        if (!confirm('Are you sure you want to remove this resource from the stack? This action cannot be undone.')) return;
-
         try {
             const res = await fetch(`/api/teams/${teamId}/resources/${resourceId}`, {
                 method: 'DELETE'
             });
 
             if (res.ok) {
-                fetchTeamData(); // Refresh list
+                console.log('✅ Resource deleted successfully');
+                showToast({
+                    title: 'Resource Removed',
+                    message: 'The resource has been unlinked and archived.',
+                    type: 'success'
+                });
+                await fetchTeamData();
             } else {
-                alert('Failed to delete resource');
+                const err = await res.json();
+                console.error('❌ Delete failed:', err);
+                showToast({
+                    title: 'Error',
+                    message: err.error || err.message || 'Failed to delete resource',
+                    type: 'error'
+                });
             }
         } catch (e) {
             console.error('Error deleting resource:', e);
+        } finally {
+            setDeleteResourceTarget(null);
         }
     };
 
     const handleDeleteStack = async () => {
-        if (!confirm('Are you sure you want to delete this ENTIRE STACK? All data and configuration will be lost permanently.')) return;
-
         try {
             const res = await fetch(`/api/teams/${teamId}`, {
                 method: 'DELETE'
             });
 
             if (res.ok) {
+                showToast({
+                    title: 'Stack Deleted',
+                    message: 'The entire stack has been successfully archived.',
+                    type: 'success'
+                });
                 router.push('/stacks');
             } else {
-                alert('Failed to delete stack');
+                showToast({
+                    title: 'Error',
+                    message: 'Failed to delete stack',
+                    type: 'error'
+                });
             }
         } catch (e) {
             console.error('Error deleting stack:', e);
+        } finally {
+            setShowDeleteStack(false);
         }
     };
 
@@ -353,7 +379,7 @@ export default function StackDetailPage() {
                                         </div>
                                         {isManagingStack ? (
                                             <button
-                                                onClick={() => handleDeleteResource(resource.id)}
+                                                onClick={() => setDeleteResourceTarget({ id: resource.id, name: resource.name })}
                                                 className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                                 title="Remove this app"
                                             >
@@ -380,7 +406,7 @@ export default function StackDetailPage() {
                                         <Plus className="w-3.5 h-3.5" /> Add Tool
                                     </button>
                                     <button
-                                        onClick={handleDeleteStack}
+                                        onClick={() => setShowDeleteStack(true)}
                                         className="w-full py-2 bg-red-50 border border-red-100 rounded text-xs font-bold text-red-600 hover:bg-red-100 hover:border-red-200 transition-all flex items-center justify-center gap-2"
                                     >
                                         <Trash2 className="w-3.5 h-3.5" /> DELETE STACK
@@ -540,6 +566,39 @@ export default function StackDetailPage() {
                     </div>
                 )}
             </Modal>
+
+            <ArchiveConfirmModal
+                isOpen={!!deleteResourceTarget}
+                onClose={() => setDeleteResourceTarget(null)}
+                onConfirm={() => handleDeleteResource(deleteResourceTarget?.id)}
+                title="Remove Resource"
+                subtitle={deleteResourceTarget?.name ? `"${deleteResourceTarget.name}" will be unlinked from this stack` : ''}
+                details={[
+                    'Capture a full snapshot of this resource (name, type, external ID, audit settings)',
+                    'Seal the snapshot with a SHA-256 integrity hash',
+                    'Transfer the record to the Archive Vault under its source application',
+                    'Remove the resource from active monitoring',
+                ]}
+                confirmLabel="Remove & Archive"
+                variant="warning"
+            />
+
+            <ArchiveConfirmModal
+                isOpen={showDeleteStack}
+                onClose={() => setShowDeleteStack(false)}
+                onConfirm={handleDeleteStack}
+                title="Delete Stack"
+                subtitle={team?.name ? `"${team.name}" and all associated data will be archived` : ''}
+                details={[
+                    'Archive the full stack configuration (team settings, description, type)',
+                    'Archive all team member participation records',
+                    'Archive all linked monitored resources (channels, repos, boards)',
+                    'Seal each record with a SHA-256 integrity hash',
+                    'Transfer everything to the Archive Vault for permanent audit retention',
+                ]}
+                confirmLabel="Delete & Archive"
+                variant="danger"
+            />
         </div>
     );
 }
@@ -585,7 +644,7 @@ function ToolActivitySection({ tool, team, formatActionUI }) {
                 id: item.id,
                 type: tool,
                 platform: tool,
-                action: item.actionType,
+                action: formatActionUI(item.actionType),
                 target: `${item.channel}: "${item.description}"`,
                 actor: item.user.name,
                 time: new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),

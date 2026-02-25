@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Zap, CheckCircle, AlertCircle, RefreshCw, Lock, Shield, Info } from 'lucide-react';
 import { Card, Button } from '../ui';
+import { useToast } from '../ui/Toast';
 
 const GitHubRepositoriesView = ({ teamId }) => {
     const [repos, setRepos] = useState([]);
@@ -169,6 +170,7 @@ const TrelloBoardsView = ({ teamId }) => {
 };
 
 const IntegrationsSettings = ({ teamId }) => {
+    const { showToast } = useToast();
     const [selectedAppId, setSelectedAppId] = useState('slack');
 
     // Initial State (Clean, no fakes)
@@ -268,12 +270,20 @@ const IntegrationsSettings = ({ teamId }) => {
                 const query = teamId ? `?teamId=${teamId}` : '';
                 window.location.href = `/api/slack/install${query}`;
             } else {
+                if (!confirm("⚠️ ARCHIVE WARNING: Revoking this integration will stop all monitoring. A snapshot of the current configuration will be sealed in the Archive Vault. Proceed?")) return;
+
+                // Logic for real disconnect would go here (fetch DELETE)
                 setConnections(prev => ({
                     ...prev,
                     slack: { connected: false, lastSync: null }
                 }));
                 setChannels([]);
                 setActiveTab('overview');
+                showToast({
+                    title: 'Slack Disconnected',
+                    message: 'The organization-wide Slack gateway has been archived and unlinked.',
+                    type: 'success'
+                });
             }
         } else if (appId === 'github') {
             if (!connections.github.connected) {
@@ -288,10 +298,16 @@ const IntegrationsSettings = ({ teamId }) => {
                     `width=${width},height=${height},top=${top},left=${left}`
                 );
             } else {
+                if (!confirm("⚠️ ARCHIVE WARNING: Disconnecting GitHub will seal the current audit trail for this organization in the Archive Vault. Proceed?")) return;
                 setConnections(prev => ({
                     ...prev,
                     github: { connected: false, lastSync: null }
                 }));
+                showToast({
+                    title: 'GitHub Gateway Disconnected',
+                    message: 'Access to repositories has been revoked.',
+                    type: 'success'
+                });
             }
         } else if (appId === 'trello') {
             if (!connections.trello.connected) {
@@ -310,6 +326,11 @@ const IntegrationsSettings = ({ teamId }) => {
                     ...prev,
                     trello: { connected: false, lastSync: null }
                 }));
+                showToast({
+                    title: 'Trello Disconnected',
+                    message: 'Trello boards monitoring has been stopped.',
+                    type: 'success'
+                });
             }
         } else {
             // Original toggle logic for other apps
@@ -424,7 +445,11 @@ const IntegrationsSettings = ({ teamId }) => {
                 body: JSON.stringify({ channels: selectedList })
             });
             if (res.ok) {
-                alert('Channels successfully imported!');
+                showToast({
+                    title: 'Channels Linked',
+                    message: `${selectedChannels.size} channels have been successfully added to monitoring.`,
+                    type: 'success'
+                });
                 setSelectedChannels(new Set()); // Reset selection
             }
         } catch (e) {

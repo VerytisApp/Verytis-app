@@ -123,9 +123,11 @@ export default function AgentGovernancePage({ params }) {
                     </div>
 
                     <div className="flex gap-3">
-                        <Button variant="secondary" icon={FileText}>
-                            Export Legal Audit Trail
-                        </Button>
+                        <Link href={`/agents/${params.agentId}/policies`}>
+                            <Button variant="secondary" icon={ShieldCheck}>
+                                Configure Policies
+                            </Button>
+                        </Link>
                         <Button
                             variant={agent.status === 'active' ? 'danger' : 'primary'}
                             icon={agent.status === 'active' ? ShieldAlert : CheckCircle2}
@@ -245,7 +247,7 @@ export default function AgentGovernancePage({ params }) {
                     <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/30">
                         <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                             <LinkIcon className="w-5 h-5 text-indigo-600" />
-                            Immutable Activity Ledger
+                            Activity Ledger
                         </h3>
                         <p className="text-xs font-medium text-slate-500 mt-1">
                             Transparent audit trail of all agent operations.

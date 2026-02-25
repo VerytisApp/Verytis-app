@@ -98,9 +98,9 @@ export async function GET(req, { params }) {
 
         // Fetch Recent Activity (Limit 50 for better mix)
         const channelIds = channels.map(c => c.id);
-        const repoNames = channels.filter(c => c.integrations?.provider === 'github' || c.type === 'repo').map(c => c.name).filter(Boolean);
-        const slackChannelIds = channels.filter(c => c.integrations?.provider === 'slack' || c.type === 'channel').map(c => c.external_id).filter(Boolean);
-        const trelloBoardIds = channels.filter(c => c.integrations?.provider === 'trello' || c.type === 'board').map(c => c.external_id).filter(Boolean);
+        const repoNames = channels.filter(c => c.integrations?.provider === 'github').map(c => c.name).filter(Boolean);
+        const slackChannelIds = channels.filter(c => c.integrations?.provider === 'slack').map(c => c.external_id).filter(Boolean);
+        const trelloBoardIds = channels.filter(c => c.integrations?.provider === 'trello').map(c => c.external_id).filter(Boolean);
 
         let recentActivity = [];
         let orConditions = [];
@@ -165,7 +165,7 @@ export async function GET(req, { params }) {
         }));
 
         // Compute unique integrations for the stack sections
-        const integrations = [...new Set(mappedChannels.map(c => c.platform).filter(Boolean))];
+        const integrations = [...new Set(mappedChannels.map(c => c.platform).filter(item => item && item !== 'slack'))];
 
         // Construct Response
         const fullTeam = {

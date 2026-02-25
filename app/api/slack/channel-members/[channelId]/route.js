@@ -12,7 +12,7 @@ export async function GET(req, { params }) {
     try {
         // 1. Get the monitored resource to find external_id (Slack channel ID)
         const { data: resource } = await supabase.from('monitored_resources')
-            .select('external_id, integration_id')
+            .select('external_id, integration_id, metadata')
             .eq('id', channelId)
             .single();
 
@@ -34,18 +34,35 @@ export async function GET(req, { params }) {
             try {
                 const client = new WebClient(integration.settings.bot_token);
 
-                // 3. Get channel members from Slack
+                // 3. Get channel info for real member count
+                const channelInfo = await client.conversations.info({
+                    channel: resource.external_id
+                });
+
+                if (channelInfo.ok && channelInfo.channel.num_members) {
+                    total = channelInfo.channel.num_members;
+                    // Cache the count in metadata for faster subsequent loads and demo fallback
+                    const updatedMetadata = {
+                        ...(resource.metadata || {}),
+                        slack_member_count: total,
+                        last_sync_at: new Date().toISOString()
+                    };
+                    await supabase.from('monitored_resources')
+                        .update({ metadata: updatedMetadata })
+                        .eq('id', channelId);
+                }
+
+                // 4. Get leading participants from Slack
                 const membersResult = await client.conversations.members({
                     channel: resource.external_id,
                     limit: 100
                 });
 
                 if (membersResult.members && membersResult.members.length > 0) {
-                    total = membersResult.members.length;
                     const tempMembers = [];
                     const emailsToCheck = [];
 
-                    // 4. Get user info for each member
+                    // 5. Get user info for each member
                     for (const userId of membersResult.members.slice(0, 20)) {
                         try {
                             const userInfo = await client.users.info({ user: userId });
@@ -72,7 +89,7 @@ export async function GET(req, { params }) {
                         }
                     }
 
-                    // 5. Check "isConnected" status against Profiles table
+                    // 6. Check "isConnected" status against Profiles table
                     let connectedEmails = new Set();
                     if (emailsToCheck.length > 0) {
                         const { data: profiles } = await supabase
@@ -91,7 +108,7 @@ export async function GET(req, { params }) {
                     }));
                 }
             } catch (e) {
-                console.warn('Slack API failed, falling back to DB contributors:', e.message);
+                console.warn('Slack API failed, falling back to DB contributors/cache:', e.message);
             }
         }
 
@@ -129,11 +146,16 @@ export async function GET(req, { params }) {
                     isConnected: true,
                     initials: p.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
                 }));
-                total = members.length;
             }
         }
 
-        return NextResponse.json({ members, total });
+        // Calculate final total: 
+        // 1. If we have Slack count (real or cached), use it.
+        // 2. Otherwise, use members length as baseline.
+        const cachedCount = resource.metadata?.slack_member_count || resource.metadata?.num_members;
+        const finalTotal = cachedCount || members.length;
+
+        return NextResponse.json({ members, total: finalTotal });
 
     } catch (error) {
         console.error('Channel Members Error:', error);

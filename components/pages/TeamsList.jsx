@@ -5,9 +5,12 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import { Plus, MoreHorizontal, Shield, FileText, Download, Pencil, Users, Archive, Trash2, X, ChevronDown, Check } from 'lucide-react';
 import { Card, Button, Modal, SkeletonTeamItem, EmptyState } from '../ui';
+import ArchiveConfirmModal from '../ui/ArchiveConfirmModal';
+import { useToast } from '../ui/Toast';
 import { SCOPES_CONFIG } from '@/lib/constants';
 
 const TeamsList = ({ userRole, currentUser }) => {
+    const { showToast } = useToast();
     const fetcher = (...args) => fetch(...args).then(res => res.json());
 
     // SWR Hooks for data management
@@ -57,10 +60,33 @@ const TeamsList = ({ userRole, currentUser }) => {
         }
     };
 
-    const confirmDelete = () => {
-        mutateTeams({ ...teamsData, teams: teams.filter(t => t.id !== modalConfig.team.id) }, false);
-        setModalConfig({ type: null, team: null });
-        // TODO: Call API to delete
+    const confirmDelete = async () => {
+        const teamId = modalConfig.team?.id;
+        if (!teamId) return;
+        try {
+            const res = await fetch(`/api/teams/${teamId}`, { method: 'DELETE' });
+            if (res.ok) {
+                // Optimistic update then revalidate
+                mutateTeams({ ...teamsData, teams: teams.filter(t => t.id !== teamId) });
+                showToast({
+                    title: 'Team Deleted',
+                    message: `"${modalConfig.team?.name}" has been successfully archived.`,
+                    type: 'success'
+                });
+            } else {
+                const err = await res.json();
+                showToast({
+                    title: 'Error',
+                    message: err.error || err.message || 'Failed to delete team',
+                    type: 'error'
+                });
+            }
+        } catch (e) {
+            console.error('Delete team error:', e);
+            alert('An error occurred during deletion');
+        } finally {
+            setModalConfig({ type: null, team: null });
+        }
     };
 
     // Filter teams based on backend response (which handles roles)
@@ -547,26 +573,22 @@ const TeamsList = ({ userRole, currentUser }) => {
                 </div>
             </Modal>
 
-            {/* Delete Confirmation Modal */}
-            <Modal
+            <ArchiveConfirmModal
                 isOpen={modalConfig.type === 'delete'}
                 onClose={() => setModalConfig({ type: null, team: null })}
+                onConfirm={confirmDelete}
                 title="Delete Team"
-                maxWidth="max-w-md"
-            >
-                <div className="space-y-4">
-                    <div className="bg-rose-50 text-rose-800 p-3 rounded-lg text-sm border border-rose-100">
-                        Warning: This action cannot be undone. All channels and data associated with this team will be permanently deleted.
-                    </div>
-                    <p className="text-sm text-slate-600">
-                        Are you sure you want to delete <strong>{modalConfig.team?.name}</strong>?
-                    </p>
-                    <div className="flex justify-end pt-4 gap-2">
-                        <Button variant="secondary" onClick={() => setModalConfig({ type: null, team: null })}>Cancel</Button>
-                        <Button variant="danger" onClick={confirmDelete}>Delete Team</Button>
-                    </div>
-                </div>
-            </Modal>
+                subtitle={modalConfig.team?.name ? `"${modalConfig.team.name}" and all its data will be archived` : ''}
+                details={[
+                    'Archive the full team configuration (name, description, type)',
+                    'Archive all member participation records',
+                    'Archive all linked monitored resources (channels, repos, boards)',
+                    'Seal each record with a SHA-256 integrity hash',
+                    'Transfer everything to the Archive Vault for permanent audit retention',
+                ]}
+                confirmLabel="Delete & Archive"
+                variant="danger"
+            />
         </div>
     );
 };

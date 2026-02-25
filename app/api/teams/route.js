@@ -79,8 +79,7 @@ export async function GET(req) {
             // Extract unique providers
             const resources = team.monitored_resources || [];
             const integrations = [...new Set(resources.map(r => {
-                // Return 'github' or 'slack' based on provider or type fallback
-                return r.integrations?.provider || (r.type === 'repo' ? 'github' : (r.type === 'channel' ? 'slack' : null));
+                return r.integrations?.provider;
             }).filter(item => item && item !== 'slack'))];
 
             return {
