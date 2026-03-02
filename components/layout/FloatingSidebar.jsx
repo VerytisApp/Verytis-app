@@ -36,13 +36,11 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
 
     const allNavItems = [
         { path: '/', altPath: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Manager'] },
-        { path: '/teams', label: 'Teams', icon: Users, roles: ['Admin', 'Manager', 'Member'] }, // Changed icon to Users for Teams
-        { path: '/stacks', label: 'Stacks', icon: Layers, roles: ['Admin', 'Manager', 'Member'] }, // Added Stacks
-        { path: '/users', label: 'Users', icon: Shield, roles: ['Admin'] }, // Changed icon to Shield for Users to avoid dupe
-        { path: '/channels', label: 'Channels', icon: MessageSquare, roles: ['Admin', 'Manager', 'Member'] },
-        { path: '/agents', label: 'AI Agents', icon: Bot, roles: ['Admin'] }, // 🤖 AI Agents Telemetry
-        { path: '/timeline', label: 'Timeline', icon: Clock, roles: ['Admin', 'Manager', 'Member'] },
+        { path: '/agents', label: 'AI Agents', icon: Bot, roles: ['Admin', 'Manager', 'Member'] }, 
+        { path: '/library', label: 'Library', icon: Layers, roles: ['Admin', 'Manager', 'Member'] }, 
         { path: '/reports', label: 'Reports', icon: FileText, roles: ['Admin', 'Manager', 'Member'] },
+        { path: '/teams', label: 'Team', icon: Users, roles: ['Admin', 'Manager', 'Member'] }, 
+        { path: '/settings', label: 'Settings', icon: Settings, roles: ['Admin', 'Manager', 'Member'] },
     ];
 
     const navItems = allNavItems.filter(item => item.roles.includes(currentRole));
@@ -73,7 +71,7 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
             <div className={`py-4 ${isCollapsed ? '' : 'px-3'}`}>
                 <div className={`flex items-center ${isCollapsed ? 'justify-center w-full' : 'justify-between px-3'}`}>
                     <Link
-                        href="/"
+                        href="/dashboard"
                         className="cursor-pointer hover:scale-105 transition-transform"
                         onClick={() => isCollapsed && onToggleCollapse(false)}
                     >
@@ -131,31 +129,6 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                             transition={{ duration: 0.15 }}
                             className="absolute bottom-full left-4 right-4 mb-2 bg-white rounded-xl shadow-2xl ring-1 ring-slate-900/5 p-1 z-50"
                         >
-                            {currentRole === 'Admin' && (
-                                <button
-                                    onClick={() => { onModalOpen('integrations'); setProfileMenuOpen(false); }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg text-left font-medium"
-                                >
-                                    <Settings className="w-3.5 h-3.5" />
-                                    Integrations
-                                </button>
-                            )}
-                            <button
-                                onClick={() => { onModalOpen('passport'); setProfileMenuOpen(false); }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg text-left font-medium"
-                            >
-                                <Shield className="w-3.5 h-3.5" />
-                                Passport ID
-                            </button>
-                            <button
-                                onClick={() => { onModalOpen('account'); setProfileMenuOpen(false); }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg text-left font-medium"
-                            >
-                                <Users className="w-3.5 h-3.5" />
-                                Security & Account
-                            </button>
-
-                            <div className="h-px bg-slate-100 my-1" />
                             <button
                                 onClick={onLogout}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg text-left font-medium"

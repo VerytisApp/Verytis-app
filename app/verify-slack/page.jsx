@@ -1,13 +1,26 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Shield, Sparkles, AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
 export default function VerifySlackPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+                <div className="animate-spin w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full mb-4"></div>
+                <p className="text-slate-500 font-medium">Loading...</p>
+            </div>
+        }>
+            <VerifySlackContent />
+        </Suspense>
+    );
+}
+
+function VerifySlackContent() {
     const searchParams = useSearchParams();
     const token = searchParams.get('token');
 

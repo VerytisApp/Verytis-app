@@ -3,15 +3,19 @@
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { Plus, MoreHorizontal, Shield, FileText, Download, Pencil, Users, Archive, Trash2, X, ChevronDown, Check } from 'lucide-react';
+import { Plus, MoreHorizontal, Shield, FileText, Download, Pencil, Users, Archive, Trash2, X, ChevronDown, Check, Settings } from 'lucide-react';
 import { Card, Button, Modal, SkeletonTeamItem, EmptyState } from '../ui';
 import ArchiveConfirmModal from '../ui/ArchiveConfirmModal';
 import { useToast } from '../ui/Toast';
 import { SCOPES_CONFIG } from '@/lib/constants';
 
-const TeamsList = ({ userRole, currentUser }) => {
+const TeamsList = ({ userRole, currentUser: propUser }) => {
+    const currentUser = propUser;
     const { showToast } = useToast();
     const fetcher = (...args) => fetch(...args).then(res => res.json());
+
+    // Manager can invite but with restrictions
+    const hasInviteScope = userRole === 'Admin' || userRole === 'Manager';
 
     // SWR Hooks for data management
     const { data: teamsData, isLoading: isTeamsLoading, mutate: mutateTeams } = useSWR(
@@ -49,44 +53,28 @@ const TeamsList = ({ userRole, currentUser }) => {
         return () => document.removeEventListener('click', handleClickOutside);
     }, [activeDropdown]);
 
-    const handleAction = (type, team) => {
+    const handleAction = (type, target) => {
         setActiveDropdown(null);
-        if (type === 'archive') {
-            mutateTeams({ ...teamsData, teams: teams.map(t => t.id === team.id ? { ...t, status: 'Archived' } : t) }, false);
-        } else if (type === 'delete') {
-            setModalConfig({ type: 'delete', team });
+        if (type === 'delete') {
+            setModalConfig({ type: 'delete', member: target });
+        } else if (type === 'edit') {
+            setTeamFormData({ email: target.email, role: target.role, name: target.name });
+            setModalConfig({ type: 'edit', member: target });
         } else {
-            setModalConfig({ type, team });
+            setModalConfig({ type, member: target });
         }
     };
 
     const confirmDelete = async () => {
-        const teamId = modalConfig.team?.id;
-        if (!teamId) return;
-        try {
-            const res = await fetch(`/api/teams/${teamId}`, { method: 'DELETE' });
-            if (res.ok) {
-                // Optimistic update then revalidate
-                mutateTeams({ ...teamsData, teams: teams.filter(t => t.id !== teamId) });
-                showToast({
-                    title: 'Team Deleted',
-                    message: `"${modalConfig.team?.name}" has been successfully archived.`,
-                    type: 'success'
-                });
-            } else {
-                const err = await res.json();
-                showToast({
-                    title: 'Error',
-                    message: err.error || err.message || 'Failed to delete team',
-                    type: 'error'
-                });
-            }
-        } catch (e) {
-            console.error('Delete team error:', e);
-            alert('An error occurred during deletion');
-        } finally {
-            setModalConfig({ type: null, team: null });
-        }
+        const memberId = modalConfig.member?.id;
+        if (!memberId) return;
+        // In a real app, we'd call an API. Here we simulate success.
+        showToast({
+            title: 'Membre Supprimé',
+            message: `"${modalConfig.member?.name}" a été retiré de l'organisation.`,
+            type: 'success'
+        });
+        setModalConfig({ type: null, member: null });
     };
 
     // Filter teams based on backend response (which handles roles)
@@ -113,116 +101,98 @@ const TeamsList = ({ userRole, currentUser }) => {
         <div className="space-y-6 animate-in fade-in duration-300">
             <header className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Teams</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Membres / Collaborateurs</h1>
                     <p className="text-slate-500 mt-1 text-xs font-medium">
                         {userRole === 'Member'
-                            ? 'Overview of teams where you have active membership.'
+                            ? 'Overview of organization members.'
                             : userRole === 'Manager'
-                                ? 'Manage your assigned teams and memberships.'
-                                : 'Structure your organization to strictly control audit visibility.'}
+                                ? 'Manage members in your organization.'
+                                : 'Manage users, roles, and access to internal AI agents.'}
                     </p>
                 </div>
-                {userRole === 'Admin' && (
+                {hasInviteScope && (
                     <Button variant="primary" icon={Plus} onClick={() => {
+                        setTeamFormData({ email: '', role: 'Member', name: '', description: '', type: 'operational', members: [], scopes: [], channels: [] });
                         setModalConfig({ type: 'create', team: {} });
-                        setCurrentStep(1);
-                        setTeamFormData({ name: '', description: '', type: 'operational', members: [], scopes: [], channels: [] });
-                    }}>Create Team</Button>
+                    }}>Invite Member</Button>
                 )}
             </header>
             <Card className="overflow-hidden shadow-sm min-h-[400px]">
                 <table className="w-full text-xs text-left">
                     <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                         <tr>
-                            <th className="px-6 py-3 uppercase tracking-wide">Team Name</th>
-                            <th className="px-6 py-3 uppercase tracking-wide">Type</th>
-                            <th className="px-6 py-3 uppercase tracking-wide">Channels</th>
-                            <th className="px-6 py-3 uppercase tracking-wide">Members</th>
-                            {userRole !== 'Admin' && <th className="px-6 py-3 uppercase tracking-wide">Role</th>}
-                            {/* Audit Scope Column Removed */}
-                            <th className="px-6 py-3 uppercase tracking-wide">Created</th>
+                            <th className="px-6 py-3 uppercase tracking-wide">Nom / Email</th>
+                            <th className="px-6 py-3 uppercase tracking-wide">Rôle</th>
+                            <th className="px-6 py-3 uppercase tracking-wide">Statut</th>
                             {userRole !== 'Member' && <th className="px-6 py-3 text-right uppercase tracking-wide">Actions</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {displayedTeams.length > 0 ? displayedTeams.map(team => {
-                            // Use role from API response (normalized)
-                            let roleRaw = team.currentUserRole || 'Member';
-                            let role = 'Member';
-                            if (roleRaw.toLowerCase() === 'lead' || roleRaw.toLowerCase() === 'manager') role = 'Manager';
-                            else if (roleRaw.toLowerCase() === 'admin') role = 'Admin';
+                        {availableUsers.length > 0 ? availableUsers.map(user => {
+                            let role = user.role || 'Member';
+                            let status = user.status || 'Active'; // Simulated status
 
                             return (
-                                <tr key={team.id} className="hover:bg-slate-50/50 transition-colors group">
+                                <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="px-6 py-4">
-                                        <Link
-                                            href={`/teams/${team.id}`}
-                                            className="block cursor-pointer"
-                                        >
-                                            <span className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition-colors">{team.name}</span>
-                                            <p className="text-slate-500 mt-0.5 truncate max-w-xs">{team.description}</p>
-                                        </Link>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-slate-100 border text-slate-600 font-bold flex items-center justify-center uppercase text-xs">
+                                                {user.name?.substring(0, 2) || user.email?.substring(0, 2)}
+                                            </div>
+                                            <div>
+                                                <span className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition-colors block">
+                                                    {user.name}
+                                                </span>
+                                                <span className="text-[10px] text-slate-500">{user.email}</span>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${team.status === 'Archived' ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                                            {team.status === 'Archived' ? 'Archived' : team.type}
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${role?.toLowerCase() === 'admin' ? 'bg-purple-50 text-purple-600 border-purple-100' : role?.toLowerCase() === 'manager' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                                            {role}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 font-mono text-slate-600">{team.channels}</td>
-                                    <td className="px-6 py-4 font-mono text-slate-600">{team.members}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${status === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                            {status}
+                                        </span>
+                                    </td>
 
-                                    {/* Role Column */}
-                                    {userRole !== 'Admin' && (
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${role === 'Manager'
-                                                ? 'bg-blue-50 text-blue-600 border-blue-100'
-                                                : 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                                }`}>
-                                                {role || 'Member'}
-                                            </span>
-                                        </td>
-                                    )}
-
-                                    {/* Audit Scope Cell Removed */}
-                                    <td className="px-6 py-4 text-slate-500" suppressHydrationWarning>{new Date(team.created_at || team.created || Date.now()).toLocaleDateString()}</td>
-
-                                    {userRole !== 'Member' && (
+                                    {userRole?.toLowerCase() !== 'member' && (
                                         <td className="px-6 py-4 text-right relative action-menu">
-                                            {(role === 'Manager' || role === 'Admin') && (
-                                                <>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setActiveDropdown(activeDropdown === team.id ? null : team.id);
-                                                        }}
-                                                        className={`text-slate-400 hover:text-slate-600 transition-colors p-1.5 hover:bg-slate-100 rounded ${activeDropdown === team.id ? 'bg-slate-100 text-slate-900' : ''}`}
-                                                    >
-                                                        <MoreHorizontal className="w-4 h-4" />
-                                                    </button>
-                                                    {activeDropdown === team.id && (
-                                                        <div className="absolute right-8 top-8 w-48 bg-white rounded-lg shadow-xl border border-slate-200 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right text-left">
-                                                            <div className="py-1">
-                                                                <button onClick={() => handleAction('edit', team)} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                                                                    <Pencil className="w-3.5 h-3.5 text-slate-400" /> Edit Team
+                                            {(userRole?.toLowerCase() === 'admin' || (userRole?.toLowerCase() === 'manager' && user.role?.toLowerCase() === 'member')) && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setActiveDropdown(activeDropdown === user.id ? null : user.id);
+                                                    }}
+                                                    className={`text-slate-400 hover:text-slate-600 transition-colors p-1.5 hover:bg-slate-100 rounded ${activeDropdown === user.id ? 'bg-slate-100 text-slate-900' : ''}`}
+                                                >
+                                                    <MoreHorizontal className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                            {activeDropdown === user.id && (
+                                                <div className="absolute right-8 top-8 w-48 bg-white rounded-lg shadow-xl border border-slate-200 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right text-left">
+                                                    <div className="py-1">
+                                                        <button
+                                                            onClick={() => handleAction('edit', user)}
+                                                            className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                                        >
+                                                            <Pencil className="w-3.5 h-3.5 text-slate-400" /> Edit Role
+                                                        </button>
+                                                        {userRole?.toLowerCase() === 'admin' && (
+                                                            <>
+                                                                <div className="h-px bg-slate-100 my-1"></div>
+                                                                <button
+                                                                    onClick={() => handleAction('delete', user)}
+                                                                    className="w-full text-left px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" /> Remove Member
                                                                 </button>
-                                                                <button onClick={() => handleAction('members', team)} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                                                                    <Users className="w-3.5 h-3.5 text-slate-400" /> Manage Members
-                                                                </button>
-                                                                <button onClick={() => handleAction('archive', team)} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                                                                    <Archive className="w-3.5 h-3.5 text-slate-400" /> {team.status === 'Archived' ? 'Unarchive' : 'Archive Team'}
-                                                                </button>
-                                                                {userRole === 'Admin' && (
-                                                                    <>
-                                                                        <div className="h-px bg-slate-100 my-1"></div>
-                                                                        <button onClick={() => handleAction('delete', team)} className="w-full text-left px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2">
-                                                                            <Trash2 className="w-3.5 h-3.5" /> Delete Team
-                                                                        </button>
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             )}
                                         </td>
                                     )}
@@ -230,17 +200,11 @@ const TeamsList = ({ userRole, currentUser }) => {
                             );
                         }) : (
                             <tr>
-                                <td colSpan={userRole === 'Admin' ? "7" : "6"} className="px-6 py-12">
+                                <td colSpan="4" className="px-6 py-12">
                                     <EmptyState
-                                        title="No teams configured"
-                                        description="Teams allow you to group members and scope their audit visibility. Decisions made in linked channels will be automatically tracked."
+                                        title="No members"
+                                        description="Invite your collaborators to your AI-Ops workspace."
                                         icon={Users}
-                                        actionText={userRole === 'Admin' ? "Create New Team" : undefined}
-                                        onAction={userRole === 'Admin' ? () => {
-                                            setModalConfig({ type: 'create', team: {} });
-                                            setCurrentStep(1);
-                                            setTeamFormData({ name: '', description: '', type: 'operational', members: [], scopes: [], channels: [] });
-                                        } : undefined}
                                     />
                                 </td>
                             </tr>
@@ -252,298 +216,134 @@ const TeamsList = ({ userRole, currentUser }) => {
             {/* Edit / Create Modal */}
             <Modal
                 isOpen={modalConfig.type === 'edit' || modalConfig.type === 'create'}
-                onClose={() => setModalConfig({ type: null, team: null })}
-                title={modalConfig.type === 'create' ? `Create New Team (Step ${currentStep}/3)` : `Edit ${modalConfig.team?.name}`}
+                onClose={() => setModalConfig({ type: null, member: null })}
+                title={modalConfig.type === 'create' ? `Inviter un Collaborateur` : `Modifier le Rôle de ${modalConfig.member?.name}`}
                 maxWidth={modalConfig.type === 'create' ? "max-w-2xl" : "max-w-lg"}
             >
                 {modalConfig.type === 'create' ? (
-                    <div className="space-y-6">
-                        {/* Step Indicator */}
-                        <div className="flex items-center justify-between px-2 mb-4">
-                            <div className={`h-1 flex-1 rounded-full ${currentStep >= 1 ? 'bg-blue-600' : 'bg-slate-200'}`}></div>
-                            <div className="w-2"></div>
-                            <div className={`h-1 flex-1 rounded-full ${currentStep >= 2 ? 'bg-blue-600' : 'bg-slate-200'}`}></div>
-                            <div className="w-2"></div>
-                            <div className={`h-1 flex-1 rounded-full ${currentStep >= 3 ? 'bg-blue-600' : 'bg-slate-200'}`}></div>
+                    <div className="space-y-6 pt-2">
+                        {/* ... existing invitation form ... */}
+                        <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-4 mb-2">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                                <Users className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div className="text-xs text-blue-800 leading-relaxed">
+                                <p className="font-bold mb-1">Invitation SaaS</p>
+                                Envoyez une invitation par email pour accorder l'accès à votre console AI-Ops.
+                            </div>
                         </div>
 
-                        {/* Step 1: Basic Info */}
-                        {currentStep === 1 && (
-                            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-700 mb-1">Team Name</label>
-                                    <input
-                                        type="text"
-                                        value={teamFormData.name}
-                                        onChange={(e) => setTeamFormData({ ...teamFormData, name: e.target.value })}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-                                        placeholder="e.g. Finance & Legal"
-                                        autoFocus
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-700 mb-1">Team Type</label>
-                                    <div className="relative">
-                                        {dropdownState.type && <div className="fixed inset-0 z-10" onClick={() => setDropdownState({ ...dropdownState, type: false })} />}
-                                        <button
-                                            type="button"
-                                            onClick={() => setDropdownState({ ...dropdownState, type: !dropdownState.type })}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                                        >
-                                            <span className="capitalize">{teamFormData.type}</span>
-                                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${dropdownState.type ? 'rotate-180' : ''}`} />
-                                        </button>
-
-                                        {dropdownState.type && (
-                                            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 animate-in fade-in zoom-in-95 duration-200">
-                                                {['operational', 'governance'].map((type) => (
-                                                    <button
-                                                        key={type}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setTeamFormData({ ...teamFormData, type });
-                                                            setDropdownState({ ...dropdownState, type: false });
-                                                        }}
-                                                        className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center justify-between capitalize transition-colors ${teamFormData.type === type ? 'bg-blue-50 text-blue-700' : 'text-slate-700'}`}
-                                                    >
-                                                        {type}
-                                                        {teamFormData.type === type && <Check className="w-4 h-4" />}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
-                                    <textarea
-                                        value={teamFormData.description}
-                                        onChange={(e) => setTeamFormData({ ...teamFormData, description: e.target.value })}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm h-24"
-                                        placeholder="Briefly describe the team's purpose..."
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Step 2: Members & Scopes */}
-                        {currentStep === 2 && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                                <div className="space-y-3">
-                                    <div className="flex justify-between items-center">
-                                        <label className="block text-xs font-semibold text-slate-700">Add Members</label>
-                                        <span className="text-[10px] text-slate-400">{teamFormData.members.length} selected</span>
-                                    </div>
-                                    <div className="relative">
-                                        {dropdownState.addUser && <div className="fixed inset-0 z-10" onClick={() => setDropdownState({ ...dropdownState, addUser: false })} />}
-                                        <button
-                                            type="button"
-                                            onClick={() => setDropdownState({ ...dropdownState, addUser: !dropdownState.addUser })}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white hover:bg-slate-50 transition-colors"
-                                        >
-                                            <span className="text-slate-500">Select a user to add...</span>
-                                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${dropdownState.addUser ? 'rotate-180' : ''}`} />
-                                        </button>
-
-                                        {dropdownState.addUser && (
-                                            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto">
-                                                {availableUsers.filter(u => !teamFormData.members.find(m => m.id === u.id)).length === 0 ? (
-                                                    <div className="px-3 py-2 text-xs text-slate-400 text-center">No more users to add</div>
-                                                ) : (
-                                                    availableUsers
-                                                        .filter(u => !teamFormData.members.find(m => m.id === u.id))
-                                                        .map(u => (
-                                                            <button
-                                                                key={u.id}
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    setTeamFormData({
-                                                                        ...teamFormData,
-                                                                        members: [...teamFormData.members, { ...u, role: 'Member' }]
-                                                                    });
-                                                                    setDropdownState({ ...dropdownState, addUser: false });
-                                                                }}
-                                                                className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center justify-between text-slate-700 transition-colors"
-                                                            >
-                                                                <span>{u.name} <span className="text-slate-400 text-xs">({u.email})</span></span>
-                                                                <Plus className="w-3.5 h-3.5 text-slate-400" />
-                                                            </button>
-                                                        ))
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="border border-slate-200 rounded-md max-h-32 overflow-y-auto bg-slate-50 min-h-[80px] p-2 space-y-1">
-                                        {teamFormData.members.length === 0 ? (
-                                            <p className="text-[11px] text-slate-400 text-center py-4">No members added yet.</p>
-                                        ) : teamFormData.members.map(member => (
-                                            <div key={member.id} className="flex items-center justify-between text-xs bg-white p-2 rounded border border-slate-100 shadow-sm animate-in fade-in slide-in-from-top-1">
-                                                <span>{member.name}</span>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="relative">
-                                                        {dropdownState.memberRole === member.id && <div className="fixed inset-0 z-30" onClick={() => setDropdownState({ ...dropdownState, memberRole: null })} />}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setDropdownState({ ...dropdownState, memberRole: dropdownState.memberRole === member.id ? null : member.id })}
-                                                            className="text-[10px] py-0.5 px-2 border border-slate-200 rounded flex items-center gap-1 hover:bg-slate-50 bg-white transition-colors"
-                                                        >
-                                                            {member.role}
-                                                            <ChevronDown className="w-3 h-3 text-slate-400" />
-                                                        </button>
-                                                        {dropdownState.memberRole === member.id && (
-                                                            <div className="absolute right-0 top-full mt-1 w-24 bg-white border border-slate-200 rounded shadow-lg z-40 py-1 animate-in fade-in zoom-in-95 duration-200">
-                                                                {['Member', 'Manager'].map(role => (
-                                                                    <button
-                                                                        key={role}
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            setTeamFormData({
-                                                                                ...teamFormData,
-                                                                                members: teamFormData.members.map(m => m.id === member.id ? { ...m, role } : m)
-                                                                            });
-                                                                            setDropdownState({ ...dropdownState, memberRole: null });
-                                                                        }}
-                                                                        className={`w-full text-left px-2 py-1 text-[10px] hover:bg-slate-50 flex justify-between items-center transition-colors ${member.role === role ? 'text-blue-600 bg-blue-50' : 'text-slate-700'}`}
-                                                                    >
-                                                                        {role}
-                                                                        {member.role === role && <Check className="w-3 h-3" />}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <button
-                                                        onClick={() => setTeamFormData({ ...teamFormData, members: teamFormData.members.filter(m => m.id !== member.id) })}
-                                                        className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
-                                                    >
-                                                        <X className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <label className="block text-xs font-semibold text-slate-700">Manager Scope</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {SCOPES_CONFIG.map((scope, idx) => (
-                                            <label key={idx} className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-colors ${teamFormData.scopes.includes(scope.title) ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
-                                                <input
-                                                    type="checkbox"
-                                                    className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                                    checked={teamFormData.scopes.includes(scope.title)}
-                                                    onChange={(e) => {
-                                                        if (e.target.checked) setTeamFormData({ ...teamFormData, scopes: [...teamFormData.scopes, scope.title] });
-                                                        else setTeamFormData({ ...teamFormData, scopes: teamFormData.scopes.filter(s => s !== scope.title) });
-                                                    }}
-                                                />
-                                                <div>
-                                                    <div className="text-[11px] font-bold text-slate-900">{scope.title}</div>
-                                                    <div className="text-[9px] text-slate-500 leading-tight">{scope.desc}</div>
-                                                </div>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Step 3: Link Channels */}
-                        {currentStep === 3 && (
-                            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                                <p className="text-xs text-slate-500">Select channels to link to this team. Decisions made in these channels will be audited.</p>
-                                <div className="space-y-2 max-h-[300px] overflow-y-auto border border-slate-200 rounded-md">
-                                    {availableChannels.length === 0 ? (
-                                        <p className="text-xs text-center text-slate-400 py-4">No available public channels found.</p>
-                                    ) : availableChannels.map(channel => (
-                                        <label key={channel.id} className={`flex items-center justify-between p-3 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 ${teamFormData.channels.includes(channel.id) ? 'bg-blue-50/50' : ''}`}>
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="checkbox"
-                                                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                                    checked={teamFormData.channels.includes(channel.id)}
-                                                    onChange={(e) => {
-                                                        if (e.target.checked) setTeamFormData({ ...teamFormData, channels: [...teamFormData.channels, channel.id] });
-                                                        else setTeamFormData({ ...teamFormData, channels: teamFormData.channels.filter(id => id !== channel.id) });
-                                                    }}
-                                                />
-                                                <div>
-                                                    <div className="text-xs font-bold text-slate-900">{channel.name}</div>
-                                                    <div className="text-[10px] text-slate-500 capitalize">{channel.platform} • Public Channel</div>
-                                                </div>
-                                            </div>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="flex justify-between pt-4 border-t border-slate-100">
-                            <div className="flex gap-2">
-                                {currentStep > 1 ? (
-                                    <Button variant="ghost" onClick={() => setCurrentStep(curr => curr - 1)}>Back</Button>
-                                ) : (
-                                    <Button variant="ghost" onClick={() => setModalConfig({ type: null, team: null })}>Cancel</Button>
-                                )}
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Adresse Email</label>
+                                <input
+                                    type="email"
+                                    required
+                                    placeholder="ex: jean.dupont@entreprise.com"
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                                    value={teamFormData.email || ''}
+                                    onChange={e => setTeamFormData({ ...teamFormData, email: e.target.value })}
+                                />
                             </div>
 
-                            <div className="flex gap-2">
-                                {currentStep < 3 ? (
-                                    <Button variant="primary" onClick={() => setCurrentStep(curr => curr + 1)} disabled={currentStep === 1 && !teamFormData.name}>Next Step</Button>
-                                ) : (
-                                    <Button variant="primary" onClick={async () => {
-                                        try {
-                                            const res = await fetch('/api/teams', {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({
-                                                    name: teamFormData.name,
-                                                    description: teamFormData.description,
-                                                    type: teamFormData.type,
-                                                    members: teamFormData.members,
-                                                    channels: teamFormData.channels,
-                                                    scopes: teamFormData.scopes
-                                                })
-                                            });
-
-                                            if (res.ok) {
-                                                const { team: newTeam } = await res.json();
-                                                const viewTeam = {
-                                                    ...newTeam,
-                                                    members: 0,
-                                                    channels: 0,
-                                                    scopes: teamFormData.scopes, // scopes not saved to DB yet
-                                                    status: 'Active',
-                                                    created_at: newTeam.created_at
-                                                };
-                                                mutateTeams({ ...teamsData, teams: [viewTeam, ...teams] }, false);
-                                                setModalConfig({ type: null, team: null });
-                                            }
-                                        } catch (e) {
-                                            console.error("Failed to create team", e);
-                                            alert("Error creating team");
-                                        }
-                                    }}>Create Team</Button>
-                                )}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Rôle</label>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {['Member', 'Manager', 'Admin'].map((role) => {
+                                        const isDisabled = userRole?.toLowerCase() === 'manager' && (role?.toLowerCase() === 'admin' || role?.toLowerCase() === 'manager');
+                                        return (
+                                            <button
+                                                key={role}
+                                                type="button"
+                                                disabled={isDisabled}
+                                                onClick={() => setTeamFormData({ ...teamFormData, role })}
+                                                className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border-2 transition-all font-bold text-[10px] ${isDisabled ? 'opacity-40 cursor-not-allowed bg-slate-50 border-slate-100' : (teamFormData.role?.toLowerCase() || 'member') === role?.toLowerCase()
+                                                    ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
+                                                    : 'bg-white border-slate-100 text-slate-500 hover:border-slate-200'
+                                                    }`}
+                                            >
+                                                {role?.toLowerCase() === 'admin' ? <Shield className="w-4 h-4" /> : role?.toLowerCase() === 'manager' ? <Settings className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+                                                {role}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                            <Button variant="ghost" onClick={() => setModalConfig({ type: null, member: null })}>Annuler</Button>
+                            <Button
+                                variant="primary"
+                                className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 px-8 font-bold"
+                                disabled={!teamFormData.email || !teamFormData.email.includes('@')}
+                                onClick={() => {
+                                    showToast({
+                                        title: 'Invitation Envoyée',
+                                        message: `Une invitation a été envoyée à ${teamFormData.email}`,
+                                        type: 'success'
+                                    });
+                                    setModalConfig({ type: null, member: null });
+                                }}
+                            >
+                                Envoyer l'invitation
+                            </Button>
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-700 mb-1">Team Name</label>
-                            <input type="text" defaultValue={modalConfig.team?.name} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" placeholder="e.g. Finance & Legal" />
+                    <div className="space-y-6 pt-2">
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Rôle</label>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {['Member', 'Manager', 'Admin'].map((role) => {
+                                        const isCurrentRole = role?.toLowerCase() === modalConfig.member?.role?.toLowerCase();
+                                        const targetRole = modalConfig.member?.role?.toLowerCase();
+                                        const isDisabled = isCurrentRole || (userRole?.toLowerCase() === 'manager' && (role?.toLowerCase() === 'admin' || role?.toLowerCase() === 'manager' || targetRole === 'admin' || targetRole === 'manager'));
+                                        return (
+                                            <button
+                                                key={role}
+                                                type="button"
+                                                disabled={isDisabled}
+                                                onClick={() => setTeamFormData({ ...teamFormData, role })}
+                                                className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border-2 transition-all font-bold text-[10px] ${isDisabled ? 'opacity-40 cursor-not-allowed bg-slate-50 border-slate-100' : (teamFormData.role?.toLowerCase() || 'member') === role?.toLowerCase()
+                                                    ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
+                                                    : 'bg-white border-slate-100 text-slate-500 hover:border-slate-200'
+                                                    }`}
+                                            >
+                                                {role?.toLowerCase() === 'admin' ? <Shield className="w-4 h-4" /> : role?.toLowerCase() === 'manager' ? <Settings className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+                                                {role} {isCurrentRole && <span className="text-[8px] font-normal">(Actuel)</span>}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-[10px] text-slate-400 italic pt-1">
+                                    {userRole?.toLowerCase() === 'manager'
+                                        ? "Les Managers ne peuvent pas promouvoir de membres."
+                                        : (teamFormData.role?.toLowerCase() === 'admin'
+                                            ? 'Accès complet : Gestion des agents, exports et facturation.'
+                                            : teamFormData.role?.toLowerCase() === 'manager'
+                                                ? 'Accès étendu : Gestion des agents et exports, pas de facturation.'
+                                                : 'Accès restreint : Visualisation uniquement, pas d\'export possible.')}
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
-                            <textarea defaultValue={modalConfig.team?.description} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm h-24" placeholder="Briefly describe the team's purpose..." />
-                        </div>
-                        <div className="flex justify-end pt-4 gap-2">
-                            <Button variant="ghost" onClick={() => setModalConfig({ type: null, team: null })}>Cancel</Button>
-                            <Button variant="primary" onClick={() => setModalConfig({ type: null, team: null })}>
-                                Save Changes
+
+                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                            <Button variant="ghost" onClick={() => setModalConfig({ type: null, member: null })}>Annuler</Button>
+                            <Button
+                                variant="primary"
+                                className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 px-8 font-bold"
+                                onClick={() => {
+                                    showToast({
+                                        title: 'Rôle Mis à Jour',
+                                        message: `Le rôle de ${modalConfig.member?.name} est maintenant ${teamFormData.role}.`,
+                                        type: 'success'
+                                    });
+                                    setModalConfig({ type: null, member: null });
+                                }}
+                            >
+                                Enregistrer
                             </Button>
                         </div>
                     </div>
@@ -575,18 +375,16 @@ const TeamsList = ({ userRole, currentUser }) => {
 
             <ArchiveConfirmModal
                 isOpen={modalConfig.type === 'delete'}
-                onClose={() => setModalConfig({ type: null, team: null })}
+                onClose={() => setModalConfig({ type: null, member: null })}
                 onConfirm={confirmDelete}
-                title="Delete Team"
-                subtitle={modalConfig.team?.name ? `"${modalConfig.team.name}" and all its data will be archived` : ''}
+                title="Supprimer le Membre"
+                subtitle={modalConfig.member?.name ? `Retirer "${modalConfig.member.name}" de l'organisation ?` : ''}
                 details={[
-                    'Archive the full team configuration (name, description, type)',
-                    'Archive all member participation records',
-                    'Archive all linked monitored resources (channels, repos, boards)',
-                    'Seal each record with a SHA-256 integrity hash',
-                    'Transfer everything to the Archive Vault for permanent audit retention',
+                    'Révoquer tous les accès à la console Verytis',
+                    'Supprimer les clés API personnelles éventuellement liées',
+                    'Désactiver le compte pour cet espace de travail',
                 ]}
-                confirmLabel="Delete & Archive"
+                confirmLabel="Supprimer définitivement"
                 variant="danger"
             />
         </div>

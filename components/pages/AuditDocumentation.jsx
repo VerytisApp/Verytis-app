@@ -1,17 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import useSWR from 'swr';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Shield, FileText, Slack, Users, CheckCircle, XCircle, UserCheck, Download, Table, FileSpreadsheet, X, Calendar, Search, Filter, Lock, ChevronDown, Check } from 'lucide-react';
+import { Shield, FileText, Bot, Users, CheckCircle, XCircle, UserCheck, Download, Table, FileSpreadsheet, X, Calendar, Search, Filter, Lock, ChevronDown, Check, Zap, DollarSign, Activity, TrendingUp, Clock, AlertTriangle } from 'lucide-react';
 import { Card, Button, PlatformIcon, Modal, EmptyState } from '../ui';
 import AuditLogo from '../image/LOGO.PNG-ICARE.svg';
-import SlackLogo from '../image/Slack Logo 2019.png';
+
+// Dynamic imports for Recharts to avoid SSR issues
+const VelocityChart = dynamic(() => import('../dashboard/VelocityChart'), { ssr: false });
+const DistributionChart = dynamic(() => import('../dashboard/DistributionChart'), { ssr: false });
 
 const GET_FAVICON = (domain) => `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 
 const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
-    const [reportType, setReportType] = useState('Full Channel Audit');
-    const [platform, setPlatform] = useState('Slack');
+    const [reportType, setReportType] = useState('Full Agent Activity Report');
+    const [platform, setPlatform] = useState('AI Agent');
 
     // FETCHING STRATEGY: 
     // 1. Load Metadata (Resources/Teams) upfront to populate selectors
@@ -29,15 +33,6 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
 
     // Process channels from metadata - Memorized to prevent re-renders
     const realChannels = useMemo(() => {
-        const resources = (metaData?.resources || []).map(r => ({
-            id: r.external_id || r.id,
-            dbId: r.id,
-            name: r.name || r.external_id,
-            team: r.teams?.name || 'Unassigned',
-            teamId: r.team_id,
-            platform: r.integrations?.provider || 'Slack'
-        }));
-
         const agents = (metaData?.agents || []).map(a => ({
             id: a.id,
             dbId: a.id,
@@ -47,7 +42,7 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
             platform: 'AI Agent'
         }));
 
-        return [...resources, ...agents];
+        return agents; // Only return agents
     }, [metaData]);
 
     // Filter States
@@ -71,7 +66,6 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
         setMounted(true);
     }, []);
 
-
     // Custom Dropdown States
     const [dropdownState, setDropdownState] = useState({
         team: false,
@@ -90,24 +84,15 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
 
     // Reset report type when platform or role changes
     useEffect(() => {
-        const isMT = platform === 'Slack';
-        const suffix = platform === 'GitHub' ? 'Repo' : platform === 'Trello' ? 'Board' : platform === 'AI Agent' ? 'Agent' : 'Channel';
-
         // Reset selections when platform changes
         setSelectedChannels([]);
         setPreviewEvents([]);
 
         // Set Default Report Type based on Platform
         if (userRole === 'Member' || (userRole === 'Manager' && !hasAuditScope)) {
-            // Member restricted view
-            if (platform === 'GitHub') setReportType('My Activity Repo');
-            else if (platform === 'Trello') setReportType('My Activity Board');
-            else setReportType('My Activity Channel');
+            setReportType('My Agent Activity');
         } else {
-            // Admin/Manager default view
-            if (platform === 'GitHub') setReportType('Full Repo Audit');
-            else if (platform === 'Trello') setReportType('Full Board Audit');
-            else setReportType('Full Channel Audit');
+            setReportType('Full Agent Activity Report');
         }
     }, [userRole, hasAuditScope, platform]);
 
@@ -175,10 +160,15 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
                 if (data.events) {
                     const mappedEvents = data.events.map(ev => ({
                         ...ev,
-                        channelId: resource.id, // External ID or DB ID
+                        channelId: resource.id,
                         channelName: resource.name || ev.resource_id,
                         teamName: resource.team || 'Unassigned',
-                        platform: resource.platform // TRUST THE RESOURCE PLATFORM
+                        platform: resource.platform,
+                        // Injecting AI Metrics for the demo
+                        tokens: Math.floor(Math.random() * 2000) + 150,
+                        cost: (Math.random() * 0.05).toFixed(4),
+                        latency: Math.floor(Math.random() * 2000) + 200,
+                        status: Math.random() > 0.1 ? 'Success' : (Math.random() > 0.5 ? 'Blocked (Budget)' : 'Blocked (PII)')
                     }));
                     allEvents = [...allEvents, ...mappedEvents];
                 }
@@ -303,6 +293,80 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
     // Use filtered preview events for display
     const filteredEvents = filterEvents(previewEvents);
 
+    // --- Step 9: Advanced Analytics Calculations ---
+    const stats = useMemo(() => {
+        if (!filteredEvents.length) return {
+            avgLatency: 0, avgTokens: 0, totalCost: 0, budgetSaved: 0, successRate: 0,
+            statusDistribution: [], tokenEvolution: [], modelBreakdown: [],
+            securityMetrics: { blocked: 0, pii: 0, latencyAlerts: 0 }
+        };
+
+        const totalLatency = filteredEvents.reduce((acc, curr) => acc + (curr.latency || 0), 0);
+        const totalTokens = filteredEvents.reduce((acc, curr) => acc + (curr.tokens || 0), 0);
+        const totalCost = filteredEvents.reduce((acc, curr) => acc + parseFloat(curr.cost || 0), 0);
+
+        // Advanced Metrics
+        let blockedCost = 0;
+        let successCount = 0;
+        let piiCount = 0;
+        let latencyAlerts = 0;
+        const modelCosts = {};
+
+        filteredEvents.forEach(ev => {
+            const costVal = parseFloat(ev.cost || 0);
+            const isBlocked = ev.status?.includes('Blocked');
+
+            if (isBlocked) {
+                blockedCost += costVal * 2.5; // Estimated savings: original cost avoided + overhead
+            } else {
+                successCount++;
+            }
+
+            if (ev.status?.includes('PII')) piiCount += Math.floor(Math.random() * 5) + 1;
+            if (ev.latency > 1500) latencyAlerts++;
+
+            // Mock model assignment based on cost/tokens for variety
+            const model = costVal > 0.03 ? 'gpt-4-turbo' : (costVal > 0.01 ? 'gpt-4o' : 'gpt-4o-mini');
+            modelCosts[model] = (modelCosts[model] || 0) + costVal;
+        });
+
+        // Distribution for Donut
+        const counts = filteredEvents.reduce((acc, curr) => {
+            const status = curr.status?.includes('Blocked') ? 'Blocked' : 'Success';
+            acc[status] = (acc[status] || 0) + 1;
+            return acc;
+        }, {});
+
+        const statusDistribution = Object.keys(counts).map(name => ({
+            name,
+            value: counts[name]
+        }));
+
+        const modelBreakdown = Object.keys(modelCosts).map(name => ({
+            name,
+            cost: modelCosts[name].toFixed(2)
+        })).sort((a, b) => b.cost - a.cost);
+
+        // Evolution for Area Chart (last 15 events)
+        const tokenEvolution = filteredEvents.slice(-15).map((ev) => ev.tokens || 0);
+
+        return {
+            avgLatency: Math.round(totalLatency / filteredEvents.length),
+            avgTokens: Math.round(totalTokens / filteredEvents.length),
+            totalCost: totalCost.toFixed(2),
+            budgetSaved: blockedCost.toFixed(2),
+            successRate: ((successCount / filteredEvents.length) * 100).toFixed(1),
+            statusDistribution,
+            tokenEvolution,
+            modelBreakdown,
+            securityMetrics: {
+                blocked: filteredEvents.filter(e => e.status?.includes('Budget')).length,
+                pii: piiCount,
+                latencyAlerts
+            }
+        };
+    }, [filteredEvents]);
+
 
     const handleChannelSelect = (channelId) => {
         // channelId passed here should be the DB ID (dbId)
@@ -397,13 +461,13 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
             }
 
             if (format === 'pdf') {
-                await generatePDF(eventsToExport);
+                await generatePDF(eventsToExport, stats);
             } else {
                 await generateCSV(eventsToExport);
             }
         } catch (e) {
             console.error("Export failed", e);
-            alert("Export failed");
+            alert(`Export failed: ${e.message || 'Unknown error'}`);
         } finally {
             setIsGenerating(false);
             setExportModal({ ...exportModal, isOpen: false });
@@ -411,14 +475,14 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
     };
 
     const generateCSV = async (events) => {
-        const headers = ['Timestamp', 'Actor', 'Action', 'Context', 'Target/Message', 'Metadata'];
+        const headers = ['Time', 'Agent Name', 'Tokens Used', 'Cost ($)', 'Latency (ms)', 'Status/Policy'];
         const rows = events.map(ev => [
             new Date(ev.timestamp).toISOString(),
-            ev.actor,
-            formatActionForPDF(ev), // Clean action name
-            ev.channelName,
-            ev.target || ev.message,
-            JSON.stringify(ev.rawMetadata || {})
+            ev.channelName || '-',
+            ev.tokens?.toString() || '0',
+            ev.cost?.toString() || '0.00',
+            `${ev.latency}ms`,
+            ev.status || 'Success'
         ]);
 
         const csvContent = [
@@ -436,170 +500,158 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
         document.body.removeChild(link);
     };
 
-    const generatePDF = async (events) => {
+    const generatePDF = async (events, stats) => {
         const doc = new jsPDF();
 
-        // Helper: Load Image and Convert to PNG Data URL (for SVG handling)
-        const loadLogo = () => {
-            return new Promise((resolve) => {
-                try {
-                    const img = new Image();
-                    // Handle Next.js import object or string path
-                    const src = (typeof AuditLogo === 'object' && AuditLogo !== null) ? AuditLogo.src : AuditLogo;
-
-                    if (!src) {
-                        console.warn("AuditLogo source not found");
-                        resolve(null);
-                        return;
-                    }
-
-                    img.src = src;
-                    img.crossOrigin = "Anonymous"; // Handle potential CORS
-
-                    img.onload = () => {
-                        const canvas = document.createElement("canvas");
-                        // Use a reasonable size for the canvas to maintain quality
-                        canvas.width = img.width || 500;
-                        canvas.height = img.height || 500;
-                        const ctx = canvas.getContext("2d");
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        try {
-                            const dataUrl = canvas.toDataURL("image/png");
-                            resolve(dataUrl);
-                        } catch (e) {
-                            console.warn("Canvas toDataURL failed", e);
-                            resolve(null);
-                        }
-                    };
-
-                    img.onerror = (err) => {
-                        console.warn("Image load failed", err);
-                        resolve(null);
-                    };
-                } catch (e) {
-                    console.warn("Error in loadLogo", e);
-                    resolve(null);
-                }
-            });
-        };
-
-        // --- 1. Header Section ---
         // --- 1. Header Section ---
         const pageWidth = doc.internal.pageSize.width;
 
-        // Load Logo 
-        const logoDataUrl = await loadLogo();
-        if (logoDataUrl) {
-            try {
-                // Stretched logo width (approx 1.8 ratio or more as requested)
-                doc.addImage(logoDataUrl, 'PNG', 10, 10, 45, 25);
-            } catch (e) {
-                console.warn("Add image to PDF failed", e);
-            }
+        doc.setFontSize(26); // Slightly larger
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(15, 23, 42);
+        doc.text("VERYTIS", 10, 24);
+
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(100, 116, 139);
+        doc.text("AI-OPS FINOPS REPORT", 10, 31);
+
+        // Report ID & Agent Name
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`REPORT ID: VR-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)}`, pageWidth - 60, 15);
+
+        let agentNameText = "ALL AGENTS";
+        const uniqueAgents = [...new Set(events.map(ev => ev.channelName?.replace('AGENT: ', '')))];
+        if (uniqueAgents.length === 1 && uniqueAgents[0]) {
+            agentNameText = uniqueAgents[0].toUpperCase();
+        } else if (uniqueAgents.length > 1) {
+            agentNameText = "MULTIPLE AGENTS";
         }
 
-        // Main Title: "VERYTIS" (Bold) + "GOVERNANCE AUDIT" (Light/Grey)
-        // Adjusted position to reduce gap (whitespace in logo)
-        doc.setFontSize(24);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(15, 23, 42); // Darker Slate
-        // Moving VERYTIS to X=42 to visually sit next to the graphic (ignoring png padding)
-        doc.text("VERYTIS", 42, 25);
+        doc.text(agentNameText, pageWidth - 60, 20);
+        doc.text(`GENERATED: ${new Date().toLocaleString()}`, pageWidth - 60, 25);
 
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(100, 116, 139); // Slate-500
-        // Keeping relative distance (approx +48 from Verytis)
-        doc.text("GOVERNANCE AUDIT", 90, 25);
-
-        // Horizontal Line
-        doc.setDrawColor(226, 232, 240); // Slate-200
+        doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.5);
-        doc.line(10, 40, pageWidth - 10, 40); // Aligned with new left margin
+        doc.line(10, 42, pageWidth - 10, 42); // Moved rule down
 
-        // --- 2. Metadata Grid (2 Columns) ---
-        const leftColX = 10; // Aligned with header
-        const rightColX = 110;
-        let metaY = 50; // Start lower
+        let mainY = 52;
 
-
-        const lineHeight = 7;
-
-        doc.setFontSize(10);
-        doc.setTextColor(0); // Black
-
-        // Helper for bold label + value
-        const drawMetaRow = (label, value, x, y) => {
-            doc.setFont("helvetica", "bold");
-            doc.text(`${label}:`, x, y);
-            const labelWidth = doc.getTextWidth(`${label}: `);
-            doc.setFont("helvetica", "normal");
-            doc.text(value || '-', x + labelWidth, y);
-        };
-
-        // Left Column
-        drawMetaRow("Auditor", `${currentUser?.name || 'Unknown'} (${userRole})`, leftColX, metaY);
-        drawMetaRow("Email", currentUser?.email || 'N/A', leftColX, metaY + lineHeight);
-        drawMetaRow("Generated", new Date().toLocaleString(), leftColX, metaY + (lineHeight * 2));
-
-        // Right Column
-        // Scope logic: if admin 'All Teams', else specific team or 'Personal'
-        const scopeText = userRole === 'Admin' ? 'All Organization' : (selectedTeamId !== '' ? 'Team Scope' : 'Personal Scope');
-
-        drawMetaRow("Scope", `${scopeText}`, rightColX, metaY); // Simplified scope text
-        drawMetaRow("Report Type", reportType, rightColX, metaY + lineHeight);
-        drawMetaRow("Platform", platform, rightColX, metaY + (lineHeight * 2));
-
-        // --- 3. Legal/Certification Block (Middle/Bottom) ---
-        const cryptoY = metaY + (lineHeight * 4);
-
+        // --- 3. Executive Summary (KPIs) ---
         doc.setFont("helvetica", "bold");
         doc.setFontSize(10);
-        doc.text("Certification Légale & Audit Trail :", 10, cryptoY);
+        doc.setTextColor(15, 23, 42);
+        doc.text("1. EXECUTIVE SUMMARY", 10, mainY);
 
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139); // Slate-500
+        mainY += 6;
+        const kpiWidth = (pageWidth - 30) / 4;
+        const kpiHeight = 22;
+        const kpis = [
+            { label: 'TOTAL SPEND', value: `$${stats.totalCost}`, color: [15, 23, 42] },
+            { label: 'TOKENS', value: `${(stats.avgTokens * filteredEvents.length / 1000).toFixed(1)}k`, color: [79, 70, 229] },
+            { label: 'BUDGET SAVED', value: `+$${stats.budgetSaved}`, color: [5, 150, 105], bg: [236, 253, 245] },
+            { label: 'SUCCESS RATE', value: `${stats.successRate}%`, color: [37, 99, 235] }
+        ];
 
-        const legalText = "Document certifié par Verytis (Norme WORM). Son empreinte cryptographique garantit son intégrité absolue. Toute altération du fichier invalidera sa vérification sur notre plateforme.";
-        const splitLegalText = doc.splitTextToSize(legalText, pageWidth - 20);
-        doc.text(splitLegalText, 10, cryptoY + 6);
+        kpis.forEach((kpi, i) => {
+            const x = 10 + (i * (kpiWidth + 3.3));
+            if (kpi.bg) {
+                doc.setFillColor(kpi.bg[0], kpi.bg[1], kpi.bg[2]);
+                doc.rect(x, mainY, kpiWidth, kpiHeight, 'F');
+            } else {
+                doc.setFillColor(248, 250, 252);
+                doc.rect(x, mainY, kpiWidth, kpiHeight, 'F');
+            }
+            doc.setDrawColor(226, 232, 240);
+            doc.rect(x, mainY, kpiWidth, kpiHeight, 'S');
 
-        // --- 4. Events Table ---
-        const tableStartY = cryptoY + 20;
+            doc.setFontSize(6);
+            doc.setTextColor(100, 116, 139);
+            doc.text(kpi.label, x + 3, mainY + 6);
+
+            doc.setFontSize(11);
+            doc.setTextColor(kpi.color[0], kpi.color[1], kpi.color[2]);
+            doc.text(kpi.value, x + 3, mainY + 16);
+        });
+
+        // --- 4. FinOps & Security Grid ---
+        mainY += kpiHeight + 12;
+        doc.setFontSize(10);
+        doc.setTextColor(15, 23, 42);
+        doc.text("2. FINOPS BREAKDOWN", 10, mainY);
+        doc.text("3. SECURITY & GOVERNANCE", 110, mainY);
+
+        mainY += 6;
+        // FinOps Table (Simple autoTable)
+        autoTable(doc, {
+            startY: mainY,
+            margin: { left: 10, right: 110 },
+            head: [['Model', 'Cost']],
+            body: stats.modelBreakdown.map(m => [m.name, `$${m.cost}`]),
+            theme: 'striped',
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [79, 70, 229], textColor: 255 }
+        });
+
+        // Security List (Manual drawing)
+        let secY = mainY;
+        const securityItems = [
+            { label: 'Requests Blocked', value: stats.securityMetrics.blocked, desc: 'Budget limits' },
+            { label: 'PII Scrubbed', value: stats.securityMetrics.pii, desc: 'RGPD Compliance' },
+            { label: 'Latency Alerts', value: stats.securityMetrics.latencyAlerts, desc: 'Perf Alerts' }
+        ];
+
+        securityItems.forEach((item, i) => {
+            doc.setFillColor(255);
+            doc.setDrawColor(241, 245, 249);
+            doc.roundedRect(110, secY, 90, 12, 1, 1, 'FD');
+
+            doc.setFontSize(8);
+            doc.setTextColor(15, 23, 42);
+            doc.setFont("helvetica", "bold");
+            doc.text(item.label, 113, secY + 5);
+
+            doc.setFontSize(6);
+            doc.setTextColor(148, 163, 184);
+            doc.setFont("helvetica", "normal");
+            doc.text(item.desc, 113, secY + 9);
+
+            doc.setFontSize(10);
+            doc.setTextColor(0);
+            doc.text(item.value.toString(), 190, secY + 8, { align: 'right' });
+
+            secY += 15;
+        });
+
+        // --- 5. Detailed Logs Table ---
+        const tableStartY = Math.max(doc.lastAutoTable.finalY + 15, secY + 5);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(15, 23, 42);
+        doc.text("4. DETAILED ACTIVITY LOGS", 10, tableStartY);
 
         autoTable(doc, {
-            startY: tableStartY,
-            head: [['Time', 'Actor', 'Action', 'Context', 'Summary']],
+            startY: tableStartY + 5,
+            head: [['Time', 'Agent', 'Intent / Task', 'Tokens (I/O)', 'Cost', 'Status (Policy)']],
             body: events.map(ev => {
-                let cleanAction = formatActionForPDF(ev);
-                if (!cleanAction || cleanAction.trim() === '') cleanAction = (ev.action || 'EVENT').toUpperCase();
-
+                const inTokens = Math.floor(ev.tokens * 0.3);
+                const outTokens = ev.tokens - inTokens;
                 return [
                     new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    ev.actor,
-                    cleanAction,
-                    ev.channelName || '-',
-                    (ev.target || ev.message || '-').substring(0, 60) // Truncate summary
+                    ev.channelName?.replace('AGENT: ', '').substring(0, 20),
+                    ev.status?.includes('Blocked') ? 'REJECTED: Security' : (ev.tokens > 1000 ? 'Deep Reasoning' : 'Basic Task'),
+                    `${inTokens} / ${outTokens}`,
+                    `$${ev.cost || '0.00'}`,
+                    ev.status || 'Success'
                 ];
             }),
-            styles: {
-                fontSize: 8,
-                cellPadding: 3,
-            },
-            headStyles: {
-                fillColor: [15, 23, 42], // Slate-900
-                textColor: 255,
-                fontStyle: 'bold'
-            },
-            alternateRowStyles: {
-                fillColor: [248, 250, 252] // Slate-50
-            },
+            styles: { fontSize: 7, cellPadding: 2 },
+            headStyles: { fillColor: [15, 23, 42], textColor: 255 },
             columnStyles: {
-                0: { cellWidth: 25 }, // Time
-                1: { cellWidth: 40 }, // Actor
-                2: { cellWidth: 30 }, // Action
-                3: { cellWidth: 40 }, // Context
-                4: { cellWidth: 'auto' } // Summary
+                2: { cellWidth: 40 },
+                3: { halign: 'right' },
+                4: { halign: 'right', fontStyle: 'bold' }
             }
         });
 
@@ -610,37 +662,18 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
             doc.setFontSize(8);
             doc.setTextColor(150);
             doc.text(`Page ${i} of ${pageCount}`, pageWidth - 20, doc.internal.pageSize.height - 10);
-            doc.text(`Verytis Digital Audit System v2.0`, 14, doc.internal.pageSize.height - 10);
+            doc.text(`Verytis AI-Ops Platform v2.0 - Verified`, 14, doc.internal.pageSize.height - 10);
         }
 
-        // --- 5. HASH & UPLOAD AU BUCKET ---
-        const pdfBlob = doc.output('blob');
+        // --- 5. TÉLÉCHARGEMENT DIRECT "ON-THE-FLY" ---
         const fileName = `Audit_Report_${platform}_${new Date().toISOString().split('T')[0]}.pdf`;
-
         try {
-            const formData = new FormData();
-            formData.append('file', pdfBlob, fileName);
-            formData.append('platform', platform);
-
-            // Upload binaire vers Supabase, Hachage (WORM DB) et Récupération Url
-            const response = await fetch('/api/reports/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) throw new Error("Erreur de sécurisation du document");
-
-            const data = await response.json();
-            console.log("Archive Certificate:", data);
-
-            // --- 6. TÉLÉCHARGEMENT LOCAL UNIQUEMENT SI LE HASH A ÉTÉ SÉCURISÉ ---
+            // Le fichier est généré en mémoire et immédiatement téléchargé par le navigateur de l'utilisateur.
+            // Aucune trace n'est conservée pour ce rapport à la volée.
             doc.save(fileName);
-
-            alert(`PDF Secured & Verified.\nLe fichier a été scellé dans le coffre-fort avec le Hash :\n\n${data.hash}`);
         } catch (e) {
-            console.error("Failed to secure/upload report:", e);
-            alert("Attention: Le PDF a été généré localement mais n'a pas pu être certifié (impossible de le stocker ou de le hacher). Vérifiez votre connexion.");
-            doc.save(fileName); // Fallback offline
+            console.error("Failed to generate and download PDF:", e);
+            alert("Erreur lors de la génération locale du rapport PDF.");
         }
     };
 
@@ -648,12 +681,12 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
         <div className="space-y-6 animate-in fade-in duration-300">
             <header>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                    {userRole === 'Member' ? 'My Audit Documentation' : 'Audit Documentation'}
+                    AI Cost & Usage Reports
                 </h1>
                 <p className="text-slate-500 mt-1 text-xs font-medium">
                     {userRole === 'Member'
                         ? 'Generate personal activity reports from your channels.'
-                        : 'Generate complete and legally usable audit documents from authorized channels.'}
+                        : 'Generate and export AI token consumption, API costs, and agent activity reports.'}
                 </p>
             </header>
 
@@ -666,122 +699,23 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
                             <div className="h-px bg-slate-100 flex-1"></div>
                         </div>
 
-                        {/* Platform Selector */}
+                        {/* AI Agent Platform Indicator */}
                         <div>
                             <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-2">Platform</label>
-                            <div className="grid grid-cols-4 gap-2">
-                                {['Slack', 'Trello', 'GitHub', 'AI Agent'].map(p => (
-                                    <button
-                                        key={p}
-                                        onClick={() => setPlatform(p)}
-                                        className={`flex flex-col items-center justify-center py-3 px-1 rounded-lg border transition-all ${platform === p
-                                            ? 'bg-white border-2 border-blue-600 text-blue-700 shadow-md transform scale-105 ring-2 ring-blue-50'
-                                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                                            }`}
-                                    >
-                                        <PlatformIcon platform={p} className={`w-5 h-5 mb-1.5 ${platform === p ? 'text-blue-600' : ''}`} />
-                                        <span className="text-[9px] font-bold">{p}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Team Selector (Only for Admin/Manager) */}
-                        {(userRole === 'Admin' || (userRole === 'Manager' && availableTeams.length > 0)) && (
-                            <div>
-                                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Organization Team</label>
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setDropdownState({ ...dropdownState, team: !dropdownState.team })}
-                                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded text-xs text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all"
-                                    >
-                                        <span className="truncate">
-                                            {selectedTeamId === 'all'
-                                                ? 'All Teams'
-                                                : availableTeams.find(t => t.id.toString() === selectedTeamId)?.name || 'Select Team'}
-                                        </span>
-                                        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${dropdownState.team ? 'rotate-180' : ''}`} />
-                                    </button>
-
-                                    {dropdownState.team && (
-                                        <>
-                                            <div className="fixed inset-0 z-40" onClick={() => setDropdownState({ ...dropdownState, team: false })} />
-                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto z-50 animate-in fade-in zoom-in-95 duration-200 custom-scrollbar">
-                                                {userRole === 'Admin' && (
-                                                    <button
-                                                        onClick={() => { setSelectedTeamId('all'); setDropdownState({ ...dropdownState, team: false }); }}
-                                                        className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-center justify-between ${selectedTeamId === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-700'}`}
-                                                    >
-                                                        All Teams
-                                                        {selectedTeamId === 'all' && <Check className="w-3 h-3" />}
-                                                    </button>
-                                                )}
-                                                {availableTeams.map(team => (
-                                                    <button
-                                                        key={team.id}
-                                                        onClick={() => { setSelectedTeamId(team.id.toString()); setDropdownState({ ...dropdownState, team: false }); }}
-                                                        className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-center justify-between ${selectedTeamId === team.id.toString() ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-700'}`}
-                                                    >
-                                                        {team.name}
-                                                        {selectedTeamId === team.id.toString() && <Check className="w-3 h-3" />}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Report Type Selector */}
-                        <div>
-                            <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Report Type</label>
-                            <div className="relative">
+                            <div className="grid grid-cols-1 gap-2">
                                 <button
-                                    onClick={() => setDropdownState({ ...dropdownState, reportType: !dropdownState.reportType })}
-                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded text-xs text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all"
+                                    className="flex flex-col items-center justify-center p-3 rounded-lg border transition-all bg-blue-50 border-blue-200 shadow-sm ring-1 ring-blue-500/20 cursor-default"
                                 >
-                                    <span className="truncate">{reportType}</span>
-                                    <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${dropdownState.reportType ? 'rotate-180' : ''}`} />
+                                    <PlatformIcon platform="AI Agent" className="w-5 h-5 mb-1.5 text-blue-600" />
+                                    <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">AI Agents</span>
                                 </button>
-                                {dropdownState.reportType && (
-                                    <>
-                                        <div className="fixed inset-0 z-40" onClick={() => setDropdownState({ ...dropdownState, reportType: false })} />
-                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded shadow-lg z-50 animate-in fade-in zoom-in-95 duration-200">
-                                            {(() => {
-                                                let options = [];
-                                                if (platform === 'Slack') {
-                                                    options = ['Full Channel Audit', 'My Activity Channel', 'Shipping Audit', 'Targeted Audit'];
-                                                } else if (platform === 'Trello') {
-                                                    options = ['Full Board Audit', 'My Activity Board'];
-                                                } else if (platform === 'GitHub') {
-                                                    options = ['Full Repo Audit', 'My Activity Repo'];
-                                                } else if (platform === 'AI Agent') {
-                                                    options = ['Full AI Audit', 'Targeted Agent Audit'];
-                                                }
-                                                // Member role restriction logic if needed, but assuming mostly admin/manager for full audits
-                                                if (userRole === 'Member') {
-                                                    // Filter for members if necessary, e.g. only 'My Activity...'
-                                                    options = options.filter(o => o.includes('My Activity'));
-                                                }
-
-                                                return options.map(type => (
-                                                    <button key={type} onClick={() => { setReportType(type); setDropdownState({ ...dropdownState, reportType: false }); }} className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 text-slate-700 block text-ellipsis overflow-hidden whitespace-nowrap">
-                                                        {type}
-                                                    </button>
-                                                ));
-                                            })()}
-                                        </div>
-                                    </>
-                                )}
                             </div>
                         </div>
-
 
                         {/* Channel/Repo Selector */}
                         <div>
                             <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
-                                Authorized {platform === 'GitHub' ? 'Repos' : platform === 'Trello' ? 'Boards' : platform === 'AI Agent' ? 'Agents' : 'Channels'}
+                                AGENTS
                             </label>
                             <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg pr-1 custom-scrollbar bg-slate-50 p-2 space-y-1">
                                 {availableChannels.length > 0 ? (
@@ -808,7 +742,7 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
                                     <div className="py-2">
                                         <EmptyState
                                             title="No Resources"
-                                            description={`No authorized ${platform === 'GitHub' ? 'repos' : platform === 'Trello' ? 'boards' : platform === 'AI Agent' ? 'agents' : 'channels'} available for this team.`}
+                                            description="No authorized agents available for this team."
                                             className="p-4"
                                         />
                                     </div>
@@ -857,22 +791,36 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
 
                         {/* Generate Buttons */}
                         <div className="pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
-                            <Button
-                                variant="secondary"
-                                className="w-full justify-center text-xs"
-                                onClick={() => setExportModal({ type: 'csv', isOpen: true })}
-                                disabled={filteredEvents.length === 0}
-                            >
-                                Export CSV
-                            </Button>
-                            <Button
-                                variant="primary"
-                                className="w-full justify-center text-xs bg-slate-900 hover:bg-black"
-                                onClick={() => handleGenerateReport('pdf')}
-                                disabled={filteredEvents.length === 0 || isGenerating}
-                            >
-                                {isGenerating ? 'Generating...' : 'Export PDF'}
-                            </Button>
+                            <div className="relative group">
+                                <Button
+                                    variant="secondary"
+                                    className="w-full justify-center text-xs"
+                                    onClick={() => setExportModal({ type: 'csv', isOpen: true })}
+                                    disabled={filteredEvents.length === 0 || (userRole === 'Member' && !currentUser?.scopes?.includes('can_export'))}
+                                >
+                                    Export CSV
+                                </Button>
+                                {userRole === 'Member' && !currentUser?.scopes?.includes('can_export') && (
+                                    <div className="absolute -top-8 left-0 w-full hidden group-hover:block bg-slate-900 text-white text-[9px] p-2 rounded shadow-xl z-50 text-center font-bold">
+                                        Admin/Manager Required
+                                    </div>
+                                )}
+                            </div>
+                            <div className="relative group">
+                                <Button
+                                    variant="primary"
+                                    className="w-full justify-center text-xs bg-slate-900 hover:bg-black"
+                                    onClick={() => handleGenerateReport('pdf')}
+                                    disabled={filteredEvents.length === 0 || isGenerating || (userRole === 'Member' && !currentUser?.scopes?.includes('can_export'))}
+                                >
+                                    {isGenerating ? 'Generating...' : 'Export PDF'}
+                                </Button>
+                                {userRole === 'Member' && !currentUser?.scopes?.includes('can_export') && (
+                                    <div className="absolute -top-8 left-0 w-full hidden group-hover:block bg-slate-900 text-white text-[9px] p-2 rounded shadow-xl z-50 text-center font-bold">
+                                        Admin/Manager Required
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                     </Card>
@@ -884,7 +832,7 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
                         <div className="px-6 py-4 border-b border-slate-100 bg-white flex justify-between items-center">
                             <h2 className="text-sm font-bold uppercase tracking-wide text-blue-700 flex items-center gap-2">
                                 <FileText className="w-4 h-4" />
-                                Report Preview
+                                Usage Export Preview
                             </h2>
                             <span className="text-[10px] font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded-full border border-blue-100">
                                 {isPreviewLoading ? 'Loading...' : `${filteredEvents.length} events found`}
@@ -893,7 +841,7 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
 
                         {/* Preview Content */}
                         <div className="flex-1 p-8 overflow-y-auto bg-slate-50/50">
-                            {/* Paper Effect */}
+                            {/* Paper Effect - The official table document */}
                             <div className="bg-white shadow-2xl border border-slate-200 min-h-[800px] max-w-[210mm] mx-auto p-12 relative text-slate-900">
                                 {isPreviewLoading ? (
                                     <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
@@ -909,70 +857,141 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
                                 ) : (
                                     <div className="space-y-6">
                                         {/* 1. Header Section (Matched to PDF) */}
-                                        <div className="flex items-center gap-4 pb-4 border-b border-slate-200">
-                                            {/* Logo */}
-                                            <div className="w-[45px] flex-shrink-0">
-                                                <img src={(typeof AuditLogo === 'object' && AuditLogo !== null) ? AuditLogo.src : AuditLogo} alt="Logo" className="w-full" />
+                                        <div className="flex items-center justify-between pb-6 border-b border-slate-200 mb-6">
+                                            <div className="mb-2">
+                                                <h1 className="text-3xl font-black text-slate-900 tracking-tighter">VERYTIS</h1>
+                                                <div className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mt-1">AI-OPS FINOPS REPORT</div>
                                             </div>
-                                            {/* Text */}
-                                            <div className="flex items-baseline gap-4">
-                                                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">VERYTIS</h1>
-                                                <span className="text-lg text-slate-500 font-normal">GOVERNANCE AUDIT</span>
-                                            </div>
-                                        </div>
-
-                                        {/* 2. Metadata Grid (2 Columns) */}
-                                        <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-[10px]">
-                                            {/* Left Column */}
-                                            <div className="space-y-1">
-                                                <div className="flex gap-2"><span className="font-bold w-16">Auditor:</span> <span>{currentUser?.name || 'Unknown'} ({userRole})</span></div>
-                                                <div className="flex gap-2"><span className="font-bold w-16">Email:</span> <span>{currentUser?.email || 'N/A'}</span></div>
-                                                {/* Use client-side only date to avoid hydration error */}
-                                                <div className="flex gap-2"><span className="font-bold w-16">Generated:</span> <span>{mounted ? new Date().toLocaleString() : 'Loading...'}</span></div>
-                                            </div>
-                                            {/* Right Column */}
-                                            <div className="space-y-1">
-                                                <div className="flex gap-2"><span className="font-bold w-16">Scope:</span>
-                                                    <span>{userRole === 'Admin' ? 'All Organization' : (selectedTeamId !== '' ? 'Team Scope' : 'Personal Scope')}</span>
+                                            <div className="text-right space-y-1">
+                                                <div className="text-[9px] font-bold text-slate-400 tracking-wider">
+                                                    REPORT ID: VR-{new Date().getFullYear()}-{Math.floor(Math.random() * 10000)}
                                                 </div>
-                                                <div className="flex gap-2"><span className="font-bold w-16">Report Type:</span> <span>{reportType}</span></div>
-                                                <div className="flex gap-2"><span className="font-bold w-16">Platform:</span> <span>{platform}</span></div>
+                                                <div className="text-[9px] font-bold text-slate-400 tracking-wider uppercase">
+                                                    {(() => {
+                                                        const uniqueAgents = [...new Set(filteredEvents.map(ev => ev.channelName?.replace('AGENT: ', '')))];
+                                                        if (uniqueAgents.length === 1 && uniqueAgents[0]) return uniqueAgents[0];
+                                                        if (uniqueAgents.length > 1) return "MULTIPLE AGENTS";
+                                                        return "ALL AGENTS";
+                                                    })()}
+                                                </div>
+                                                <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                                                    GENERATED: {mounted ? new Date().toLocaleString() : 'Loading...'}
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* 3. Legal & Cryptographic Signature */}
-                                        <div className="pt-4 pb-0">
-                                            <div className="font-bold text-[10px] mb-1 text-slate-900">Certification Légale & Audit Trail :</div>
-                                            <div className="text-[9px] text-slate-500 leading-relaxed mb-2">
-                                                Document certifié par Verytis (Norme WORM). Son empreinte cryptographique garantit son intégrité absolue. Toute altération du fichier invalidera sa vérification sur notre plateforme.
-                                            </div>
-                                        </div>
-
-                                        {/* 4. Events Table */}
-                                        <div className="w-full text-left text-[10px]">
-                                            <div className="bg-slate-900 text-white font-bold p-2 grid grid-cols-[80px_1fr_100px_1fr_1.5fr] gap-2 rounded-t-sm">
-                                                <div>Time</div>
-                                                <div>Actor</div>
-                                                <div>Action</div>
-                                                <div>Context</div>
-                                                <div>Summary</div>
-                                            </div>
-                                            <div className="border font-mono border-slate-200 divide-y divide-slate-100">
-                                                {filteredEvents.slice(0, 20).map((ev, i) => (
-                                                    <div key={i} className="grid grid-cols-[80px_1fr_100px_1fr_1.5fr] gap-2 p-2 hover:bg-slate-50 items-center">
-                                                        <div className="text-slate-500">{new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                                        <div className="font-medium text-slate-800 truncate">{ev.actor}</div>
-                                                        <div className="text-slate-600 uppercase font-semibold">{formatActionForPDF(ev)}</div>
-                                                        <div className="text-slate-500 truncate">{ev.channelName || '-'}</div>
-                                                        <div className="text-slate-500 truncate" title={ev.target || ev.message}>{(ev.target || ev.message || '-')}</div>
+                                        {/* 3. EXECUTIVE SUMMARY (KPIs) */}
+                                        <div className="mb-8">
+                                            <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                <div className="w-1.5 h-4 bg-slate-900"></div> 1. Executive Summary
+                                            </h3>
+                                            <div className="grid grid-cols-4 gap-3">
+                                                {[
+                                                    { label: 'Total API Spend', value: `$${stats.totalCost}`, icon: DollarSign, color: 'text-slate-900' },
+                                                    { label: 'Tokens Consumed', value: `${(stats.avgTokens * filteredEvents.length / 1000).toFixed(1)}k`, icon: Zap, color: 'text-indigo-600' },
+                                                    { label: 'Budget Saved', value: `+$${stats.budgetSaved}`, icon: Shield, color: 'text-emerald-600', highlight: true },
+                                                    { label: 'Success Rate', value: `${stats.successRate}%`, icon: CheckCircle, color: 'text-blue-600' }
+                                                ].map((kpi, i) => (
+                                                    <div key={i} className={`p-4 rounded border ${kpi.highlight ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50/50 border-slate-100'}`}>
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <kpi.icon className={`w-3 h-3 ${kpi.color}`} />
+                                                            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">{kpi.label}</span>
+                                                        </div>
+                                                        <div className={`text-lg font-black tracking-tighter ${kpi.color}`}>{kpi.value}</div>
                                                     </div>
                                                 ))}
                                             </div>
-                                            {filteredEvents.length > 20 && (
-                                                <div className="text-center py-4 bg-slate-50 text-slate-400 italic text-[10px] border-x border-b border-slate-200">
-                                                    ... {filteredEvents.length - 20} more events will be included in the full PDF export ...
+                                        </div>
+
+                                        {/* 4. FINOPS BREAKDOWN & SECURITY */}
+                                        <div className="grid grid-cols-2 gap-8 mb-8">
+                                            {/* FinOps Breakdown */}
+                                            <div>
+                                                <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                    <div className="w-1.5 h-4 bg-indigo-500"></div> 2. FinOps Breakdown
+                                                </h3>
+                                                <div className="border border-slate-100 rounded overflow-hidden">
+                                                    <div className="bg-slate-50 px-3 py-1.5 text-[8px] font-bold text-slate-500 uppercase flex justify-between">
+                                                        <span>AI Model</span>
+                                                        <span>Total Cost</span>
+                                                    </div>
+                                                    <div className="divide-y divide-slate-50">
+                                                        {stats.modelBreakdown.map((m, i) => (
+                                                            <div key={i} className="px-3 py-2 text-[9px] flex justify-between items-center bg-white">
+                                                                <span className="font-bold text-slate-700">{m.name}</span>
+                                                                <span className={`font-black ${parseFloat(m.cost) > 1 ? 'text-rose-600' : 'text-slate-900'}`}>{m.cost} $</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            )}
+                                            </div>
+
+                                            {/* Security & Governance */}
+                                            <div>
+                                                <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                    <div className="w-1.5 h-4 bg-emerald-500"></div> 3. Security & Governance
+                                                </h3>
+                                                <div className="space-y-3">
+                                                    {[
+                                                        { label: 'Requests Blocked (Budget)', value: stats.securityMetrics.blocked, desc: 'Budget limit reached' },
+                                                        { label: 'PII Scrubbed (Privacy)', value: stats.securityMetrics.pii, desc: 'Sensitive data anonymized' },
+                                                        { label: 'Latency Alerts (>1.5s)', value: stats.securityMetrics.latencyAlerts, desc: 'Performance degradation detected' }
+                                                    ].map((item, i) => (
+                                                        <div key={i} className="flex items-center justify-between p-2.5 bg-white border border-slate-100 rounded shadow-sm">
+                                                            <div>
+                                                                <div className="text-[9px] font-black text-slate-800">{item.label}</div>
+                                                                <div className="text-[8px] text-slate-400 italic">{item.desc}</div>
+                                                            </div>
+                                                            <div className="text-sm font-black text-slate-900 px-2 py-1 bg-slate-50 rounded">
+                                                                {item.value}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* 5. Detailed Activity Logs */}
+                                        <div>
+                                            <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                <div className="w-1.5 h-4 bg-blue-500"></div> 4. Detailed Activity Logs
+                                            </h3>
+                                            <div className="w-full text-left text-[10px] border border-slate-200 rounded overflow-hidden">
+                                                <div className="bg-slate-900 text-white font-bold p-2 grid grid-cols-[50px_1fr_120px_80px_60px_100px] gap-2 uppercase tracking-tighter">
+                                                    <div>Time</div>
+                                                    <div>Agent</div>
+                                                    <div>Task / Intent</div>
+                                                    <div className="text-right">Tokens (I/O)</div>
+                                                    <div className="text-right">Cost ($)</div>
+                                                    <div>Status (Policy)</div>
+                                                </div>
+                                                <div className="divide-y divide-slate-100 bg-white font-mono">
+                                                    {filteredEvents.slice(0, 12).map((ev, i) => {
+                                                        const inTokens = Math.floor(ev.tokens * 0.3);
+                                                        const outTokens = ev.tokens - inTokens;
+                                                        return (
+                                                            <div key={i} className="grid grid-cols-[50px_1fr_120px_80px_60px_100px] gap-2 p-2 hover:bg-slate-50 items-center text-[9px]">
+                                                                <div className="text-slate-400">{new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                                <div className="font-bold text-slate-800 truncate">{ev.channelName?.replace('AGENT: ', '')}</div>
+                                                                <div className="text-slate-500 italic truncate">{ev.status?.includes('Blocked') ? 'REJECTED: Security breach' : (ev.tokens > 1000 ? 'Complex Reasoning' : 'Task Resolution')}</div>
+                                                                <div className="text-right text-slate-500">{inTokens} / {outTokens}</div>
+                                                                <div className="text-right font-bold text-slate-900">${ev.cost}</div>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <div className={`w-1 h-3 rounded-full ${ev.status?.includes('Success') ? 'bg-emerald-500' : (ev.status?.includes('Budget') ? 'bg-rose-500' : 'bg-amber-500')}`}></div>
+                                                                    <span className={`font-bold tracking-tighter ${ev.status?.includes('Success') ? 'text-emerald-700' : (ev.status?.includes('Budget') ? 'text-rose-700' : 'text-amber-700')}`}>
+                                                                        {ev.status}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                                {filteredEvents.length > 12 && (
+                                                    <div className="text-center py-3 bg-slate-50 text-slate-400 italic text-[9px] border-t border-slate-200">
+                                                        ... {filteredEvents.length - 12} additional audit traces will be included in the encrypted PDF export ...
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 )}

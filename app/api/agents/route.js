@@ -40,7 +40,7 @@ export async function GET() {
         if (logsError) throw logsError;
 
         // Attach logs and calculate summary stats for each agent
-        const enrichedAgents = agents.map(agent => {
+        const enrichedAgents = agents.map((agent, index) => {
             const agentLogs = telemetryLogs.filter(log => log.agent_id === agent.id);
 
             // Heuristic for "model" and "cost"
@@ -54,7 +54,9 @@ export async function GET() {
                 model: latestLogWithModel?.metadata?.ai_context?.model || 'gpt-4',
                 avg_cost: avgCost.toFixed(4),
                 last_activity: lastActivity,
-                telemetry: agentLogs
+                telemetry: agentLogs,
+                budget_limit: agent.budget_limit || null,
+                current_spend: totalCost
             };
         });
 

@@ -91,4 +91,62 @@ export const SkeletonDashboard = () => (
     </div>
 );
 
+export const SkeletonAgentCard = () => (
+    <div className="bg-white rounded-xl border border-slate-100 flex flex-col h-[400px]">
+        <div className="p-4 border-b border-slate-100 flex justify-between items-start">
+            <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-3 w-1/2" />
+            </div>
+            <div className="flex flex-col items-end gap-2">
+                <Skeleton className="w-6 h-6 rounded" />
+                <div className="flex gap-2">
+                    <Skeleton className="h-5 w-16 rounded" />
+                    <Skeleton className="h-5 w-12 rounded" />
+                </div>
+            </div>
+        </div>
+        <div className="px-4 py-2 border-b border-slate-100 flex justify-between">
+            <div className="flex gap-3">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-3 w-20" />
+            </div>
+            <Skeleton className="h-3 w-24" />
+        </div>
+        <div className="flex-1 p-6 flex flex-col justify-center gap-6">
+            <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2"><Skeleton className="h-2 w-10" /><Skeleton className="h-6 w-16" /></div>
+                <div className="space-y-2"><Skeleton className="h-2 w-10" /><Skeleton className="h-6 w-16" /></div>
+                <div className="space-y-2"><Skeleton className="h-2 w-10" /><Skeleton className="h-6 w-16" /></div>
+            </div>
+            <div className="mt-2 space-y-2">
+                <div className="flex justify-between"><Skeleton className="h-2 w-24" /><Skeleton className="h-3 w-8" /></div>
+                <Skeleton className="h-1.5 w-full rounded-full" />
+            </div>
+        </div>
+        <div className="p-4 border-t border-slate-100 flex justify-center mt-auto">
+            <Skeleton className="h-8 w-full rounded-lg" />
+        </div>
+    </div>
+);
+
+export const SkeletonSettingsItem = () => (
+    <div className="bg-white p-6 rounded-xl border border-slate-100 space-y-4">
+        <div className="flex items-center gap-3 mb-6">
+            <Skeleton className="w-5 h-5 rounded" />
+            <Skeleton className="h-5 w-48" />
+        </div>
+        <div className="space-y-4">
+            <div className="space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-10 w-full md:w-1/2 rounded-lg" />
+            </div>
+            <div className="space-y-2">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-10 w-full md:w-1/2 rounded-lg" />
+            </div>
+        </div>
+    </div>
+);
+
 export default Skeleton;

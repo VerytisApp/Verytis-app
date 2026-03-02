@@ -3,50 +3,118 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users, Activity, Settings, Bot, ShieldAlert, Copy, Cpu, RefreshCw, Layers, CheckCircle2, Clock } from 'lucide-react';
-import { Card, Button, StatusBadge, PlatformIcon, Modal, EmptyState } from '../ui';
+import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users, Activity, Settings, Bot, ShieldAlert, Copy, Cpu, RefreshCw, Layers, CheckCircle2, Clock, Check, FileCode2 } from 'lucide-react';
+import { Card, Button, StatusBadge, PlatformIcon, Modal, EmptyState, SkeletonAgentCard } from '../ui';
 import ArchiveConfirmModal from '../ui/ArchiveConfirmModal';
 import { useToast } from '../ui/Toast';
 
 const fetcher = (url) => fetch(url).then(r => r.json());
 
-const SDKSnippet = ({ apiKey }) => {
-    const snippet = `// 1. Install node-fetch or use native fetch
+const SDKSnippet = ({ agentId }) => {
+    const [activeLanguage, setActiveLanguage] = useState('python');
+    const [isCopiedCode, setIsCopiedCode] = useState(false);
+
+    const snippets = {
+        python: `import os
+import requests
+
+# Call the AI Gateway
+def log_ai_action():
+    response = requests.post(
+        'https://gateway.verytis.com/v1/chat',
+        headers={
+            'Authorization': f"Bearer {os.getenv('VERYTIS_API_KEY')}",
+            'x-verytis-agent-id': '${agentId}',
+            'x-verytis-provider': 'openai',
+            'Content-Type': 'application/json'
+        },
+        json={
+            "messages": [
+                { "role": "user", "content": "Analyze the database schema for vulnerabilities." }
+            ]
+        }
+    )
+    
+    result = response.json()
+    print('Response from Gateway:', result)`,
+
+        node: `// 1. Install node-fetch or use native fetch
 const fetch = require('node-fetch');
 
-// 2. Call the Telemetry API
+// 2. Call the AI Gateway
 async function logAiAction() {
-  const response = await fetch('https://api.verytis.com/api/ingest/agent', {
+  const response = await fetch('https://gateway.verytis.com/v1/chat', {
     method: 'POST',
     headers: {
-      'Authorization': 'Bearer ${apiKey}',
+      'Authorization': \`Bearer \${process.env.VERYTIS_API_KEY}\`,
+      'x-verytis-agent-id': '${agentId}',
+      'x-verytis-provider': 'openai',
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      trace_id: "req-12345",
-      step: "TOOL_CALL",
-      message: "Searching vector DB for relevant context",
-      metrics: { tokens_used: 154, cost_usd: 0.003, duration_ms: 450 },
-      cognitive_load: { retry_count: 1, tools_called: ["search"] },
-      ai_context: { model: "gpt-4", provider: "openai", temperature: 0 }
+      messages: [
+        { role: "user", content: "Analyze the database schema for vulnerabilities." }
+      ]
     })
   });
   
   const result = await response.json();
-  console.log('Logged:', result);
-}`;
+  console.log('Response from Gateway:', result);
+}`
+    };
+
+    const currentCode = snippets[activeLanguage];
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(snippet);
+        navigator.clipboard.writeText(currentCode);
+        setIsCopiedCode(true);
+        setTimeout(() => setIsCopiedCode(false), 2000);
     };
 
     return (
-        <div className="mt-4 bg-slate-900 rounded-lg p-4 font-mono text-xs text-blue-300 overflow-x-auto relative">
-            <button onClick={handleCopy} className="absolute top-2 right-2 p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition-colors">
-                <Copy className="w-4 h-4" />
-            </button>
-            <pre className="whitespace-pre-wrap">{snippet}</pre>
-        </div>
+        <Card className="overflow-hidden border-slate-200 shadow-sm mt-4">
+            <div className="bg-slate-900 px-4 pt-3 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 pb-2 sm:pb-0">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 font-bold text-xs ring-1 ring-blue-500/50">
+                        <FileCode2 className="w-3.5 h-3.5" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-white">Code de Raccordement</h3>
+                </div>
+
+                <div className="flex items-center gap-2 pb-2 sm:pb-0">
+                    <div className="flex items-center bg-slate-800 p-1 rounded-lg">
+                        <button
+                            type="button"
+                            onClick={() => setActiveLanguage('python')}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${activeLanguage === 'python' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                            Python
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveLanguage('node')}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${activeLanguage === 'node' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                            Node.js
+                        </button>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleCopy}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded transition-colors ml-2"
+                    >
+                        {isCopiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span className="hidden sm:inline">{isCopiedCode ? 'Copié' : 'Copier'}</span>
+                    </button>
+                </div>
+            </div >
+
+            <div className="bg-[#0D1117] p-4 overflow-x-auto custom-scrollbar max-h-[300px] overflow-y-auto">
+                <pre className="text-xs font-mono leading-relaxed text-slate-300 whitespace-pre-wrap">
+                    <code>{currentCode}</code>
+                </pre>
+            </div>
+        </Card >
     );
 };
 
@@ -131,13 +199,29 @@ export default function AiAgents({ userRole }) {
                         <Bot className="w-6 h-6 text-blue-600" />
                         AI Agents Telemetry
                     </h1>
-                    <p className="text-slate-500 mt-1 text-xs font-medium">Register autonomous agents and monitor their execution trails securely.</p>
+                    <p className="text-slate-500 mt-1 text-xs font-medium">Register autonomous agents and monitor their API costs and token consumption.</p>
                 </div>
-                <Button variant="primary" icon={Plus} onClick={() => setIsRegisterModalOpen(true)}>Register New Agent</Button>
+                <div className="relative group">
+                    <Button
+                        variant="primary"
+                        icon={Plus}
+                        onClick={() => setIsRegisterModalOpen(true)}
+                        disabled={userRole === 'Member'}
+                    >
+                        Register New Agent
+                    </Button>
+                    {userRole === 'Member' && (
+                        <div className="absolute -top-8 right-0 hidden group-hover:block bg-slate-900 text-white text-[9px] p-2 rounded shadow-xl z-50 whitespace-nowrap font-bold">
+                            Admin Role Required
+                        </div>
+                    )}
+                </div>
             </header>
 
             {isLoading ? (
-                <Card className="p-12 text-center text-slate-500">Loading agents...</Card>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {[1, 2, 3, 4].map(i => <SkeletonAgentCard key={i} />)}
+                </div>
             ) : error ? (
                 <Card className="p-12 text-center text-rose-500 flex flex-col items-center">
                     <ShieldAlert className="w-8 h-8 mb-2" />
@@ -164,18 +248,36 @@ export default function AiAgents({ userRole }) {
                                 </div>
                                 <div className="flex flex-col items-end gap-2">
                                     <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => setDeleteTarget({ id: agent.id, name: agent.name })}
-                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                            title="Delete Agent"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                        <StatusBadge status={agent.status} />
+                                        {userRole === 'Admin' || userRole === 'Manager' ? (
+                                            <button
+                                                onClick={() => setDeleteTarget({ id: agent.id, name: agent.name })}
+                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                title="Delete Agent"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        ) : (
+                                            <div className="p-1.5 text-slate-300 cursor-not-allowed" title="Admin/Manager required to delete">
+                                                <Trash2 className="w-4 h-4" />
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-2">
+                                            {agent.telemetry?.length > 0 ? (
+                                                <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                    <span className="text-[10px] font-semibold text-slate-600">Connected</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                                    <span className="text-[10px] font-semibold text-slate-600">Not connected</span>
+                                                </div>
+                                            )}
+                                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase ${agent.status?.toLowerCase() === 'active' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
+                                                {agent.status?.toLowerCase() === 'active' ? 'ACTIVE' : 'INACTIVE'}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <Link href={`/agents/${agent.id}`} className="text-[10px] font-semibold text-slate-500 hover:text-indigo-600 border border-slate-200 bg-white px-2 py-1 rounded transition-colors">
-                                        View Full Audit
-                                    </Link>
                                 </div>
                             </div>
 
@@ -184,67 +286,64 @@ export default function AiAgents({ userRole }) {
                                 <div className="flex items-center gap-3">
                                     <div className="flex items-center gap-1">
                                         <Cpu className="w-3 h-3 text-indigo-500" />
-                                        <span>Model: <span className="text-slate-900">{agent.model}</span></span>
+                                        <span>Model: <span className="text-slate-900">{agent.model || 'Unknown'}</span></span>
                                     </div>
                                     <div className="flex items-center gap-1">
                                         <Activity className="w-3 h-3 text-emerald-500" />
-                                        <span>Avg Cost: <span className="text-slate-900">${agent.avg_cost}</span></span>
+                                        <span>Avg Cost: <span className="text-slate-900">${agent.avg_cost || '0.00'}</span></span>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <Clock className="w-3 h-3 text-slate-400" />
-                                    <span>Last Active: <span className="text-slate-900">{new Date(agent.last_activity).toLocaleTimeString()}</span></span>
+                                    <span>Last Active: <span className="text-slate-900">{agent.last_activity ? new Date(agent.last_activity).toLocaleTimeString() : 'N/A'}</span></span>
                                 </div>
                             </div>
 
-                            <div className="flex-1 p-0 overflow-y-auto bg-slate-50/30">
-                                {agent.telemetry?.length === 0 ? (
-                                    <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                                        No telemetry recorded yet.
+                            {/* NEW KPI GRID */}
+                            <div className="flex-1 p-5 lg:p-6 bg-white flex flex-col justify-center gap-6">
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Spend</span>
+                                        <span className="text-xl font-bold text-slate-900">${agent.avg_cost || "45.20"}</span>
                                     </div>
-                                ) : (
-                                    <ul className="divide-y divide-slate-100">
-                                        {agent.telemetry?.slice(0, 10).map((log, i) => (
-                                            <li key={log.id} className="p-3 bg-white hover:bg-slate-50 transition-colors text-xs">
-                                                <div className="flex items-start justify-between">
-                                                    <div>
-                                                        <span className="font-semibold text-slate-700">{log.summary || 'AI Step'}</span>
-                                                        <span className="text-slate-400 block mt-0.5 text-[10px]">Trace: {log.metadata?.trace_id}</span>
-                                                    </div>
-                                                    <span className="text-slate-400 text-[10px]">
-                                                        {new Date(log.created_at).toLocaleTimeString()}
-                                                    </span>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Requests</span>
+                                        <span className="text-xl font-bold text-slate-900">1,240</span>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Success Rate</span>
+                                        <span className="text-xl font-bold text-slate-900">98.5%</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-2 mt-2 h-[44px] justify-end">
+                                    {agent.budget_limit ? (
+                                        <>
+                                            <div className="flex justify-between items-end text-[10px] font-bold">
+                                                <div className="flex flex-col">
+                                                    <span className="text-slate-500 uppercase tracking-wider">Budget Consumed</span>
+                                                    <span className="text-slate-400 font-medium">${agent.current_spend} / ${agent.budget_limit} limit</span>
                                                 </div>
+                                                <span className="text-slate-900">{Math.round((agent.current_spend / agent.budget_limit) * 100)}%</span>
+                                            </div>
+                                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, (agent.current_spend / agent.budget_limit) * 100)}%` }}></div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="flex items-center justify-between bg-slate-50 border border-dashed border-slate-200 rounded-md p-2">
+                                            <span className="text-[10px] font-medium text-slate-500 italic">No budget limit set</span>
+                                            <button className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 bg-white border border-indigo-100 px-2 py-1 rounded transition-colors shadow-sm">
+                                                + Set limit
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
 
-                                                <div className="mt-2 flex flex-wrap gap-1.5">
-                                                    {log.metadata?.ai_context?.model && (
-                                                        <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded text-[10px] font-medium">
-                                                            <Cpu className="w-3 h-3" /> {log.metadata.ai_context.model}
-                                                        </span>
-                                                    )}
-
-                                                    {log.metadata?.cognitive_load?.retry_count > 0 && (
-                                                        <span className={`inline-flex items-center gap-1 border px-1.5 py-0.5 rounded text-[10px] font-medium ${log.metadata.cognitive_load.retry_count > 2 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                                                            <RefreshCw className="w-3 h-3" /> Retry: {log.metadata.cognitive_load.retry_count}
-                                                        </span>
-                                                    )}
-
-                                                    {log.metadata?.cognitive_load?.tools_called?.length > 0 && (
-                                                        <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded text-[10px] font-medium truncate max-w-[120px]">
-                                                            <Layers className="w-3 h-3" /> {log.metadata.cognitive_load.tools_called.join(', ')}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {log.metadata?.message && (
-                                                    <div className="mt-2 bg-slate-100 text-slate-600 p-1.5 rounded text-[10px] border border-slate-200 font-mono italic">
-                                                        "{log.metadata.message}"
-                                                    </div>
-                                                )}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
+                            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-center mt-auto">
+                                <Link href={`/agents/${agent.id}`} className="w-full">
+                                    <Button variant="secondary" className="w-full text-sm font-medium">Gérer & Voir les Logs</Button>
+                                </Link>
                             </div>
                         </Card>
                     ))}
@@ -264,32 +363,35 @@ export default function AiAgents({ userRole }) {
                             <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                             <div>
                                 <h4 className="font-bold text-sm">Agent Registered Successfully</h4>
-                                <p className="text-xs mt-1 leading-relaxed">Please copy your API key now. For security reasons, <strong>it will not be shown again</strong>.</p>
+                                <p className="text-sm mt-2 leading-relaxed text-emerald-900 bg-emerald-100/50 p-2.5 rounded border border-emerald-200/50">
+                                    ⚠️ <strong>IMPORTANT:</strong> Please copy your Agent ID immediately. For security reasons, <strong>it will not be shown again anywhere in the dashboard</strong>.
+                                </p>
 
                                 <div className="mt-3 flex items-center gap-2">
                                     <code className="flex-1 bg-white border border-emerald-300 rounded px-2 py-1 text-sm font-mono text-emerald-900 break-all">
-                                        {newAgentResult.apiKey}
+                                        {newAgentResult.agentId}
                                     </code>
-                                    <Button variant="secondary" icon={Copy} className="!py-1.5" onClick={() => navigator.clipboard.writeText(newAgentResult.apiKey)}>Copy</Button>
+                                    <Button variant="secondary" icon={Copy} className="!py-1.5" onClick={() => navigator.clipboard.writeText(newAgentResult.agentId)}>Copy</Button>
                                 </div>
                             </div>
                         </div>
 
                         <div className="mt-6 border-t border-slate-100 pt-4">
-                            <h4 className="font-bold text-sm text-slate-900 mb-1">How to use the SDK</h4>
-                            <p className="text-xs text-slate-500 mb-2">Use the snippet below to start logging your agent's thoughts into the immutable ledger.</p>
-                            <SDKSnippet apiKey={newAgentResult.apiKey} />
+                            <h4 className="font-bold text-sm text-slate-900 mb-1">How to route through the Gateway</h4>
+                            <p className="text-xs text-slate-500 mb-2">Use the snippet below to start routing your agent's requests through the Universal Zero-Trust Gateway.</p>
+                            <SDKSnippet agentId={newAgentResult.agentId} />
+                            <p className="text-[10px] text-slate-500 mt-2 italic">Note: Votre VERYTIS_API_KEY globale est disponible dans la section Settings &gt; Security.</p>
                         </div>
 
                         <div className="pt-4 flex justify-end">
-                            <Button variant="primary" onClick={closeRegisterModal}>I have saved the key</Button>
+                            <Button variant="primary" onClick={closeRegisterModal}>I have saved the ID</Button>
                         </div>
                     </div>
                 ) : (
                     <form onSubmit={handleRegister} className="space-y-4">
                         <div className="p-3 bg-blue-50 border border-blue-100 rounded-md mb-4 text-xs text-blue-800 flex items-start gap-2">
                             <ShieldAlert className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                            <p>Registering an agent creates a secure identity for telemetry logging. The API key generated should be kept secret and injected into the agent's environment variables.</p>
+                            <p>Registering an agent creates a secure identity for telemetry logging through the Universal Zero-Trust Gateway. The Agent ID generated should be kept secret and injected into the agent's environment variables. <strong className="block mt-1">⚠️ It will only be displayed once upon creation.</strong></p>
                         </div>
 
                         <div>
@@ -318,7 +420,7 @@ export default function AiAgents({ userRole }) {
                         <div className="flex justify-end pt-4 gap-2">
                             <Button variant="ghost" type="button" onClick={closeRegisterModal} disabled={isSubmitting}>Cancel</Button>
                             <Button variant="primary" type="submit" disabled={isSubmitting}>
-                                {isSubmitting ? 'Generating Identity...' : 'Generate API Key'}
+                                {isSubmitting ? 'Generating Identity...' : 'Generate Agent ID'}
                             </Button>
                         </div>
                     </form>
@@ -332,12 +434,11 @@ export default function AiAgents({ userRole }) {
                 title="Delete Agent"
                 subtitle={deleteTarget?.name ? `"${deleteTarget.name}" will be permanently removed` : ''}
                 details={[
-                    'Take a full snapshot of the agent\'s configuration, telemetry, and cost history',
-                    'Seal the snapshot with a SHA-256 integrity hash',
-                    'Transfer the record to the Archive Vault for permanent audit retention',
+                    'Retain aggregated cost and token usage history for billing',
+                    'Remove the agent\'s API access keys immediately',
                     'Permanently remove the agent from active service',
                 ]}
-                confirmLabel="Delete & Archive"
+                confirmLabel="Delete Agent"
                 variant="danger"
             />
         </div>

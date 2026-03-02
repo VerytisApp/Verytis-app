@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, Shield, Server, Box, Fingerprint } from 'lucide-react';
+import { Download, Shield, Server, Box, Fingerprint, Key, Copy, RefreshCw, Globe, X, CheckCircle2 } from 'lucide-react';
 import { Card, Button } from '../ui';
 import { useRole } from '@/lib/providers';
 
@@ -9,6 +9,54 @@ export default function AdminSecuritySettings() {
     const { currentRole } = useRole();
     const [securityLogs, setSecurityLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isCopied, setIsCopied] = useState(false);
+    const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+    const [apiKey, setApiKey] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generatedKey, setGeneratedKey] = useState(null);
+    const generateNewKey = async () => {
+        if (window.confirm("Are you sure you want to generate a new Global API Key? The old one will be revoked immediately.")) {
+            setIsGenerating(true);
+            try {
+                const fullKey = `vrts_live_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+
+                const res = await fetch('/api/settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ verytis_api_key: fullKey })
+                });
+
+                if (res.ok) {
+                    const suffix = fullKey.slice(-4);
+                    setGeneratedKey(fullKey);
+                    setApiKey(`vrts_live_***************************${suffix}`);
+                } else {
+                    console.error('Failed to update API key');
+                }
+            } catch (error) {
+                console.error('Error updating key:', error);
+            } finally {
+                setIsGenerating(false);
+            }
+        }
+    };
+
+    const handleCopy = () => {
+        if (apiKey && apiKey !== 'Not configured' && !apiKey.includes('Loading')) {
+            navigator.clipboard.writeText(apiKey);
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        }
+    };
+
+    const handleCopyGenerated = () => {
+        if (generatedKey) {
+            navigator.clipboard.writeText(generatedKey);
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        }
+    };
+
 
     useEffect(() => {
         // Fetch real security logs from the database
@@ -37,8 +85,28 @@ export default function AdminSecuritySettings() {
             }
         };
 
+        const fetchSettings = async () => {
+            setIsLoadingSettings(true);
+            try {
+                const res = await fetch('/api/settings');
+                const data = await res.json();
+                if (data.settings && data.settings.verytis_api_key) {
+                    const suffix = data.settings.verytis_api_key.slice(-4);
+                    setApiKey(`vrts_live_***************************${suffix}`);
+                } else {
+                    setApiKey('Not configured');
+                }
+            } catch (error) {
+                console.error("Failed to fetch settings:", error);
+                setApiKey('Not configured');
+            } finally {
+                setIsLoadingSettings(false);
+            }
+        };
+
         if (currentRole === 'Admin') {
             fetchLogs();
+            fetchSettings();
         }
     }, [currentRole]);
 
@@ -79,10 +147,6 @@ export default function AdminSecuritySettings() {
                     Global overview of telemetry, access rules, and immutable audit logs.
                 </p>
                 <div className="flex gap-3 mt-4">
-                    <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded text-xs font-semibold shadow-sm">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                        WORM Storage: Active
-                    </div>
                     <div className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded text-xs font-semibold shadow-sm">
                         <Shield className="w-3.5 h-3.5" />
                         AES-256-GCM Encryption
@@ -90,156 +154,99 @@ export default function AdminSecuritySettings() {
                 </div>
             </div>
 
-            {/* Infrastructure Status */}
-            <Card className="p-6">
-                <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                    <Server className="w-4 h-4 text-slate-500" />
-                    Infrastructure Status
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5 mb-2">
-                            <Box className="w-3.5 h-3.5" />
-                            Data Isolation
-                        </div>
-                        <div className="text-sm font-medium text-slate-900 flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                            RLS Enforced
-                        </div>
-                    </div>
-
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5 mb-2">
-                            <Shield className="w-3.5 h-3.5" />
-                            Ledger Integrity
-                        </div>
-                        <div className="text-sm font-medium text-slate-900 flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                            Append-Only Audit
-                        </div>
-                    </div>
-
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5 mb-2">
-                            <Fingerprint className="w-3.5 h-3.5" />
-                            Ingestion Security
-                        </div>
-                        <div className="text-sm font-medium text-slate-900 flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                            HMAC Validated
-                        </div>
-                    </div>
-                </div>
-            </Card>
-
-            {/* Security Logs */}
+            {/* Global API Key */}
             <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-slate-500" />
-                        Security & Admin Audit Trail
+                        <Key className="w-4 h-4 text-slate-500" />
+                        Platform API Keys (VERYTIS_API_KEY)
                     </h3>
+                    <Button
+                        variant="secondary"
+                        className="h-8 text-[10px]"
+                        icon={RefreshCw}
+                        onClick={generateNewKey}
+                        disabled={isGenerating}
+                    >
+                        {isGenerating ? 'Generating...' : 'Generate New Key'}
+                    </Button>
                 </div>
                 <p className="text-xs text-slate-500 mb-4">
-                    Immutable log of authentication, access management, and infrastructure configuration events.
+                    Authenticates the SDK Proxy Gateway. Treat this as a sensitive production credential.
+                </p>
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm">
+                    <div>
+                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Active Global Key</div>
+                        <code className="text-sm font-mono text-slate-700 select-none">{apiKey}</code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="secondary" icon={Copy} className="h-9 px-3 text-xs" onClick={handleCopy}>
+                            {isCopied ? 'Copied' : 'Copy'}
+                        </Button>
+                    </div>
+                </div>
+            </Card>
+
+            {/* Change Password */}
+            <Card className="p-6">
+                <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
+                    <Shield className="w-4 h-4 text-slate-500" />
+                    Change Account Password
+                </h3>
+                <p className="text-xs text-slate-500 mb-6">
+                    Regularly update your password to maintain account security. You will be logged out of other devices.
                 </p>
 
-                <div className="overflow-hidden rounded-lg border border-slate-200">
-                    <table className="w-full text-xs text-left">
-                        <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
-                            <tr>
-                                <th className="px-4 py-3 uppercase tracking-wider text-[10px]">Timestamp</th>
-                                <th className="px-4 py-3 uppercase tracking-wider text-[10px]">Actor</th>
-                                <th className="px-4 py-3 uppercase tracking-wider text-[10px]">Action Event</th>
-                                <th className="px-4 py-3 uppercase tracking-wider text-[10px]">Target / Resource</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan="4" className="px-4 py-8 text-center text-slate-500">
-                                        <div className="animate-pulse flex flex-col items-center justify-center gap-2">
-                                            <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
-                                            Loading true data...
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : securityLogs.length > 0 ? (
-                                securityLogs.map((log) => (
-                                    <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-4 py-2.5 text-slate-400 font-mono text-[10px]">
-                                            {log.timestamp}
-                                        </td>
-                                        <td className="px-4 py-2.5 font-medium text-slate-900">
-                                            {log.actor}
-                                        </td>
-                                        <td className="px-4 py-2.5">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${getActionColor(log.action)}`}>
-                                                {log.action || 'UNKNOWN_ACTION'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-2.5 text-slate-600 truncate max-w-[200px]">
-                                            {log.target}
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="4" className="px-4 py-8 text-center text-slate-500">
-                                        No security logs found in the ledger.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div className="mt-4 flex justify-end">
-                    <Button variant="secondary" icon={Download}>Export Security Report (PDF)</Button>
+                <div className="max-w-md space-y-4">
+                    <div>
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Current Password</label>
+                        <input type="password" placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 focus:bg-white transition-colors" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">New Password</label>
+                        <input type="password" placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 focus:bg-white transition-colors" />
+                    </div>
+                    <div className="pt-2">
+                        <Button className="w-full sm:w-auto">Update Password</Button>
+                    </div>
                 </div>
             </Card>
 
-            {/* Archive Vault Access */}
-            <Card className="p-6 border-2 border-blue-100 bg-gradient-to-r from-blue-50/50 to-slate-50">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                            <Shield className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                                Coffre-fort d'Archive
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700 uppercase tracking-wide">Vault</span>
+            {/* Modal for Newly Generated Key */}
+            {generatedKey && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-emerald-50/50">
+                            <h3 className="font-bold text-emerald-700 flex items-center gap-2">
+                                <Shield className="w-5 h-5" />
+                                New Key Generated
                             </h3>
-                            <p className="text-xs text-slate-500 mt-0.5">Zone sécurisée de conservation immuable des données. Accès en lecture seule.</p>
+                            <button onClick={() => setGeneratedKey(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
-                    </div>
-                    <button
-                        onClick={() => window.open('/vault', '_blank')}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-all shadow-sm hover:shadow-md"
-                    >
-                        <Shield className="w-3.5 h-3.5" />
-                        Accéder au Vault
-                    </button>
-                </div>
-            </Card>
-
-            <Card className="p-6">
-                <h3 className="text-sm font-semibold text-slate-900 mb-4">Admin Session Management</h3>
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded border border-slate-100">
-                    <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <div>
-                            <div className="text-sm font-medium text-slate-900 flex items-center gap-2">
-                                Current Session (You)
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-200 text-slate-600 uppercase">Admin</span>
+                        <div className="p-6 space-y-4">
+                            <p className="text-sm text-slate-600">
+                                Your new <code className="text-xs bg-slate-100 px-1 py-0.5 rounded text-slate-700">VERYTIS_API_KEY</code> is ready. For security reasons, <strong>you will not be able to see it again</strong> after closing this window.
+                            </p>
+                            <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm">
+                                <code className="text-sm font-mono text-slate-900 break-all select-all mr-4">{generatedKey}</code>
                             </div>
-                            <div className="text-xs text-slate-500">Encrypted AES-256-GCM Connection</div>
+                            <Button
+                                variant={isCopied ? 'primary' : 'secondary'}
+                                className={`w-full ${isCopied ? 'bg-emerald-600 hover:bg-emerald-700 border-transparent text-white' : ''}`}
+                                icon={isCopied ? CheckCircle2 : Copy}
+                                onClick={handleCopyGenerated}
+                            >
+                                {isCopied ? 'Copied to clipboard!' : 'Copy to Clipboard'}
+                            </Button>
+                        </div>
+                        <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+                            <Button onClick={() => setGeneratedKey(null)}>I've safely copied it</Button>
                         </div>
                     </div>
                 </div>
-            </Card>
+            )}
         </div>
     );
 }

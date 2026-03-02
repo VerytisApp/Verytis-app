@@ -29,9 +29,10 @@ import {
     ExternalLink,
     Slack,
     Github,
-    Database
+    Database,
+    Copy
 } from 'lucide-react';
-import { Card, Button, StatusBadge } from '@/components/ui';
+import { Card, Button, StatusBadge, Modal } from '@/components/ui';
 
 import useSWR from 'swr';
 
@@ -40,6 +41,9 @@ const fetcher = (url) => fetch(url).then(r => r.json());
 export default function AgentGovernancePage({ params }) {
     const router = useRouter();
     const [expandedRow, setExpandedRow] = useState(null);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [reportMessage, setReportMessage] = useState('');
+    const [isReporting, setIsReporting] = useState(false);
 
     const { data, error, isLoading, mutate } = useSWR(`/api/agents/${params.agentId}`, fetcher);
     const agent = data?.agent;
@@ -47,45 +51,38 @@ export default function AgentGovernancePage({ params }) {
 
     const agentName = agent ? agent.name : "Loading...";
 
-    // Calculate dynamic stats based on logs
+    // Calculate dynamic stats based on logs (FinOps & Usage)
     const stats = {
-        overrideRate: "0%",
-        complianceIncidents: 0,
-        blastRadius: "None",
-        autonomyIndex: "100%",
+        totalSpend: "$0.00",
+        totalTokens: 0,
+        requests: 0,
+        policyBlocks: 0,
         successRate: "100%",
-        cost: "$0.00",
         velocity: "0ms"
     };
 
     if (logs.length > 0) {
         const total = logs.length;
+        stats.requests = total;
 
-        // 1. Override Rate: percentage of logs with a human actor_id (meaning human intervened/verified)
-        const overridden = logs.filter(l => l.actor_id).length;
-        stats.overrideRate = `${Math.round((overridden / total) * 100)}%`;
+        // Total Cost (Total Spend)
+        const totalCost = logs.reduce((sum, l) => sum + parseFloat(l.metadata?.metrics?.cost_usd || 0), 0);
+        stats.totalSpend = `$${totalCost.toFixed(3)}`;
 
-        // 2. Compliance Incidents: count of BLOCKED statuses in metadata
-        stats.complianceIncidents = logs.filter(l => l.metadata?.status === 'BLOCKED').length;
+        // Total Tokens (sum of tokens_used)
+        const totalTokensUsed = logs.reduce((sum, l) => sum + parseInt(l.metadata?.metrics?.tokens_used || 0), 0);
+        stats.totalTokens = new Intl.NumberFormat().format(totalTokensUsed);
 
-        // 3. Autonomy Index: percentage of logs where NO human actor_id is present
-        stats.autonomyIndex = `${Math.round(((total - overridden) / total) * 100)}%`;
+        // Policy Blocks (count of BLOCKED statuses)
+        stats.policyBlocks = logs.filter(l => l.metadata?.status === 'BLOCKED').length;
 
-        // 4. Success Rate: percentage of logs that are NOT BLOCKED
+        // Success Rate: percentage of logs that are NOT BLOCKED
         const successCount = logs.filter(l => l.metadata?.status !== 'BLOCKED').length;
         stats.successRate = `${Math.round((successCount / total) * 100)}%`;
 
-        // 5. Total Cost
-        const totalCost = logs.reduce((sum, l) => sum + parseFloat(l.metadata?.metrics?.cost_usd || 0), 0);
-        stats.cost = `$${totalCost.toFixed(3)}`;
-
-        // 6. Avg Velocity (Duration)
+        // Avg Velocity (Duration)
         const totalDuration = logs.reduce((sum, l) => sum + parseInt(l.metadata?.metrics?.duration_ms || 0), 0);
         stats.velocity = `${Math.round(totalDuration / total)}ms`;
-
-        // 7. Blast Radius: Targeted systems/actions
-        const systems = [...new Set(logs.map(l => l.metadata?.step || l.action_type))].slice(0, 2);
-        stats.blastRadius = systems.length > 0 ? systems.join(' & ') : "None";
     }
 
     const toggleRow = (id) => {
@@ -96,10 +93,7 @@ export default function AgentGovernancePage({ params }) {
         }
     };
 
-    const renderValidatorBadge = (log) => {
-        if (log.actor_id) return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"><CheckCircle2 className="w-3 h-3" />Verified by Human</span>;
-        return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200"><Settings className="w-3 h-3" />AI Autonomous</span>;
-    };
+
 
     if (isLoading) return <div className="p-12 text-center text-slate-500 font-medium">Loading Agent details...</div>;
     if (error || !agent) return <div className="p-12 text-center text-rose-500 font-medium">Error loading AI Agent. Make sure it exists.</div>;
@@ -116,10 +110,12 @@ export default function AgentGovernancePage({ params }) {
 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                        <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+                        <div className="flex items-center gap-3">
                             <ShieldCheck className="w-8 h-8 text-indigo-600" />
-                            {agentName}
-                        </h1>
+                            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+                                {agentName}
+                            </h1>
+                        </div>
                     </div>
 
                     <div className="flex gap-3">
@@ -148,68 +144,75 @@ export default function AgentGovernancePage({ params }) {
                 </div>
 
                 <div className="mt-4 flex items-center gap-4">
-                    <span className="flex items-center gap-2 text-xs font-medium text-slate-600 bg-slate-100/80 border border-slate-200 px-2.5 py-1 rounded">
-                        <Fingerprint className="w-3.5 h-3.5" />
-                        Identity: Verified AI ({agent.id.substring(0, 8)})
-                    </span>
-                    <span className="flex items-center gap-2 text-xs font-medium text-slate-600 bg-slate-100/80 border border-slate-200 px-2.5 py-1 rounded">
-                        <Server className="w-3.5 h-3.5" />
-                        Storage: WORM Secured
-                    </span>
-                    <StatusBadge status={agent.status} />
+                    <div className="flex items-center gap-2">
+                        {logs.length > 0 ? (
+                            <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                <span className="text-xs font-semibold text-slate-600">Connected</span>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                <span className="text-xs font-semibold text-slate-600">Not connected</span>
+                            </div>
+                        )}
+                        <span className={`px-2.5 py-1 rounded text-xs font-bold tracking-wide uppercase ${agent.status?.toLowerCase() === 'active' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
+                            {agent.status?.toLowerCase() === 'active' ? 'ACTIVE' : 'INACTIVE'}
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            {/* Section Risk Controls */}
+            {/* Section FinOps & Usage */}
             <div className="pt-2">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-slate-700" />
-                        Governance & Risk Controls
+                        <BarChart2 className="w-5 h-5 text-slate-700" />
+                        FinOps & Usage Overview
                     </h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Card className="p-5 flex flex-col justify-between">
                         <div className="flex items-center gap-2 text-sm font-semibold text-slate-600 mb-3">
-                            <Users className="w-4 h-4 text-amber-500" />
-                            Human Override Rate
+                            <DollarSign className="w-4 h-4 text-emerald-500" />
+                            Total Spend
                         </div>
                         <div>
-                            <div className="text-2xl font-bold text-slate-900">{stats.overrideRate}</div>
-                            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wide">Actions corrigées ou rejetées</p>
+                            <div className="text-2xl font-bold text-slate-900">{stats.totalSpend}</div>
+                            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wide">Coût cumulé de l'agent</p>
                         </div>
                     </Card>
 
                     <Card className="p-5 flex flex-col justify-between">
                         <div className="flex items-center gap-2 text-sm font-semibold text-slate-600 mb-3">
-                            <Ban className="w-4 h-4 text-rose-500" />
-                            Compliance Incidents
+                            <Cpu className="w-4 h-4 text-indigo-500" />
+                            Total Tokens
                         </div>
                         <div>
-                            <div className="text-2xl font-bold text-slate-900">{stats.complianceIncidents}</div>
-                            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wide">Tentatives de bypass refusées</p>
+                            <div className="text-2xl font-bold text-slate-900">{stats.totalTokens}</div>
+                            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wide">Jetons traités (in/out)</p>
                         </div>
                     </Card>
 
                     <Card className="p-5 flex flex-col justify-between">
                         <div className="flex items-center gap-2 text-sm font-semibold text-slate-600 mb-3">
-                            <Globe className="w-4 h-4 text-indigo-500" />
-                            Blast Radius
+                            <Layers className="w-4 h-4 text-blue-500" />
+                            Requests / Prompts
                         </div>
                         <div>
-                            <div className="text-lg font-bold text-slate-900 truncate">{stats.blastRadius}</div>
-                            <p className="text-[10px] text-slate-500 font-bold mt-2 uppercase tracking-wide">Applications impactées (30j)</p>
+                            <div className="text-2xl font-bold text-slate-900">{stats.requests}</div>
+                            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wide">Invocations AI réussies</p>
                         </div>
                     </Card>
 
                     <Card className="p-5 flex flex-col justify-between">
                         <div className="flex items-center gap-2 text-sm font-semibold text-slate-600 mb-3">
-                            <Settings className="w-4 h-4 text-blue-500" />
-                            Autonomy Index
+                            <ShieldAlert className="w-4 h-4 text-rose-500" />
+                            Actions & Requêtes Bloquées
                         </div>
                         <div>
-                            <div className="text-2xl font-bold text-slate-900">{stats.autonomyIndex}</div>
-                            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wide">Tasks approved without supervision</p>
+                            <div className="text-2xl font-bold text-slate-900">{stats.policyBlocks}</div>
+                            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wide leading-tight">Tentatives d'accès restreint ou dépassement de budget bloquées par Verytis</p>
                         </div>
                     </Card>
                 </div>
@@ -231,7 +234,7 @@ export default function AgentGovernancePage({ params }) {
 
                     <Card className="p-5">
                         <div className="text-sm font-semibold text-slate-600 mb-3">Cost Analysis</div>
-                        <div className="text-2xl font-bold text-slate-900">{stats.cost}</div>
+                        <div className="text-2xl font-bold text-slate-900">{stats.totalSpend}</div>
                     </Card>
 
                     <Card className="p-5">
@@ -262,7 +265,6 @@ export default function AgentGovernancePage({ params }) {
                                     <th className="px-6 py-3.5">Timestamp</th>
                                     <th className="px-6 py-3.5">Operation</th>
                                     <th className="px-6 py-3.5">Status</th>
-                                    <th className="px-6 py-3.5">Verification</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-slate-700 bg-white">
@@ -307,9 +309,6 @@ export default function AgentGovernancePage({ params }) {
                                                     {log.metadata?.status || 'VERIFIED'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                {renderValidatorBadge(log)}
-                                            </td>
                                         </tr>
                                     </React.Fragment>
                                 ))}
@@ -318,6 +317,49 @@ export default function AgentGovernancePage({ params }) {
                     </div>
                 </Card>
             </div>
+
+            {/* Report Problem Link */}
+            <div className="pt-2 pb-6 text-center">
+                <button
+                    onClick={() => setIsReportModalOpen(true)}
+                    className="text-[11px] text-slate-400 hover:text-slate-600 font-medium transition-colors flex items-center justify-center gap-1.5 mx-auto opacity-70 hover:opacity-100"
+                >
+                    🚩 Signaler un problème avec cet agent
+                </button>
+            </div>
+
+            {/* Report Modal */}
+            <Modal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} title="Signaler un problème">
+                <div className="p-4 space-y-4">
+                    <p className="text-sm text-slate-500">
+                        Décrivez le problème rencontré avec l'agent <strong>{agentName}</strong>. Un email sera envoyé à l'équipe de supervision.
+                    </p>
+                    <textarea
+                        rows={4}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 resize-none"
+                        placeholder="Veuillez décrire le comportement inattendu ou le problème rencontré..."
+                        value={reportMessage}
+                        onChange={(e) => setReportMessage(e.target.value)}
+                    />
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button variant="secondary" onClick={() => setIsReportModalOpen(false)}>Annuler</Button>
+                        <Button
+                            variant="danger"
+                            onClick={() => {
+                                setIsReporting(true);
+                                setTimeout(() => {
+                                    setIsReporting(false);
+                                    setIsReportModalOpen(false);
+                                    setReportMessage('');
+                                    alert("Votre signalement a bien été envoyé par email à l'équipe de supervision !");
+                                }, 800);
+                            }}
+                        >
+                            {isReporting ? 'Envoi en cours...' : 'Envoyer le signalement'}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

@@ -34,10 +34,10 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Name is required' }, { status: 400 });
         }
 
-        // 4. Generate Raw API Key (Standard Security)
-        const rawKey = `vrts_live_${crypto.randomBytes(32).toString('hex')}`;
+        // 4. Generate Raw Agent ID (Replacing global API key)
+        const rawKey = `agt_live_${crypto.randomBytes(32).toString('hex')}`;
 
-        // 5. Hash API Key
+        // 5. Hash Agent ID
         const hashedKey = crypto.createHash('sha256').update(rawKey).digest('hex');
 
         // 6. DB Insertion
@@ -70,11 +70,11 @@ export async function POST(req) {
             metadata: redactedMetadata
         });
 
-        // 7. Return Raw Key Once
+        // 7. Return Raw Agent ID Once
         return NextResponse.json({
             success: true,
             agent,
-            apiKey: rawKey // RAW KEY ONLY SHOWN ONCE
+            agentId: rawKey // RAW KEY ONLY SHOWN ONCE
         }, { status: 200 });
 
     } catch (error) {

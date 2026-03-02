@@ -93,18 +93,6 @@ export default function ArchiveConfirmModal({
                             ))}
                         </ul>
                     </div>
-
-                    {/* Vault Badge */}
-                    <div className="mt-3 flex items-center gap-2 p-2.5 bg-slate-50 rounded-lg border border-slate-100">
-                        <div className="p-1.5 bg-blue-50 rounded-md">
-                            <Archive className="w-3.5 h-3.5 text-blue-500" />
-                        </div>
-                        <div>
-                            <p className="text-[11px] font-semibold text-slate-700">Archived to Vault</p>
-                            <p className="text-[10px] text-slate-400">Sealed with SHA-256 integrity hash • Immutable audit record</p>
-                        </div>
-                        <Shield className="w-3.5 h-3.5 text-emerald-400 ml-auto flex-shrink-0" />
-                    </div>
                 </div>
 
                 {/* Actions */}
