@@ -218,10 +218,10 @@ export async function POST(req, { params }) {
             }
         }
 
-        // ─── 3. Resolve Organization Settings (using agent's org, not hardcoded) ───
+        // ─── 3. Resolve Organization Settings (global governance) ───
         const { data: settings, error: settingsError } = await supabase
             .from('organization_settings')
-            .select('banned_keywords')
+            .select('banned_keywords, blocked_actions, default_max_per_agent, max_org_spend')
             .eq('id', 'default')
             .single();
 
@@ -282,6 +282,35 @@ export async function POST(req, { params }) {
             }
         }
 
+        // ─── 6b. Guardrails: Global Blocked Actions ───
+        // If the user message references a globally blocked action, reject.
+        const globalBlockedActions = settings.blocked_actions || [];
+        const agentBlockedActions = targetAgent.policies?.blocked_actions || [];
+        const allBlockedActions = [...new Set([...globalBlockedActions, ...agentBlockedActions])];
+
+        for (const action of allBlockedActions) {
+            if (scrubbedMessage.toUpperCase().includes(action.toUpperCase())) {
+                await supabase.from('activity_logs').insert({
+                    organization_id: targetAgent.organization_id,
+                    agent_id: targetAgent.id,
+                    action_type: 'REQUEST_BLOCKED',
+                    summary: `Requête bloquée : Action restreinte détectée ("${action}")`,
+                    metadata: {
+                        status: 'BLOCKED',
+                        reason: 'BLOCKED_ACTION',
+                        action,
+                        message_hash: messageHash,
+                        trace_id: crypto.randomUUID()
+                    }
+                });
+
+                return NextResponse.json({
+                    error: 'Policy Violation',
+                    reason: `Blocked action detected: ${action}`
+                }, { status: 400 });
+            }
+        }
+
         // ─── 7. STEP 3: Resolve Model Dynamically ───
         // Extract model from visual_config if available
         const visualConfig = targetAgent.visual_config;
@@ -304,8 +333,18 @@ export async function POST(req, { params }) {
         const hasTools = Object.keys(discoveredTools).length > 0;
 
         // ─── 9. FIX 2: Budget Enforcement (Financial DoS Prevention) ───
-        const budgetMax = targetAgent.policies?.budget_daily_max;
-        if (budgetMax && budgetMax > 0) {
+        // Use the LOWER of agent-level budget and global default_max_per_agent
+        const agentBudget = targetAgent.policies?.budget_daily_max;
+        const globalBudgetCap = settings.default_max_per_agent;
+        let effectiveBudgetMax = agentBudget;
+
+        if (globalBudgetCap != null) {
+            if (effectiveBudgetMax == null || effectiveBudgetMax > globalBudgetCap) {
+                effectiveBudgetMax = globalBudgetCap;
+            }
+        }
+
+        if (effectiveBudgetMax && effectiveBudgetMax > 0) {
             const since = new Date(Date.now() - 86_400_000).toISOString();
             const { data: costRows } = await supabase
                 .from('activity_logs')
@@ -318,25 +357,27 @@ export async function POST(req, { params }) {
                 return sum + (parseFloat(row.metadata?.metrics?.cost_usd) || 0);
             }, 0);
 
-            if (totalCost >= budgetMax) {
+            if (totalCost >= effectiveBudgetMax) {
                 const budgetTraceId = crypto.randomUUID();
                 await supabase.from('activity_logs').insert({
                     organization_id: targetAgent.organization_id,
                     agent_id: targetAgent.id,
                     action_type: 'BUDGET_EXCEEDED',
-                    summary: `Budget journalier dépassé: $${totalCost.toFixed(4)} / $${budgetMax.toFixed(2)}`,
+                    summary: `Budget journalier dépassé: $${totalCost.toFixed(4)} / $${effectiveBudgetMax.toFixed(2)} (global cap: $${globalBudgetCap || 'N/A'})`,
                     metadata: {
                         status: 'BLOCKED',
                         reason: 'BUDGET_EXCEEDED',
                         current_cost_usd: totalCost.toFixed(6),
-                        budget_max_usd: budgetMax,
+                        budget_max_usd: effectiveBudgetMax,
+                        global_cap_usd: globalBudgetCap || null,
+                        agent_cap_usd: agentBudget || null,
                         trace_id: budgetTraceId
                     }
                 });
 
                 return NextResponse.json({
                     error: 'Budget Exceeded',
-                    reason: `Daily budget of $${budgetMax.toFixed(2)} reached ($${totalCost.toFixed(4)} used)`,
+                    reason: `Daily budget of $${effectiveBudgetMax.toFixed(2)} reached ($${totalCost.toFixed(4)} used)`,
                     trace_id: budgetTraceId
                 }, { status: 402 });
             }

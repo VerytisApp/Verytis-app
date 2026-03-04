@@ -68,6 +68,52 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Name or ID is required' }, { status: 400 });
         }
 
+        // ─── GLOBAL GOVERNANCE MERGE ───
+        // Fetch org-level hard limits and merge them INTO agent policies.
+        // Global policies override / supplement agent-level ones.
+        const { data: orgSettings } = await supabase
+            .from('organization_settings')
+            .select('banned_keywords, blocked_actions, default_max_per_agent, max_org_spend')
+            .eq('id', 'default')
+            .maybeSingle();
+
+        const globalBannedKeywords = orgSettings?.banned_keywords || [];
+        const globalBlockedActions = orgSettings?.blocked_actions || [];
+        const globalMaxPerAgent = orgSettings?.default_max_per_agent || null;
+
+        // Merge: agent policies + global hard limits (union, no duplicates)
+        const agentPolicies = policies || {};
+        const mergedForbiddenKeywords = [
+            ...new Set([
+                ...(agentPolicies.forbidden_keywords || []),
+                ...(agentPolicies.forbidden_words || []), // legacy key fallback
+                ...globalBannedKeywords
+            ])
+        ];
+        const mergedBlockedActions = [
+            ...new Set([
+                ...(agentPolicies.blocked_actions || []),
+                ...globalBlockedActions
+            ])
+        ];
+
+        // Budget cap: agent cannot exceed org default_max_per_agent
+        let mergedBudgetMax = agentPolicies.budget_daily_max;
+        if (globalMaxPerAgent != null) {
+            if (mergedBudgetMax == null || mergedBudgetMax > globalMaxPerAgent) {
+                mergedBudgetMax = globalMaxPerAgent;
+            }
+        }
+
+        const enforcedPolicies = {
+            ...agentPolicies,
+            forbidden_keywords: mergedForbiddenKeywords,
+            blocked_actions: mergedBlockedActions,
+            budget_daily_max: mergedBudgetMax,
+        };
+        // Remove legacy key
+        delete enforcedPolicies.forbidden_words;
+
         // 4. Generate Raw Agent ID (only if creating new)
         let rawKey = null;
         let hashedKey = null;
@@ -77,13 +123,13 @@ export async function POST(req) {
             hashedKey = crypto.createHash('sha256').update(rawKey).digest('hex');
         }
 
-        // 5. DB Upsert logic — sanitize visual_config to prevent secret leaks
+        // 5. DB Upsert logic — sanitize visual_config + enforce governance
         const agentData = {
             organization_id: profile.organization_id,
             name: name || 'Unnamed Agent',
             description: description || '',
             system_prompt: system_prompt || '',
-            policies: policies || {},
+            policies: enforcedPolicies,
             visual_config: sanitizeVisualConfig(visual_config),
             is_draft: is_draft || false,
             status: 'active'
