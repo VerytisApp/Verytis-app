@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { sendEmail } from '../../../../lib/email';
+import path from 'path';
 
 export async function POST(req) {
     const body = await req.json();
@@ -90,7 +91,7 @@ export async function POST(req) {
         // 2. Send Custom Email via SMTP (for new invites or resends to pending users)
         if ((authAction === 'invited' || authAction === 'resend') && linkData?.properties?.action_link) {
             const inviteUrl = linkData.properties.action_link;
-            const logoPath = '/Users/tychiqueesteve/Verytis-app/components/image/Gemini Generated Image (14).png';
+            const logoPath = path.join(process.cwd(), 'components/image/verytis-logo.png');
 
             const emailHtml = `
                 <!DOCTYPE html>

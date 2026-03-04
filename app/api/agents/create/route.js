@@ -28,53 +28,80 @@ export async function POST(req) {
 
         // 3. Parse Body
         const body = await req.json();
-        const { name, description } = body;
+        const { id, name, description, system_prompt, policies, visual_config, is_draft } = body;
 
-        if (!name) {
-            return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+        if (!name && !id) {
+            return NextResponse.json({ error: 'Name or ID is required' }, { status: 400 });
         }
 
-        // 4. Generate Raw Agent ID (Replacing global API key)
-        const rawKey = `agt_live_${crypto.randomBytes(32).toString('hex')}`;
+        // 4. Generate Raw Agent ID (only if creating new)
+        let rawKey = null;
+        let hashedKey = null;
 
-        // 5. Hash Agent ID
-        const hashedKey = crypto.createHash('sha256').update(rawKey).digest('hex');
-
-        // 6. DB Insertion
-        const { data: agent, error: insertError } = await supabase
-            .from('ai_agents')
-            .insert({
-                organization_id: profile.organization_id,
-                name,
-                description: description || '',
-                api_key_hash: hashedKey,
-                status: 'active'
-            })
-            .select('id, name, created_at')
-            .single();
-
-        if (insertError) {
-            console.error('Failed to create agent:', insertError);
-            return NextResponse.json({ error: insertError.message }, { status: 500 });
+        if (!id) {
+            rawKey = `agt_live_${crypto.randomUUID()}`;
+            hashedKey = crypto.createHash('sha256').update(rawKey).digest('hex');
         }
 
-        // 6.5 Log to activity_logs (Scrubbed for GDPR/WORM Compliance)
-        const redactedSummary = scrubText(name);
-        const redactedMetadata = scrubObject({ agent_id: agent.id });
+        // 5. DB Upsert logic
+        const agentData = {
+            organization_id: profile.organization_id,
+            name: name || 'Unnamed Agent',
+            description: description || '',
+            system_prompt: system_prompt || '',
+            policies: policies || {},
+            visual_config: visual_config || null,
+            is_draft: is_draft || false,
+            status: 'active'
+        };
+
+        if (hashedKey) {
+            agentData.api_key_hash = hashedKey;
+        }
+
+        let result;
+        if (id) {
+            // Update existing
+            result = await supabase
+                .from('ai_agents')
+                .update(agentData)
+                .eq('id', id)
+                .eq('organization_id', profile.organization_id)
+                .select('id, name, created_at')
+                .single();
+        } else {
+            // Insert new
+            result = await supabase
+                .from('ai_agents')
+                .insert(agentData)
+                .select('id, name, created_at')
+                .single();
+        }
+
+        const { data: agent, error: dbError } = result;
+
+        if (dbError) {
+            console.error('Failed to save agent:', dbError);
+            return NextResponse.json({ error: dbError.message }, { status: 500 });
+        }
+
+        // 6. Log to activity_logs
+        const redactedSummary = scrubText(agent.name);
+        const redactedMetadata = scrubObject({ agent_id: agent.id, action: id ? 'UPDATE' : 'CREATE' });
 
         await supabase.from('activity_logs').insert({
             organization_id: profile.organization_id,
             actor_id: user.id,
-            action_type: 'AI_AGENT_REGISTERED',
+            action_type: id ? 'AI_AGENT_UPDATED' : 'AI_AGENT_REGISTERED',
             summary: redactedSummary,
             metadata: redactedMetadata
         });
 
-        // 7. Return Raw Agent ID Once
+        // 7. Return Agent Data
         return NextResponse.json({
             success: true,
             agent,
-            agentId: rawKey // RAW KEY ONLY SHOWN ONCE
+            agentId: rawKey // RAW KEY ONLY SHOWN ON NEW CREATION
         }, { status: 200 });
 
     } catch (error) {

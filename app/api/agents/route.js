@@ -21,7 +21,7 @@ export async function GET() {
         // Fetch agents
         const { data: agents, error: agentsError } = await supabase
             .from('ai_agents')
-            .select('id, name, description, status, created_at')
+            .select('id, name, description, status, created_at, visual_config, is_draft')
             .eq('organization_id', profile.organization_id)
             .order('created_at', { ascending: false });
 

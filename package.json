@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.37",
     "@heroicons/react": "^2.2.0",
     "@sentry/nextjs": "^10.39.0",
     "@slack/web-api": "^7.13.0",
@@ -16,6 +17,8 @@
     "@supabase/supabase-js": "^2.93.3",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.2",
+    "@xyflow/react": "^12.10.1",
+    "ai": "^6.0.105",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "framer-motion": "^12.29.2",

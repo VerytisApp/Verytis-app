@@ -4,7 +4,7 @@ import { Providers, useRole, useSidebar } from '@/lib/providers';
 import FloatingSidebar from '@/components/layout/FloatingSidebar';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
-import IcareLogo from '@/components/image/Gemini Generated Image (14).png';
+import IcareLogo from '@/components/image/LOGO.PNG-ICARE.svg';
 
 import { useParams, useRouter } from 'next/navigation';
 

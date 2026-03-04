@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users, Activity, Settings, Bot, ShieldAlert, Copy, Cpu, RefreshCw, Layers, CheckCircle2, Clock, Check, FileCode2 } from 'lucide-react';
+import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users, Activity, Settings, Bot, ShieldAlert, Copy, Cpu, RefreshCw, Layers, CheckCircle2, Clock, Check, FileCode2, Sparkles, Loader2 } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon, Modal, EmptyState, SkeletonAgentCard } from '../ui';
 import ArchiveConfirmModal from '../ui/ArchiveConfirmModal';
 import { useToast } from '../ui/Toast';
@@ -128,8 +128,14 @@ export default function AiAgents({ userRole }) {
     const [newAgentResult, setNewAgentResult] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
 
+    // Magic Builder State
+    const [isMagicModalOpen, setIsMagicModalOpen] = useState(false);
+    const [magicPrompt, setMagicPrompt] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
+
     const { data, error, isLoading, mutate } = useSWR('/api/agents', fetcher);
-    const agents = data?.agents || [];
+    const allAgents = data?.agents || [];
+    const deployedAgents = allAgents.filter(a => !a.is_draft);
 
     const handleDeleteAgent = async (agentId) => {
         console.log('🗑️ Deleting agent:', agentId);
@@ -191,6 +197,11 @@ export default function AiAgents({ userRole }) {
         setNewAgentResult(null);
     };
 
+    const handleMagicBuild = () => {
+        // Redirection vers l'expérience unifiée
+        window.location.href = '/builder?openMagic=true';
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in duration-300 p-6">
             <header className="flex justify-between items-end">
@@ -201,20 +212,28 @@ export default function AiAgents({ userRole }) {
                     </h1>
                     <p className="text-slate-500 mt-1 text-xs font-medium">Register autonomous agents and monitor their API costs and token consumption.</p>
                 </div>
-                <div className="relative group">
-                    <Button
-                        variant="primary"
-                        icon={Plus}
-                        onClick={() => setIsRegisterModalOpen(true)}
-                        disabled={userRole === 'Member'}
-                    >
-                        Register New Agent
-                    </Button>
-                    {userRole === 'Member' && (
-                        <div className="absolute -top-8 right-0 hidden group-hover:block bg-slate-900 text-white text-[9px] p-2 rounded shadow-xl z-50 whitespace-nowrap font-bold">
-                            Admin Role Required
-                        </div>
-                    )}
+                <div className="flex items-center gap-3">
+                    <Link href="/builder">
+                        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95">
+                            <Sparkles className="w-4 h-4" />
+                            Visual Builder
+                        </button>
+                    </Link>
+                    <div className="relative group">
+                        <Button
+                            variant="secondary"
+                            icon={Plus}
+                            onClick={() => setIsRegisterModalOpen(true)}
+                            disabled={userRole === 'Member'}
+                        >
+                            Direct Register
+                        </Button>
+                        {userRole === 'Member' && (
+                            <div className="absolute -top-8 right-0 hidden group-hover:block bg-slate-900 text-white text-[9px] p-2 rounded shadow-xl z-50 whitespace-nowrap font-bold">
+                                Admin Role Required
+                            </div>
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -227,7 +246,7 @@ export default function AiAgents({ userRole }) {
                     <ShieldAlert className="w-8 h-8 mb-2" />
                     Failed to load AI Agents
                 </Card>
-            ) : agents.length === 0 ? (
+            ) : deployedAgents.length === 0 ? (
                 <EmptyState
                     title="No Agents Registered"
                     description="You have not registered any AI Agents yet. Start monitoring your autonomous agents by creating your first identity."
@@ -237,7 +256,7 @@ export default function AiAgents({ userRole }) {
                 />
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {agents.map(agent => (
+                    {deployedAgents.map(agent => (
                         <Card key={agent.id} className="overflow-hidden flex flex-col h-[400px]">
                             <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
                                 <div className="flex-1">
@@ -340,15 +359,77 @@ export default function AiAgents({ userRole }) {
                                 </div>
                             </div>
 
-                            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-center mt-auto">
-                                <Link href={`/agents/${agent.id}`} className="w-full">
-                                    <Button variant="secondary" className="w-full text-sm font-medium">Gérer & Voir les Logs</Button>
+                            <div className="p-4 border-t border-slate-100 bg-slate-50 flex gap-2 mt-auto">
+                                {agent.visual_config ? (
+                                    <Link href={`/builder?id=${agent.id}`} className="flex-1">
+                                        <Button variant="primary" className="w-full text-xs font-bold gap-2">
+                                            <Layers className="w-3.5 h-3.5" />
+                                            Modifier Builder
+                                        </Button>
+                                    </Link>
+                                ) : null}
+                                <Link href={`/agents/${agent.id}`} className="flex-1">
+                                    <Button variant="secondary" className="w-full text-xs font-bold">Logs & Config</Button>
                                 </Link>
                             </div>
                         </Card>
                     ))}
                 </div>
             )}
+
+            {/* Magic Build Modal */}
+            <Modal
+                isOpen={isMagicModalOpen}
+                onClose={() => setIsMagicModalOpen(false)}
+                title={
+                    <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-purple-100 rounded-lg">
+                            <Sparkles className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600">
+                            Magic Agent Builder
+                        </span>
+                    </div>
+                }
+                maxWidth="max-w-2xl"
+            >
+                <div className="space-y-4">
+                    <div className="p-4 bg-purple-50 border border-purple-100 rounded-xl text-sm text-purple-900">
+                        <p><strong>Text-to-Agent :</strong> Décrivez l'agent autonome dont vous avez besoin. L'IA de Verytis va générer sa configuration, son prompt système et ses politiques de sécurité (Guardrails) de façon automatisée.</p>
+                    </div>
+
+                    <div>
+                        <textarea
+                            rows={5}
+                            placeholder="Ex: Je veux un agent pour lire les Pull Requests GitHub de mon équipe, détecter les failles de sécurité, avec un budget max de 50$ et l'interdiction de voir les mots de passe..."
+                            value={magicPrompt}
+                            onChange={(e) => setMagicPrompt(e.target.value)}
+                            className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all resize-none shadow-inner"
+                        />
+                    </div>
+
+                    <div className="flex justify-end pt-2 gap-3">
+                        <Button variant="ghost" type="button" onClick={() => setIsMagicModalOpen(false)} disabled={isGenerating}>Annuler</Button>
+                        <button
+                            onClick={handleMagicBuild}
+                            disabled={isGenerating || !magicPrompt.trim()}
+                            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isGenerating ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Génération en cours...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-4 h-4" />
+                                    Créer la configuration (Magic Build)
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
             {/* Registration Modal */}
             <Modal

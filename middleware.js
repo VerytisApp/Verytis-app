@@ -46,6 +46,7 @@ export async function middleware(request) {
     response.headers.set('X-Frame-Options', 'DENY');
     response.headers.set('X-Content-Type-Options', 'nosniff');
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://unavatar.io https://*.githubusercontent.com https://*.slack-edge.com https://*.slack.com https://*.trello.com https://*.gstatic.com https://*.google.com https://google.com https://gstatic.com https://*.sentry.io; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.sentry.io; worker-src 'self' blob:; frame-src 'self' https://*.sentry.io;");
 
     if (limitResult) {
         response.headers.set('X-RateLimit-Limit', limitResult.limit.toString());

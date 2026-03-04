@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { sendEmail } from '../../../../lib/email';
 import crypto from 'crypto';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -127,7 +128,7 @@ export async function POST(req) {
         // 6. Send Email
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
         const verifyLink = `${baseUrl}/verify-slack?token=${token}`;
-        const logoPath = '/Users/tychiqueesteve/Verytis-app/components/image/Gemini Generated Image (14).png';
+        const logoPath = path.join(process.cwd(), 'components/image/verytis-logo.png');
 
         const emailHtml = `
             <!DOCTYPE html>

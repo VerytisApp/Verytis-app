@@ -6,9 +6,9 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, MessageSquare, FileText, Users, Clock,
-    Settings, LogOut, MoreVertical, Layers, ChevronLeft, Shield, ChevronDown, Check, Bot, Archive
+    Settings, LogOut, MoreVertical, Layers, ChevronLeft, Shield, ChevronDown, Check, Bot, Archive, Sparkles
 } from 'lucide-react';
-import IcareLogo from '../image/Gemini Generated Image (14).png';
+import IcareLogo from '../image/LOGO.PNG-ICARE.svg';
 import { useRole } from '@/lib/providers';
 
 const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRole, onRoleChange, user, onLogout }) => {
@@ -36,10 +36,11 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
 
     const allNavItems = [
         { path: '/', altPath: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Manager'] },
-        { path: '/agents', label: 'AI Agents', icon: Bot, roles: ['Admin', 'Manager', 'Member'] }, 
-        { path: '/library', label: 'Library', icon: Layers, roles: ['Admin', 'Manager', 'Member'] }, 
+        { path: '/builder', label: 'AI Builder', icon: Sparkles, roles: ['Admin', 'Manager'] },
+        { path: '/agents', label: 'AI Agents', icon: Bot, roles: ['Admin', 'Manager', 'Member'] },
+        { path: '/library', label: 'Library', icon: Layers, roles: ['Admin', 'Manager', 'Member'] },
         { path: '/reports', label: 'Reports', icon: FileText, roles: ['Admin', 'Manager', 'Member'] },
-        { path: '/teams', label: 'Team', icon: Users, roles: ['Admin', 'Manager', 'Member'] }, 
+        { path: '/teams', label: 'Team', icon: Users, roles: ['Admin', 'Manager', 'Member'] },
         { path: '/settings', label: 'Settings', icon: Settings, roles: ['Admin', 'Manager', 'Member'] },
     ];
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Shield, Lock } from 'lucide-react';
-import IcareLogo from '@/components/image/Gemini Generated Image (14).png';
+import IcareLogo from '@/components/image/LOGO.PNG-ICARE.svg';
 
 export default function VaultLayout({ children }) {
     const [authorized, setAuthorized] = useState(false);

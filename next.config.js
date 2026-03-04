@@ -8,7 +8,7 @@ const nextConfig = {
                 headers: [
                     {
                         key: 'Content-Security-Policy',
-                        value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.githubusercontent.com https://*.slack-edge.com https://*.slack.com https://*.trello.com https://*.gstatic.com https://*.google.com https://google.com https://gstatic.com https://*.sentry.io; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.sentry.io; worker-src 'self' blob:; frame-src 'self' https://*.sentry.io;"
+                        value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://unavatar.io https://*.githubusercontent.com https://*.slack-edge.com https://*.slack.com https://*.trello.com https://*.gstatic.com https://*.google.com https://google.com https://gstatic.com https://*.sentry.io; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.sentry.io; worker-src 'self' blob:; frame-src 'self' https://*.sentry.io;"
                     },
                     {
                         key: 'X-DNS-Prefetch-Control',
