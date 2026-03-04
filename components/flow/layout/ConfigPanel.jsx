@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Settings2, X, Sparkles, AlertTriangle, DollarSign, Ban, Database, Clock, Cpu, Save, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Settings2, X, Sparkles, AlertTriangle, AlertCircle, DollarSign, Ban, Database, Clock, Cpu, Save, CheckCircle2 } from 'lucide-react';
 
 // ────────────────────────────────────────────────────────────────
 // Reusable Tag Input (for config panel)
@@ -78,6 +78,16 @@ export default function ConfigPanel({ selectedNode, onUpdateNode, onClose }) {
     const [draftData, setDraftData] = useState({});
     const [policies, setPolicies] = useState(DEFAULT_POLICIES);
     const [policiesSaved, setPoliciesSaved] = useState(false);
+    const [placeholderValues, setPlaceholderValues] = useState({});
+
+    // ── Detect [PLACEHOLDER] patterns in system_prompt ──────────
+    const detectedPlaceholders = useMemo(() => {
+        const prompt = draftData.system_prompt || '';
+        const matches = prompt.match(/\[([A-Z][A-Z0-9_]+)\]/g) || [];
+        return [...new Set(matches)].map(m => m.slice(1, -1)); // strip brackets
+    }, [draftData.system_prompt]);
+
+    const hasPlaceholders = detectedPlaceholders.length > 0;
 
     // Sync draft when selected node changes (by id or critical fields)
     useEffect(() => {
@@ -137,6 +147,19 @@ export default function ConfigPanel({ selectedNode, onUpdateNode, onClose }) {
         setTimeout(() => setPoliciesSaved(false), 2500);
     };
 
+    // ── Apply placeholder replacements ────────────────────────
+    const handleApplyPlaceholders = () => {
+        let prompt = draftData.system_prompt || '';
+        for (const [key, val] of Object.entries(placeholderValues)) {
+            if (val && val.trim()) {
+                prompt = prompt.replaceAll(`[${key}]`, val.trim());
+            }
+        }
+        setDraftData(prev => ({ ...prev, system_prompt: prompt }));
+        onUpdateNode(selectedNode.id, { system_prompt: prompt });
+        setPlaceholderValues({});
+    };
+
     // ── Provider & Models ─────────────────────────────────────────
     const provider = selectedNode.data.provider;
 
@@ -191,9 +214,21 @@ export default function ConfigPanel({ selectedNode, onUpdateNode, onClose }) {
                         {isGuardrail ? 'Verytis Governance' : (provider ? `${theme.name} DROPZONE` : 'DROPZONE')}
                     </h2>
                 </div>
-                <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors">
-                    <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                    {hasPlaceholders && (
+                        <div className="relative" title={`${detectedPlaceholders.length} variable(s) à configurer`}>
+                            <div className="w-6 h-6 rounded-full bg-amber-100 border-2 border-amber-400 flex items-center justify-center animate-pulse">
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                            </div>
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 text-white text-[8px] font-black flex items-center justify-center">
+                                {detectedPlaceholders.length}
+                            </span>
+                        </div>
+                    )}
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors">
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
@@ -253,9 +288,48 @@ export default function ConfigPanel({ selectedNode, onUpdateNode, onClose }) {
                                         onChange={e => handleDraftChange('system_prompt', e.target.value)}
                                         onBlur={() => handleSaveText('system_prompt')}
                                         placeholder="Ici, définissez la personnalité et les instructions de votre agent..."
-                                        className="w-full text-[10px] leading-relaxed font-mono px-3 py-3 border border-purple-100 bg-purple-50/10 rounded-xl outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 resize-none shadow-inner"
+                                        className={`w-full text-[10px] leading-relaxed font-mono px-3 py-3 border rounded-xl outline-none focus:ring-1 resize-none shadow-inner ${hasPlaceholders
+                                                ? 'border-amber-300 bg-amber-50/20 focus:border-amber-400 focus:ring-amber-400'
+                                                : 'border-purple-100 bg-purple-50/10 focus:border-purple-400 focus:ring-purple-400'
+                                            }`}
                                     />
                                 </div>
+
+                                {/* ── Placeholder Fill-in Section ──────── */}
+                                {hasPlaceholders && (
+                                    <div className="space-y-3 p-3 bg-amber-50/50 border border-amber-200 rounded-xl animate-in fade-in duration-300">
+                                        <div className="flex items-center gap-2">
+                                            <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                                            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">
+                                                Variables à configurer ({detectedPlaceholders.length})
+                                            </span>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {detectedPlaceholders.map(ph => (
+                                                <div key={ph}>
+                                                    <label className="text-[9px] font-bold text-amber-700 uppercase tracking-wider block mb-1 font-mono">
+                                                        [{ph}]
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={placeholderValues[ph] || ''}
+                                                        onChange={e => setPlaceholderValues(prev => ({ ...prev, [ph]: e.target.value }))}
+                                                        placeholder={`Remplir ${ph.toLowerCase().replace(/_/g, ' ')}...`}
+                                                        className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-lg text-xs text-slate-800 outline-none focus:ring-1 focus:ring-amber-400 focus:border-amber-400 placeholder:text-slate-400 font-mono"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <button
+                                            onClick={handleApplyPlaceholders}
+                                            disabled={Object.values(placeholderValues).every(v => !v?.trim())}
+                                            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-amber-500 hover:bg-amber-600 text-white transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                                        >
+                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                            Appliquer les variables
+                                        </button>
+                                    </div>
+                                )}
                             </>
                         ) : (
                             <div className="p-4 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-center">
