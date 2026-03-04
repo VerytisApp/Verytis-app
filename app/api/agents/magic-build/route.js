@@ -118,7 +118,14 @@ Tu DOIS impérativement répondre au format JSON valide.
 - **DESCRIPTIONS OBLIGATOIRES**: CHAQUE nœud (triggerNode, guardrailNode, placeholderNode, toolNode) DOIT avoir un champ \`description\` renseigné.
 - **STRICT TOOL LIMIT**: N'ajoute QUE les outils explicitement mentionnés.
 - **Universal Icons**: Fournis toujours \`logoDomain\` (ex: \`slack.com\`) pour chaque outil.
-- **Typographie**: Utilise exclusivement **Verytis** (et non Verity's).`;
+- **Typographie**: Utilise exclusivement **Verytis** (et non Verity's).
+
+### REGLE DE CONTEXTE ET VARIABLES
+- **EXTRACTION** : Si l'utilisateur mentionne un lien personnel (ex: Calendly), un nom d'entreprise, un e-mail ou toute donnee specifique, tu DOIS l'inclure TEL QUEL dans le champ system_prompt.
+- **PLACEHOLDERS** : Si l'utilisateur fait reference a une information personnelle MAIS ne la fournit PAS (ex: "envoie mon lien de rendez-vous", "contacte mon equipe"), tu DOIS inserer un texte a trous explicite en MAJUSCULES entre crochets directement dans le system_prompt. Exemples : [URL_CALENDLY_A_REMPLIR], [NOM_DE_VOTRE_ENTREPRISE], [VOTRE_EMAIL], [LIEN_LINKEDIN_PROFIL], [NOM_DU_CANAL_SLACK].
+- **VISIBILITE** : Ces placeholders indiquent visuellement a l'utilisateur qu'il doit configurer ces champs avant de deployer l'agent.
+- **NE PAS INVENTER** : N'invente JAMAIS de fausses URLs, de faux emails ou de fausses donnees. Utilise TOUJOURS un placeholder si l'information n'est pas fournie.`;
+
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

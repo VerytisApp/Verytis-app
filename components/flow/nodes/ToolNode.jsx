@@ -100,21 +100,21 @@ const ToolNode = ({ data, isConnectable }) => {
     const getContainerClass = () => {
         if (isInternalSkill) return 'border-indigo-400 bg-indigo-50/20';
         if (!isConnected && domain) return 'border-red-500 bg-red-50/30';
-        if (isConnected) return 'border-emerald-500 bg-emerald-50/10';
+        if (isConnected) return 'border-blue-500 bg-blue-50/10';
         return 'border-slate-200 hover:border-blue-400';
     };
 
     const getHeaderBgClass = () => {
         if (isInternalSkill) return 'bg-gradient-to-b from-indigo-50 to-violet-50/30';
         if (!isConnected && domain) return 'bg-red-50';
-        if (isConnected) return 'bg-emerald-50/20';
+        if (isConnected) return 'bg-blue-50/20';
         return 'bg-blue-50/20';
     };
 
     const getStatusColor = () => {
         if (isInternalSkill) return 'text-indigo-600/50';
         if (!isConnected && domain) return 'text-red-600/50';
-        if (isConnected) return 'text-emerald-600/50';
+        if (isConnected) return 'text-blue-600/60';
         return 'text-blue-600/50';
     };
 
@@ -130,10 +130,10 @@ const ToolNode = ({ data, isConnectable }) => {
             {/* Header */}
             <div className={`p-4 flex flex-col items-center gap-3 border-b ${isInternalSkill ? 'border-indigo-100' : 'border-slate-100'} ${getHeaderBgClass()}`}>
                 <div className={`p-3 rounded-2xl transition-all group-hover:scale-110 duration-300 flex items-center justify-center ${isInternalSkill
-                        ? 'bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-600 w-16 h-16'
-                        : domain
-                            ? 'bg-white shadow-md border border-slate-100 w-16 h-16 overflow-hidden'
-                            : 'bg-blue-100 text-blue-600'
+                    ? 'bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-600 w-16 h-16'
+                    : domain
+                        ? 'bg-white shadow-md border border-slate-100 w-16 h-16 overflow-hidden'
+                        : 'bg-blue-100 text-blue-600'
                     }`}>
                     {isInternalSkill ? (
                         <Brain className="w-8 h-8 text-indigo-600" />
@@ -141,13 +141,13 @@ const ToolNode = ({ data, isConnectable }) => {
                         <img
                             src={`https://www.google.com/s2/favicons?domain=${domain}&sz=128`}
                             alt={label}
-                            className={`w-10 h-10 object-contain ${!isConnected ? 'grayscale-[0.5]' : ''}`}
+                            className={`w-10 h-10 object-contain`}
                         />
                     ) : (
                         <Box className="w-8 h-8 fill-blue-600" />
                     )}
                     {isConnected && !isInternalSkill && (
-                        <div className="absolute top-0 right-0 bg-emerald-500 text-white p-1 rounded-bl-lg shadow-sm">
+                        <div className="absolute top-0 right-0 bg-blue-500 text-white p-1 rounded-bl-lg shadow-sm">
                             <Check className="w-3 h-3" />
                         </div>
                     )}
@@ -182,8 +182,8 @@ const ToolNode = ({ data, isConnectable }) => {
                     <>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-300'}`}></div>
-                                <span className={`text-[10px] font-bold tracking-tight ${isConnected ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-slate-300'}`}></div>
+                                <span className={`text-[10px] font-bold tracking-tight ${isConnected ? 'text-blue-600' : 'text-slate-500'}`}>
                                     {isConnected ? 'Opérationnel' : 'Non configuré'}
                                 </span>
                             </div>
