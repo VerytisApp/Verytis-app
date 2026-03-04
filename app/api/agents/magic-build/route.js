@@ -61,7 +61,8 @@ Tu DOIS impérativement répondre au format JSON valide.
 4. FICHE DE POSTE MATRICIELLE : Tu DOIS rédiger un 'system_prompt' professionnel et exhaustif (min 20 lignes). C'est le cerveau de l'agent.
 5. CONNECTIVITÉ & DATA BRIDGES : 
    - Toutes les intégrations (Slack, HubSpot, LinkedIn, GitHub) se connectent via un TOKEN ou une CLÉ API (MVP No-OAuth).
-   - MÉDATA D'AUTH : Chaque \`toolNode\` DOIT inclure un objet \`auth_requirement\` avec : \`type\` (bearer_token, api_key, connection_string, webhook_url), \`label\` (ex: "Slack Bot Token") et \`placeholder\` (ex: "xoxb-...").
+   - MÉDATA D'AUTH : Chaque \`toolNode\` DOIT inclure un objet \`auth_requirement\`. Pour les outils EXTERNES (API, DB), utilise : \`type\` (bearer_token, api_key, connection_string, webhook_url), \`label\` et \`placeholder\`.
+   - COMPÉTENCES IA INTERNES : Si l'outil est purement analytique ou textuel (ex: Analyse de sentiment, Calculateur, Traducteur, Résumé, Classificateur) et ne requiert AUCUNE API externe, utilise \`auth_requirement: { "type": "none" }\`. Cela affichera le nœud avec un design violet "Compétence IA" distinct.
    - DÉCOUVERTE PROACTIVE : Si l'utilisateur mentionne la lecture ou l'analyse de données (ex: "Mes ventes", "Ma DB clients"), tu DOIS créer un nœud \`toolNode\` de type "Passerelle de Données" (ex: PostgreSQL, Google Sheets) avec le \`logoDomain\` approprié.
 6. RÔLES ET DESCRIPTIONS DÉTAILLÉES : Chaque nœud (Trigger, Shield, Agent, Tool) DOIT avoir une \`description\` précise expliquant son rôle EXACT dans le processus (ex: pour un nœud Slack: "Notifie l'équipe sur le canal #leads-ops dès qu'une opportunité SaaS est détectée").
 7. NOMMAGE PROFESSIONNEL : Donne des noms explicites aux nœuds (ex: "Gouvernance Budget LinkedIn"). Par défaut, utilise "Verytis Governance" pour le Shield.
@@ -98,12 +99,14 @@ Tu DOIS impérativement répondre au format JSON valide.
         }
       },
       { "id": "p1", "type": "placeholderNode", "position": { "x": 250, "y": 500 }, "data": { "label": "LLM DROPZONE", "description": "Cerveau central : orchestre les outils et génère les réponses" } },
-      { "id": "tool1", "type": "toolNode", "position": { "x": 250, "y": 750 }, "data": { "label": "Nom de l'outil", "description": "Action précise réalisée par cet outil", "logoDomain": "slack.com", "auth_requirement": { "type": "bearer_token", "label": "Slack Bot Token", "placeholder": "xoxb-..." } } }
+      { "id": "tool1", "type": "toolNode", "position": { "x": 50, "y": 750 }, "data": { "label": "Nom de l'outil externe", "description": "Action via API externe", "logoDomain": "slack.com", "auth_requirement": { "type": "bearer_token", "label": "Slack Bot Token", "placeholder": "xoxb-..." } } },
+      { "id": "tool2", "type": "toolNode", "position": { "x": 450, "y": 750 }, "data": { "label": "Analyseur de Texte", "description": "Analyse le contenu et extrait les insights clés", "auth_requirement": { "type": "none" } } }
     ],
     "edges": [
       { "id": "e1", "source": "t1", "target": "s1", "animated": true },
       { "id": "e2", "source": "s1", "target": "p1", "animated": true },
-      { "id": "e3", "source": "p1", "target": "tool1", "animated": true }
+      { "id": "e3", "source": "p1", "target": "tool1", "animated": true },
+      { "id": "e4", "source": "p1", "target": "tool2", "animated": true }
     ]
   }
 }
