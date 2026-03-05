@@ -41,6 +41,8 @@ export default function AgentGovernancePage({ params }) {
     const [chatInput, setChatInput] = useState('');
     const [messages, setMessages] = useState([]);
     const [isChatting, setIsChatting] = useState(false);
+    const [regeneratedKey, setRegeneratedKey] = useState(null);
+    const [isRegenerating, setIsRegenerating] = useState(false);
 
     // Fetch Agent Data
     const { data, error, isLoading, mutate } = useSWR(`/api/agents/${params.agentId}`, fetcher);
@@ -477,9 +479,72 @@ export default function AgentGovernancePage({ params }) {
                                         showToast({ title: 'Copié', message: 'URL du Webhook copiée', type: 'success' });
                                     }}
                                     className="p-2 text-slate-500 hover:text-white transition-colors"
+                                    title="Copier l'URL"
                                 >
                                     <Copy className="w-4 h-4" />
                                 </button>
+                            </div>
+
+                            <div className="mt-6 border-t border-slate-100 pt-6">
+                                <h4 className="text-sm font-bold text-slate-900 mb-2 whitespace-nowrap">Authentification (Clé API)</h4>
+                                <p className="text-xs text-slate-500 mb-4 max-w-xl">
+                                    Les appels à l'agent nécessitent un header <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">Authorization: Bearer</code> contenant la clé API de l'agent. Si vous avez perdu cette clé ou souhaitez la révoquer, vous pouvez en générer une nouvelle ci-dessous.
+                                </p>
+
+                                {regeneratedKey ? (
+                                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl mb-4">
+                                        <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm mb-2">
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            Nouvelle clé API générée avec succès
+                                        </div>
+                                        <p className="text-xs text-emerald-600 mb-3">
+                                            Copiez cette clé immédiatement. Pour des raisons de sécurité, <strong>elle ne sera plus jamais affichée</strong> une fois cette page rechargée.
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <code className="flex-1 bg-white p-2 px-3 rounded text-sm border border-emerald-100 font-mono text-emerald-700 break-all select-all">
+                                                {regeneratedKey}
+                                            </code>
+                                            <Button
+                                                variant="secondary"
+                                                className="bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(regeneratedKey);
+                                                    showToast({ title: 'Copié', message: 'Clé API copiée', type: 'success' });
+                                                }}
+                                            >
+                                                <Copy className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <Button
+                                        variant="secondary"
+                                        icon={ShieldAlert}
+                                        disabled={isRegenerating}
+                                        onClick={async () => {
+                                            if (!confirm("⚠️ ATTENTION : Générer une nouvelle clé API va invalider la précédente immédiatement. Toutes vos intégrations actuelles cesseront de fonctionner jusqu'à ce que vous les mettiez à jour.\n\nVoulez-vous vraiment continuer ?")) return;
+
+                                            setIsRegenerating(true);
+                                            try {
+                                                const res = await fetch(`/api/agents/${agent.id}/regenerate-key`, { method: 'POST' });
+                                                const payload = await res.json();
+
+                                                if (res.ok && payload.api_key) {
+                                                    setRegeneratedKey(payload.api_key);
+                                                    showToast({ title: 'Succès', message: 'Nouvelle clé API générée', type: 'success' });
+                                                } else {
+                                                    showToast({ title: 'Erreur', message: payload.error || 'Erreur lors de la génération', type: 'error' });
+                                                }
+                                            } catch (err) {
+                                                showToast({ title: 'Erreur', message: 'Erreur réseau', type: 'error' });
+                                            } finally {
+                                                setIsRegenerating(false);
+                                            }
+                                        }}
+                                    >
+                                        {isRegenerating ? 'Génération...' : 'Régénérer la clé API Agent'}
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </Card>

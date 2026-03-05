@@ -57,7 +57,8 @@ Tu DOIS impérativement répondre au format JSON valide.
 2.   - STRUCTURE EN ÉTOILE (HUB-AND-SPOKE) OBLIGATOIRE : Le 'Cerveau Central' (p1) est le Pivot.
    - INTERDICTION FORMELLE : Aucun \`toolNode\` ne doit être connecté à un autre \`toolNode\`.
    - CONNEXIONS : Toutes les arêtes (\`edges\`) des outils doivent avoir \`source: "p1"\`. C'est le LLM qui orchestre et appelle chaque outil individuellement.
-3. LOGIQUE GLOBALE : Trigger -> Shield -> LLM Hub -> [Tools en étoile].
+3. LOGIQUE GLOBALE : Trigger -> Shield -> LLM Hub -> [Tools en etoile].
+3b. TRIGGERS NATIFS VERYTIS : Le declencheur est TOUJOURS natif a Verytis. Jamais de Zapier/Make. Le trigger_type DOIT etre 'webhook', 'schedule' ou 'app_event'. Si le type est 'app_event', tu DOIS inclure un champ 'event_source' dans les data du noeud (ex: 'twitch.stream_offline', 'salesforce.opportunity_created') selon l'agent. Si webhook, nomme le label "Verytis Webhook Inbound". Si restriction IP, ajoute requires_ip_whitelist: true dans security.
 4. FICHE DE POSTE MATRICIELLE : Tu DOIS rédiger un 'system_prompt' professionnel et exhaustif (min 20 lignes). C'est le cerveau de l'agent.
 5. CONNECTIVITÉ & DATA BRIDGES : 
    - Toutes les intégrations (Slack, HubSpot, LinkedIn, GitHub) se connectent via un TOKEN ou une CLÉ API (MVP No-OAuth).
@@ -80,7 +81,7 @@ Tu DOIS impérativement répondre au format JSON valide.
   "system_prompt": "DESCRIPTION DE POSTE DÉTAILLÉE (min 20 lignes)",
   "architecture": {
     "nodes": [
-      { "id": "t1", "type": "triggerNode", "position": { "x": 250, "y": 0 }, "data": { "label": "Nom du Trigger", "description": "Rôle exact du trigger dans le flux" } },
+      { "id": "t1", "type": "triggerNode", "position": { "x": 250, "y": 0 }, "data": { "label": "Verytis Webhook Inbound", "description": "Role exact du trigger dans le flux", "trigger_type": "webhook", "security": { "requires_ip_whitelist": false, "header_secret": null } } },
       {
         "id": "s1", "type": "guardrailNode", "position": { "x": 250, "y": 250 },
         "data": {

@@ -529,7 +529,7 @@ export default function AgentBuilder() {
                 system_prompt: agentNode?.data?.system_prompt || '',
                 policies: guardrailNode?.data?.policies || {},
                 visual_config: { nodes, edges },
-                is_draft: false // Mark as final agent
+                is_draft: false
             };
 
             const res = await fetch('/api/agents/create', {
@@ -541,10 +541,13 @@ export default function AgentBuilder() {
             const result = await res.json();
 
             if (res.ok) {
-                setDeployedAgent(result);
+                const dbAgentId = result.agent?.id || agentId;
+                const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:8080'}/api/run/${dbAgentId}`;
+                setDeployedAgent({ ...result, webhookUrl, dbAgentId });
+                mutate('/api/agents');
                 showToast({
                     title: 'Agent Déployé !',
-                    message: `L'agent ${agentName} est maintenant disponible dans votre liste.`,
+                    message: `L'agent ${agentName} est maintenant disponible via son Webhook.`,
                     type: 'success'
                 });
             } else {
@@ -943,41 +946,67 @@ export default function AgentBuilder() {
             <Modal
                 isOpen={!!deployedAgent}
                 onClose={() => setDeployedAgent(null)}
-                title="Déploiement Réussi"
-                maxWidth="max-w-md"
+                title=""
+                maxWidth="max-w-lg"
             >
-                <div className="space-y-4">
-                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl flex gap-3 items-start">
-                        <div className="p-2 bg-emerald-100 rounded-lg shrink-0">
-                            <Sparkles className="w-5 h-5 text-emerald-600" />
+                <div className="space-y-5 text-center">
+                    {/* Hero */}
+                    <div className="flex flex-col items-center gap-3 pt-2">
+                        <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200">
+                            <Zap className="w-8 h-8 text-white" />
                         </div>
-                        <div>
-                            <h4 className="font-bold text-sm">Agent Actif</h4>
-                            <p className="text-xs mt-1 text-emerald-700 leading-relaxed">
-                                Votre agent est déployé et disponible via l'API Verytis.
-                            </p>
-                        </div>
+                        <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                            🚀 Agent Déployé et Sécurisé !
+                        </h2>
+                        <p className="text-sm text-slate-500 max-w-sm">
+                            Votre agent <span className="font-bold text-slate-700">{agentName}</span> est en ligne. Toutes les clés API ont été chiffrées (AES-256) dans le Vault.
+                        </p>
                     </div>
 
-                    <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-inner group">
+                    {/* Webhook URL Block */}
+                    <div className="bg-slate-900 border border-slate-700 p-4 rounded-2xl shadow-inner text-left">
                         <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex justify-between items-center">
-                            Agent Public ID
+                            <span className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)] animate-pulse"></div>
+                                Webhook URL (Endpoint)
+                            </span>
                             <button
-                                onClick={() => navigator.clipboard.writeText(deployedAgent?.agentId)}
-                                className="text-blue-400 hover:text-blue-300 transition-colors"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(deployedAgent?.webhookUrl || '');
+                                    showToast({ title: 'Copié !', message: 'URL du Webhook copiée dans le presse-papier.', type: 'success' });
+                                }}
+                                className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors text-[10px] font-bold uppercase"
                             >
+                                <Copy className="w-3 h-3" />
                                 Copier
                             </button>
                         </div>
-                        <code className="text-xs font-mono text-blue-400 break-all leading-relaxed">
-                            {deployedAgent?.agentId}
+                        <code className="text-xs font-mono text-blue-400 break-all leading-relaxed block">
+                            {deployedAgent?.webhookUrl}
                         </code>
                     </div>
 
-                    <div className="pt-2">
+                    {/* Agent Public ID */}
+                    {deployedAgent?.agentId && (
+                        <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-left">
+                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Agent Secret Key (affichée une seule fois)</div>
+                            <code className="text-[11px] font-mono text-slate-600 break-all">
+                                {deployedAgent.agentId}
+                            </code>
+                        </div>
+                    )}
+
+                    {/* CTA */}
+                    <div className="flex gap-3 pt-1">
+                        <Button
+                            onClick={() => setDeployedAgent(null)}
+                            className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+                        >
+                            Continuer
+                        </Button>
                         <Button
                             onClick={() => router.push('/agents')}
-                            className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold shadow-xl active:scale-95"
+                            className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold shadow-xl active:scale-95"
                         >
                             Gérer mes agents
                         </Button>

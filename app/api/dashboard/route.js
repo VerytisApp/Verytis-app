@@ -38,9 +38,6 @@ export async function GET() {
                 agent_id,
                 profiles:actor_id (
                     full_name
-                ),
-                ai_agents:agent_id (
-                    name
                 )
             `)
             .eq('organization_id', profile.organization_id)
@@ -49,14 +46,29 @@ export async function GET() {
 
         if (latestEventsError) console.error("Error fetching latest events:", latestEventsError);
 
+        // Since the foreign key was removed to support WORM policies, we fetch agent names manually
+        const agentIds = [...new Set((latestEvents || []).map(log => log.agent_id).filter(Boolean))];
+        const agentsMap = {};
+
+        if (agentIds.length > 0) {
+            const { data: agents } = await supabase
+                .from('ai_agents')
+                .select('id, name')
+                .in('id', agentIds);
+
+            (agents || []).forEach(agent => {
+                agentsMap[agent.id] = agent.name;
+            });
+        }
+
         // Map events to the UI format
         const formattedEvents = (latestEvents || []).map(log => {
             let actorName = 'Unknown Agent';
             let actorType = 'agent';
             let avatar = '🤖';
 
-            if (log.ai_agents?.name) {
-                actorName = log.ai_agents.name;
+            if (log.agent_id && agentsMap[log.agent_id]) {
+                actorName = agentsMap[log.agent_id];
             } else if (log.profiles?.full_name) {
                 actorName = log.profiles.full_name;
                 actorType = 'human';

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
 import { scrubText, scrubObject } from '@/lib/security/scrubber';
+import { encrypt } from '@/lib/encryption';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,9 +13,22 @@ function sanitizeVisualConfig(config) {
     if (!config || !config.nodes) return config;
 
     const sanitized = JSON.parse(JSON.stringify(config)); // deep clone
+    const encryptedCredentials = {}; // Store encrypted keys by node id
 
     for (const node of sanitized.nodes) {
         if (!node.data) continue;
+
+        // ─── ENCRYPTION: Encrypt credentials.api_key before redaction ───
+        if (node.data.credentials?.api_key) {
+            const encrypted = encrypt(node.data.credentials.api_key);
+            if (encrypted) {
+                encryptedCredentials[node.id] = {
+                    api_key_encrypted: encrypted,
+                    provider: (node.data.event_source || node.data.label || '').split('.')[0] || 'unknown'
+                };
+            }
+            delete node.data.credentials; // Remove plaintext
+        }
 
         // Strip raw API key values from auth_requirement
         if (node.data.auth_requirement) {
@@ -34,6 +48,11 @@ function sanitizeVisualConfig(config) {
         delete node.data.onChange;
         // Remove connectedProviders (runtime-only, not for DB)
         delete node.data.connectedProviders;
+    }
+
+    // Attach encrypted credentials map to config
+    if (Object.keys(encryptedCredentials).length > 0) {
+        sanitized.encrypted_credentials = encryptedCredentials;
     }
 
     return sanitized;

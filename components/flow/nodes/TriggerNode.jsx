@@ -1,6 +1,7 @@
 import React, { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Zap, Radio, Copy, Check, Clock, Globe, ChevronDown, ChevronUp, Shield, Lock, Webhook } from 'lucide-react';
+import { Zap, Radio, Copy, Check, Clock, Globe, ChevronDown, ChevronUp, Shield, Lock, Webhook, Key, Save, Loader2, AlertCircle } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
 
 const TRIGGER_TYPES = [
     {
@@ -17,17 +18,9 @@ const TRIGGER_TYPES = [
     },
 ];
 
-const APP_EVENT_SOURCES = [
-    { id: 'github.push', label: 'GitHub — Push (Code)' },
-    { id: 'github.pr', label: 'GitHub — Pull Request' },
-    { id: 'github.issue', label: 'GitHub — Issue' },
-    { id: 'stripe.payment', label: 'Stripe — Paiement Réussi' },
-    { id: 'stripe.subscription', label: 'Stripe — Nouvel Abonnement' },
-    { id: 'typeform.submit', label: 'Typeform — Formulaire Soumis' },
-    { id: 'custom', label: 'Autre événement personnalisé...' },
-];
 
 const TriggerNode = ({ data, isConnectable }) => {
+    const { showToast } = useToast();
     const label = data.label || 'Verytis Webhook Inbound';
     const description = data.description || '';
     const agentId = data.agentId || 'bcb58aa1-31d7-4aa2-a735-c1886662a723';
@@ -42,28 +35,36 @@ const TriggerNode = ({ data, isConnectable }) => {
     const security = data.security || { requires_ip_whitelist: false, header_secret: null };
 
     const [cronExpression, setCronExpression] = useState(data.cron_expression || '0 8 * * *');
-    const [eventSource, setEventSource] = useState(data.event_source || 'slack.message');
+    const [eventSource, setEventSource] = useState(data.event_source || '');
     const [ipWhitelist, setIpWhitelist] = useState(security.ip_whitelist || '');
     const [headerSecret, setHeaderSecret] = useState(security.header_secret || '');
 
-    // Dropdown state for App Event
-    const [isEventDropdownOpen, setIsEventDropdownOpen] = useState(false);
+    // App Event credentials state
+    const [appApiKey, setAppApiKey] = useState(data.credentials?.api_key || '');
+    const [isSynced, setIsSynced] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [showKeyInput, setShowKeyInput] = useState(false);
+    const isAppConnected = isSynced || !!data.credentials?.api_key;
 
     // Trigger type config
     const currentType = TRIGGER_TYPES.find(t => t.id === triggerType) || TRIGGER_TYPES[0];
     const TypeIcon = currentType.icon;
 
-    // App event branding
-    const appEventDomains = {
-        'github': 'github.com',
-        'stripe': 'stripe.com',
-        'typeform': 'typeform.com',
-    };
-
+    // App event branding - resolve domains dynamically from the prefix
     const getAppEventDomain = () => {
         const src = eventSource || '';
         const prefix = src.split('.')[0];
-        return appEventDomains[prefix] || null;
+        if (!prefix || prefix === 'custom') return null;
+
+        // Map known anomalies, otherwise default to prefix.com
+        const knownDomains = {
+            'twitch': 'twitch.tv',
+            'gmail': 'gmail.com',
+            'email': 'gmail.com',
+            'notion': 'notion.so'
+        };
+
+        return knownDomains[prefix] || `${prefix}.com`;
     };
 
     const handleCopy = () => {
@@ -79,6 +80,36 @@ const TriggerNode = ({ data, isConnectable }) => {
 
     const handleFieldChange = (field, value) => {
         if (data.onChange) data.onChange(field, value);
+    };
+
+    // Sync app event API key to vault (same pattern as ToolNode)
+    const handleSyncAppKey = async () => {
+        if (!appApiKey.trim()) return;
+        setIsSaving(true);
+        try {
+            const prefix = (eventSource || '').split('.')[0] || 'app_event';
+            const res = await fetch('/api/settings/keys', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ provider: prefix, apiKey: appApiKey, scope: 'workspace' })
+            });
+            if (res.ok) {
+                setIsSynced(true);
+                setShowKeyInput(false);
+                handleFieldChange('credentials', { api_key: appApiKey });
+                showToast({
+                    title: 'Vault Mis à Jour',
+                    message: `Clé API pour ${prefix} sauvegardée dans le Vault.`,
+                    type: 'success'
+                });
+            } else {
+                showToast({ title: 'Erreur', message: 'Impossible de sauvegarder dans le Vault.', type: 'error' });
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     // Color theming per trigger type
@@ -112,10 +143,20 @@ const TriggerNode = ({ data, isConnectable }) => {
     const theme = colorMap[currentType.color] || colorMap.emerald;
     const appDomain = triggerType === 'app_event' ? getAppEventDomain() : null;
 
+    // Dynamic border for app_event mode: red if no key, green if connected
+    const getBorderClass = () => {
+        if (triggerType === 'app_event') {
+            return isAppConnected
+                ? 'border-emerald-500 hover:border-emerald-600'
+                : 'border-red-500 hover:border-red-600';
+        }
+        return theme.border;
+    };
+
     return (
-        <div className={`bg-white border-2 rounded-2xl shadow-sm hover:shadow-xl transition-all group overflow-hidden min-w-[260px] ${theme.border}`}>
+        <div className={`bg-white border-2 rounded-2xl shadow-sm hover:shadow-xl transition-all group min-w-[260px] ${getBorderClass()}`}>
             {/* Header */}
-            <div className={`p-4 flex flex-col items-center gap-3 border-b border-slate-100 ${theme.bg}`}>
+            <div className={`p-4 flex flex-col items-center gap-3 border-b border-slate-100 rounded-t-2xl ${theme.bg}`}>
                 <div className={`p-3 rounded-2xl transition-all group-hover:scale-110 duration-300 flex items-center justify-center w-16 h-16 ${appDomain
                     ? 'bg-white shadow-md border border-slate-100 overflow-hidden'
                     : theme.icon
@@ -258,42 +299,67 @@ const TriggerNode = ({ data, isConnectable }) => {
 
                 {/* ─── App Event Mode ─── */}
                 {triggerType === 'app_event' && (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         <div className="flex items-center gap-2">
                             <Globe className={`w-3.5 h-3.5 ${theme.dot}`} />
                             <span className="text-[10px] font-bold text-slate-500 tracking-tight">Événement applicatif</span>
                         </div>
-                        <div className="relative nodrag">
+                        <div>
                             <label className="text-[9px] font-black uppercase text-slate-400 tracking-tighter block mb-1 px-0.5">Source de l'événement</label>
+                            <input
+                                type="text"
+                                value={eventSource}
+                                onChange={e => { setEventSource(e.target.value); handleFieldChange('event_source', e.target.value); }}
+                                placeholder="ex: twitch.stream_offline"
+                                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400"
+                            />
+                        </div>
 
-                            {/* Custom Dropdown Toggle */}
-                            <div
-                                onClick={() => setIsEventDropdownOpen(!isEventDropdownOpen)}
-                                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 flex justify-between items-center cursor-pointer hover:border-violet-300 transition-colors"
-                            >
-                                <span>{APP_EVENT_SOURCES.find(s => s.id === eventSource)?.label || 'Sélectionner...'}</span>
-                                {isEventDropdownOpen ? <ChevronUp className="w-3 h-3 text-slate-400" /> : <ChevronDown className="w-3 h-3 text-slate-400" />}
+                        {/* ─── Connection Status ─── */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className={`w-1.5 h-1.5 rounded-full ${isAppConnected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.4)]'}`}></div>
+                                <span className={`text-[10px] font-bold tracking-tight ${isAppConnected ? 'text-emerald-600' : 'text-red-500'}`}>
+                                    {isAppConnected ? '✅ Connecté' : '⚠️ Connexion requise'}
+                                </span>
                             </div>
-
-                            {/* Custom Dropdown Menu */}
-                            {isEventDropdownOpen && (
-                                <div className="absolute top-full left-0 right-[-20px] mt-1 bg-white border border-slate-200 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] z-[9999] py-1 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
-                                    {APP_EVENT_SOURCES.map(s => (
-                                        <div
-                                            key={s.id}
-                                            onClick={() => {
-                                                setEventSource(s.id);
-                                                handleFieldChange('event_source', s.id);
-                                                setIsEventDropdownOpen(false);
-                                            }}
-                                            className={`px-3 py-2 text-[10px] shadow-sm cursor-pointer transition-colors ${eventSource === s.id ? 'bg-violet-50 text-violet-700 font-bold' : 'text-slate-600 hover:bg-slate-50 font-medium'}`}
-                                        >
-                                            {s.label}
-                                        </div>
-                                    ))}
-                                </div>
+                            {isAppConnected && (
+                                <button
+                                    onClick={() => setShowKeyInput(!showKeyInput)}
+                                    className="text-[9px] font-black uppercase text-violet-600 hover:text-violet-800 transition-colors"
+                                >
+                                    {showKeyInput ? 'Annuler' : 'Modifier'}
+                                </button>
                             )}
                         </div>
+
+                        {/* ─── API Key Input (same pattern as ToolNode) ─── */}
+                        {(!isAppConnected || showKeyInput) && (
+                            <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-2">
+                                <div className="flex items-center justify-between px-1">
+                                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">Clé API / Token de l'application</span>
+                                </div>
+                                <div className="relative group/input nodrag">
+                                    <Key className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+                                    <input
+                                        type="password"
+                                        placeholder="Collez votre Token / Clé API..."
+                                        value={appApiKey}
+                                        onChange={e => setAppApiKey(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 rounded-xl py-1.5 pl-8 pr-8 text-[10px] font-mono outline-none focus:border-violet-500 transition-all shadow-inner placeholder:text-slate-300"
+                                    />
+                                    {appApiKey.trim() && (
+                                        <button
+                                            onClick={handleSyncAppKey}
+                                            disabled={isSaving}
+                                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-all active:scale-95 shadow-md"
+                                        >
+                                            {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
