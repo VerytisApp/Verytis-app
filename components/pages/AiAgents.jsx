@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users, Activity, Settings, Bot, ShieldAlert, Copy, Cpu, RefreshCw, Layers, CheckCircle2, Clock, Check, FileCode2, Sparkles, Loader2 } from 'lucide-react';
+import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users, Activity, Settings, Bot, ShieldAlert, Copy, Cpu, RefreshCw, Layers, CheckCircle2, Clock, Check, FileCode2, Sparkles, Loader2, ArrowRight } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon, Modal, EmptyState, SkeletonAgentCard } from '../ui';
 import ArchiveConfirmModal from '../ui/ArchiveConfirmModal';
 import { useToast } from '../ui/Toast';
@@ -86,14 +86,14 @@ async function logAiAction() {
                         <button
                             type="button"
                             onClick={() => setActiveLanguage('python')}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${activeLanguage === 'python' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                            className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all ${activeLanguage === 'python' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
                         >
                             Python
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveLanguage('node')}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${activeLanguage === 'node' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                            className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all ${activeLanguage === 'node' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}
                         >
                             Node.js
                         </button>
@@ -131,6 +131,7 @@ export default function AiAgents({ userRole }) {
     // Magic Builder State
     const [isMagicModalOpen, setIsMagicModalOpen] = useState(false);
     const [magicPrompt, setMagicPrompt] = useState('');
+    const [editingAgent, setEditingAgent] = useState(null); // { id, name }
     const [isGenerating, setIsGenerating] = useState(false);
 
     const { data, error, isLoading, mutate } = useSWR('/api/agents', fetcher);
@@ -198,8 +199,12 @@ export default function AiAgents({ userRole }) {
     };
 
     const handleMagicBuild = () => {
-        // Redirection vers l'expérience unifiée
-        window.location.href = '/builder?openMagic=true';
+        // Redirection vers l'expérience unifiée avec contexte
+        const baseUrl = '/builder?openMagic=true';
+        const idParam = editingAgent ? `&id=${editingAgent.id}` : '';
+        const promptParam = magicPrompt.trim() ? `&prompt=${encodeURIComponent(magicPrompt)}` : '';
+        
+        window.location.href = `${baseUrl}${idParam}${promptParam}`;
     };
 
     return (
@@ -255,124 +260,117 @@ export default function AiAgents({ userRole }) {
                     onAction={() => setIsRegisterModalOpen(true)}
                 />
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                     {deployedAgents.map(agent => (
-                        <Card key={agent.id} className="overflow-hidden flex flex-col h-[400px]">
-                            <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
-                                <div className="flex-1">
-                                    <h3 className="font-bold text-slate-900 text-sm hover:text-indigo-600 transition-colors">
-                                        <Link href={`/agents/${agent.id}`}>{agent.name}</Link>
-                                    </h3>
-                                    <p className="text-xs text-slate-500 mt-0.5">{agent.description || 'No description provided'}</p>
-                                </div>
-                                <div className="flex flex-col items-end gap-2">
-                                    <div className="flex items-center gap-2">
-                                        {userRole === 'Admin' || userRole === 'Manager' ? (
-                                            <button
-                                                onClick={() => setDeleteTarget({ id: agent.id, name: agent.name })}
-                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                                title="Delete Agent"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        ) : (
-                                            <div className="p-1.5 text-slate-300 cursor-not-allowed" title="Admin/Manager required to delete">
-                                                <Trash2 className="w-4 h-4" />
+                        <div key={agent.id} className="relative group pt-4">
+                            {/* Floating Header Pill - EXACT Register Page Look */}
+                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.15em] px-5 py-2 rounded-full shadow-lg whitespace-nowrap z-30 group-hover:bg-blue-600 transition-colors duration-300">
+                                {agent.name}
+                            </div>
+
+                            {/* Main Card Container */}
+                            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 p-4 pt-8 flex flex-col items-center relative z-20 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
+                                
+                                {/* 1. VERYTIS SUPERVISOR BLOCK */}
+                                <div className="bg-gradient-to-b from-white to-blue-50/50 rounded-2xl border-2 border-blue-400/30 shadow-sm p-3 w-full flex flex-col items-center relative overflow-hidden mb-2">
+                                    <div className="absolute top-0 left-0 w-full h-1/2 bg-blue-400/10 blur-xl"></div>
+                                    <div className="flex items-center gap-2 mb-3 z-10 w-full justify-center">
+                                        <div className="w-8 h-8 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                            {/* Logo or placeholder cube */}
+                                            <div className="bg-slate-50 w-full h-full flex items-center justify-center">
+                                                <Bot className="w-4 h-4 text-blue-500" strokeWidth={2.5} />
                                             </div>
-                                        )}
-                                        <div className="flex items-center gap-2">
-                                            {agent.telemetry?.length > 0 ? (
-                                                <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                    <span className="text-[10px] font-semibold text-slate-600">Connected</span>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                                                    <span className="text-[10px] font-semibold text-slate-600">Not connected</span>
-                                                </div>
-                                            )}
-                                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase ${agent.status?.toLowerCase() === 'active' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
-                                                {agent.status?.toLowerCase() === 'active' ? 'ACTIVE' : 'INACTIVE'}
-                                            </span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="font-black text-[10px] text-blue-800 tracking-wider leading-none uppercase">VERYTIS</span>
+                                            <span className="text-[9px] text-slate-500 font-bold mt-0.5 uppercase tracking-tighter">AI Supervisor</span>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Small Guardrail/Status Pills */}
+                                    <div className="w-full flex gap-1.5 justify-center z-10">
+                                        <div className="bg-white rounded-lg border border-blue-100 px-2 py-1 flex items-center justify-center gap-1 shadow-sm flex-1">
+                                            <ShieldAlert size={10} className="text-blue-500" />
+                                            <span className="text-[8px] font-black text-blue-700 uppercase tracking-tighter">SECURED</span>
+                                        </div>
+                                        <div className="bg-white rounded-lg border border-blue-100 px-2 py-1 flex items-center justify-center gap-1 shadow-sm flex-1">
+                                            <Activity size={10} className="text-blue-500" />
+                                            <span className="text-[8px] font-black text-blue-700 uppercase tracking-tighter">LIVE</span>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* AGENT STATS BAR */}
-                            <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[10px] font-semibold text-slate-600">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-1">
-                                        <Cpu className="w-3 h-3 text-indigo-500" />
-                                        <span>Model: <span className="text-slate-900">{agent.model || 'Unknown'}</span></span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                        <Activity className="w-3 h-3 text-emerald-500" />
-                                        <span>Avg Cost: <span className="text-slate-900">${agent.avg_cost || '0.00'}</span></span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3 text-slate-400" />
-                                    <span>Last Active: <span className="text-slate-900">{agent.last_activity ? new Date(agent.last_activity).toLocaleTimeString() : 'N/A'}</span></span>
-                                </div>
-                            </div>
+                                <ArrowRight size={16} className="text-slate-200 rotate-90 my-1 shrink-0" />
 
-                            {/* NEW KPI GRID */}
-                            <div className="flex-1 p-5 lg:p-6 bg-white flex flex-col justify-center gap-6">
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Spend</span>
-                                        <span className="text-xl font-bold text-slate-900">${agent.avg_cost || "45.20"}</span>
+                                {/* 2. DIGITAL BRAIN BLOCK */}
+                                <div className="flex items-center justify-center gap-3 bg-slate-900 text-white pl-3 pr-5 py-3 rounded-2xl shadow-lg w-full relative overflow-hidden mb-2 shrink-0">
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 blur-xl rounded-full"></div>
+                                    <div className="w-8 h-8 bg-white shadow-sm rounded-xl flex items-center justify-center relative z-10 shrink-0">
+                                        <img src={`https://www.google.com/s2/favicons?domain=openai.com&sz=64`} className="w-4 h-4" alt="LLM" />
                                     </div>
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Requests</span>
-                                        <span className="text-xl font-bold text-slate-900">1,240</span>
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Success Rate</span>
-                                        <span className="text-xl font-bold text-slate-900">98.5%</span>
+                                    <div className="flex flex-col relative z-10 text-left flex-1 min-w-0">
+                                        <span className="font-black text-[11px] leading-tight truncate uppercase tracking-tight">{agent.model || 'GPT-4o'}</span>
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Digital Brain</span>
                                     </div>
                                 </div>
-                                <div className="flex flex-col gap-2 mt-2 h-[44px] justify-end">
-                                    {agent.budget_limit ? (
-                                        <>
-                                            <div className="flex justify-between items-end text-[10px] font-bold">
-                                                <div className="flex flex-col">
-                                                    <span className="text-slate-500 uppercase tracking-wider">Budget Consumed</span>
-                                                    <span className="text-slate-400 font-medium">${agent.current_spend} / ${agent.budget_limit} limit</span>
-                                                </div>
-                                                <span className="text-slate-900">{Math.round((agent.current_spend / agent.budget_limit) * 100)}%</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, (agent.current_spend / agent.budget_limit) * 100)}%` }}></div>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className="flex items-center justify-between bg-slate-50 border border-dashed border-slate-200 rounded-md p-2">
-                                            <span className="text-[10px] font-medium text-slate-500 italic">No budget limit set</span>
-                                            <button className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 bg-white border border-indigo-100 px-2 py-1 rounded transition-colors shadow-sm">
-                                                + Set limit
-                                            </button>
+
+                                <ArrowRight size={16} className="text-slate-200 rotate-90 my-1 shrink-0" />
+
+                                {/* 3. METRICS WORKSTATION */}
+                                <div className="flex flex-col gap-2 w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 shadow-inner relative mt-auto">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Telemetry</span>
+                                        <div className="flex items-center gap-1">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                            <span className="text-[9px] font-bold text-slate-600">Active</span>
                                         </div>
+                                    </div>
+                                    <div className="flex justify-between items-end">
+                                        <div className="flex flex-col">
+                                            <span className="text-[8px] font-bold text-slate-500 uppercase">Avg Spend</span>
+                                            <span className="text-lg font-black text-slate-900 leading-none">${agent.avg_cost || '0.00'}</span>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-[8px] font-bold text-slate-500 uppercase">Requests</span>
+                                            <span className="text-sm font-black text-slate-900 leading-none">1,240</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Actions Menu on Hover */}
+                                <div className="absolute inset-x-0 bottom-[-10px] flex justify-center gap-3 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 z-30">
+                                    <Link href={`/builder?id=${agent.id}`}>
+                                        <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-wider rounded-xl shadow-xl hover:bg-slate-50">
+                                            <Layers className="w-3.5 h-3.5" />
+                                            Builder
+                                        </button>
+                                    </Link>
+                                    <button 
+                                        onClick={() => {
+                                            setEditingAgent({ id: agent.id, name: agent.name });
+                                            setIsMagicModalOpen(true);
+                                        }}
+                                        className="p-2 bg-white border border-slate-200 text-purple-600 rounded-xl shadow-xl hover:bg-purple-50"
+                                        title="Modifier par IA (Magic Edit)"
+                                    >
+                                        <Sparkles className="w-4 h-4" />
+                                    </button>
+                                    <Link href={`/agents/${agent.id}`}>
+                                        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl shadow-xl hover:bg-blue-700">
+                                            Logs
+                                        </button>
+                                    </Link>
+                                    {userRole === 'Admin' && (
+                                        <button 
+                                            onClick={() => setDeleteTarget({ id: agent.id, name: agent.name })}
+                                            className="p-2 bg-white border border-slate-200 text-rose-500 rounded-xl shadow-xl hover:bg-rose-50"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
                                     )}
                                 </div>
                             </div>
-
-                            <div className="p-4 border-t border-slate-100 bg-slate-50 flex gap-2 mt-auto">
-                                {agent.visual_config ? (
-                                    <Link href={`/builder?id=${agent.id}`} className="flex-1">
-                                        <Button variant="primary" className="w-full text-xs font-bold gap-2">
-                                            <Layers className="w-3.5 h-3.5" />
-                                            Modifier Builder
-                                        </Button>
-                                    </Link>
-                                ) : null}
-                                <Link href={`/agents/${agent.id}`} className="flex-1">
-                                    <Button variant="secondary" className="w-full text-xs font-bold">Logs & Config</Button>
-                                </Link>
-                            </div>
-                        </Card>
+                        </div>
                     ))}
                 </div>
             )}
@@ -380,14 +378,18 @@ export default function AiAgents({ userRole }) {
             {/* Magic Build Modal */}
             <Modal
                 isOpen={isMagicModalOpen}
-                onClose={() => setIsMagicModalOpen(false)}
+                onClose={() => {
+                    setIsMagicModalOpen(false);
+                    setEditingAgent(null);
+                    setMagicPrompt('');
+                }}
                 title={
                     <div className="flex items-center gap-2">
                         <div className="p-1.5 bg-purple-100 rounded-lg">
                             <Sparkles className="w-5 h-5 text-purple-600" />
                         </div>
                         <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600">
-                            Magic Agent Builder
+                            {editingAgent ? `Magic Edit: ${editingAgent.name}` : 'Magic Agent Builder'}
                         </span>
                     </div>
                 }
@@ -395,13 +397,13 @@ export default function AiAgents({ userRole }) {
             >
                 <div className="space-y-4">
                     <div className="p-4 bg-purple-50 border border-purple-100 rounded-xl text-sm text-purple-900">
-                        <p><strong>Text-to-Agent :</strong> Décrivez l'agent autonome dont vous avez besoin. L'IA de Verytis va générer sa configuration, son prompt système et ses politiques de sécurité (Guardrails) de façon automatisée.</p>
+                        <p><strong>{editingAgent ? 'IA Modification' : 'Text-to-Agent'} :</strong> {editingAgent ? `Décrivez les modifications que vous souhaitez apporter à l'agent ${editingAgent.name}.` : "Décrivez l'agent autonome dont vous avez besoin. L'IA de Verytis va générer sa configuration, son prompt système et ses politiques de sécurité (Guardrails) de façon automatisée."}</p>
                     </div>
 
                     <div>
                         <textarea
                             rows={5}
-                            placeholder="Ex: Je veux un agent pour lire les Pull Requests GitHub de mon équipe, détecter les failles de sécurité, avec un budget max de 50$ et l'interdiction de voir les mots de passe..."
+                            placeholder={editingAgent ? `Ex: Ajoute un outil Slack pour notifier l'équipe, ou modifie le budget quotidien à 50$...` : "Ex: Je veux un agent pour lire les Pull Requests GitHub de mon équipe, détecter les failles de sécurité, avec un budget max de 50$ et l'interdiction de voir les mots de passe..."}
                             value={magicPrompt}
                             onChange={(e) => setMagicPrompt(e.target.value)}
                             className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all resize-none shadow-inner"
@@ -423,7 +425,7 @@ export default function AiAgents({ userRole }) {
                             ) : (
                                 <>
                                     <Sparkles className="w-4 h-4" />
-                                    Créer la configuration (Magic Build)
+                                    {editingAgent ? 'Modifier la configuration' : 'Créer la configuration'} (Magic Build)
                                 </>
                             )}
                         </button>

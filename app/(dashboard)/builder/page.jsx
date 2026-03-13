@@ -144,6 +144,9 @@ export default function AgentBuilder() {
 
         // Handle Magic Build redirection & stored config
         if (urlParams.get('openMagic') === 'true') setShowMagicBar(true);
+        const urlPrompt = urlParams.get('prompt');
+        if (urlPrompt) setMagicPrompt(decodeURIComponent(urlPrompt));
+
         const isMagic = urlParams.get('magic');
         const storedConfig = sessionStorage.getItem('magic_build_config');
 
@@ -285,10 +288,11 @@ export default function AgentBuilder() {
         if (config.architecture && config.architecture.nodes) {
             // Use the AI-generated architecture and ensure data is properly merged
             const rawNodes = config.architecture.nodes.map(node => {
+                const nodeData = node.data || {};
                 const baseNode = {
                     ...node,
                     data: {
-                        ...node.data,
+                        ...nodeData,
                         connectedProviders, // Inject global connectivity list
                         onChange: (key, val) => updateNodeData(node.id, { [key]: val })
                     }
@@ -299,10 +303,10 @@ export default function AgentBuilder() {
                         ...baseNode,
                         data: {
                             ...baseNode.data,
-                            label: node.data.label || 'LLM DROPZONE', // Respect AI label if exists
-                            system_prompt: node.data.system_prompt || config.system_prompt || '',
-                            description: node.data.description || config.description || 'Agent géré par Verytis',
-                            model: node.data.model || 'gpt-4o'
+                            label: nodeData.label || 'LLM DROPZONE', // Respect AI label if exists
+                            system_prompt: nodeData.system_prompt || config.system_prompt || '',
+                            description: nodeData.description || config.description || 'Agent géré par Verytis',
+                            model: nodeData.model || 'gpt-4o'
                         }
                     };
                 }
@@ -488,7 +492,10 @@ export default function AgentBuilder() {
             const res = await fetch('/api/agents/magic-build', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: magicPrompt })
+                body: JSON.stringify({ 
+                    prompt: magicPrompt,
+                    current_architecture: nodes.length > 0 ? { nodes, edges } : null
+                })
             });
             const config = await res.json();
 
@@ -777,7 +784,7 @@ export default function AgentBuilder() {
                                                         e.target.style.height = Math.min(e.target.scrollHeight, 300) + 'px';
                                                     }}
                                                     rows={3}
-                                                    className="w-full bg-transparent py-4 px-6 text-base outline-none resize-none overflow-y-auto leading-relaxed placeholder:text-slate-400"
+                                                    className="w-full bg-transparent py-4 px-6 text-base outline-none focus:outline-none border-none focus:ring-0 resize-none overflow-y-auto leading-relaxed placeholder:text-slate-400"
                                                     autoFocus
                                                 />
                                                 <div className="flex items-center justify-between px-4 pb-2 pt-1 border-t border-slate-50">
@@ -823,9 +830,11 @@ export default function AgentBuilder() {
                                             </div>
                                         </div>
                                         <div>
-                                            <h3 className="font-black text-slate-900 text-base">Architecte en action...</h3>
+                                            <h3 className="font-black text-slate-900 text-base">
+                                                {nodes.length > 0 ? 'Mise à jour de l\'agent...' : 'Architecte en action...'}
+                                            </h3>
                                             <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed font-medium">
-                                                Conception du flow, des prompts et des barrières de sécurité.
+                                                {nodes.length > 0 ? 'Intégration des modifications IA' : 'Conception du flow, des prompts et des barrières de sécurité.'}
                                             </p>
                                         </div>
                                         <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
@@ -883,7 +892,7 @@ export default function AgentBuilder() {
                                                         e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
                                                     }}
                                                     rows={2}
-                                                    className="w-full bg-transparent py-3 px-3 text-sm outline-none resize-none overflow-y-auto max-h-48"
+                                                    className="w-full bg-transparent py-3 px-3 text-sm outline-none focus:outline-none border-none focus:ring-0 resize-none overflow-y-auto max-h-48"
                                                     autoFocus
                                                 />
                                                 <div className="flex items-center justify-between pb-1 border-t border-slate-50 pt-1 mt-1">

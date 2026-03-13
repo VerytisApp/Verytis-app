@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req) {
   try {
-    const { prompt } = await req.json();
+    const { prompt, current_architecture } = await req.json();
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
+
+    const isModification = !!current_architecture && (current_architecture.nodes?.length > 0);
 
     const openAiApiKey = process.env.OPENAI_API_KEY;
 
@@ -14,61 +16,61 @@ export async function POST(req) {
       // Fallback mock response for demonstration if no API key is present
       console.warn("No OPENAI_API_KEY found. Returning mock Magic Build response.");
       await new Promise(r => setTimeout(r, 1500)); // Simulate delay
+      
+      const mockArchitecture = isModification ? current_architecture : {
+        nodes: [
+          { id: "t1", type: "triggerNode", position: { x: 250, y: 0 }, data: { label: "Trigger Simulation", description: "Mode Démo" } },
+          { id: "s1", type: "guardrailNode", position: { x: 250, y: 250 }, data: { label: "Verytis Governance", description: "Gouvernance par défaut" } },
+          { id: "p1", type: "placeholderNode", position: { x: 250, y: 500 }, data: { label: "LLM DROPZONE" } }
+        ],
+        edges: [
+          { id: "e1", source: "t1", target: "s1", animated: true },
+          { id: "e2", source: "s1", target: "p1", animated: true }
+        ]
+      };
+
       return NextResponse.json({
-        name: "Agent Simulateur (Expert Mode)",
-        description: "Simulation d'architecture haute performance pour : " + prompt.substring(0, 30),
-        system_prompt: `### ROLE: EXPERT_SIMULATOR\n### GOAL: ${prompt}\n### CONSTRAINTS: Simulation logic for high-performance data processing.`,
-        architecture: {
-          nodes: [
-            { id: "t1", type: "triggerNode", position: { x: 250, y: 0 }, data: { label: "Trigger Simulation", description: "Mode Démo" } },
-            {
-              id: "s1",
-              type: "guardrailNode",
-              position: { x: 250, y: 250 },
-              data: {
-                label: "Verytis Governance",
-                policies: {
-                  daily_max_usd: 50.00,
-                  per_request_max_usd: 5.00,
-                  blocked_actions: ["DELETE_USER", "DROP_DATABASE"],
-                  require_approval: ["WRITE_TO_PROD", "EXPORT_SENSITIVE_DATA"],
-                  forbidden_keywords: ["SALARY", "PASSWORD", "SSN"],
-                  max_consecutive_failures: 5,
-                  min_confidence: 0.85
-                }
-              }
-            },
-            { id: "p1", type: "placeholderNode", position: { x: 250, y: 500 }, data: { label: "LLM DROPZONE" } }
-          ],
-          edges: [
-            { id: "e1", source: "t1", target: "s1", animated: true },
-            { id: "e2", source: "s1", target: "p1", animated: true }
-          ]
-        }
+        name: isModification ? "Agent Modifié" : "Agent Simulateur (Expert Mode)",
+        description: (isModification ? "Mise à jour pour : " : "Simulation d'architecture pour : ") + prompt.substring(0, 30),
+        system_prompt: `### ROLE: EXPERT_SIMULATOR\n### GOAL: ${prompt}\n### CONSTRAINTS: Logic for ${isModification ? 'modifying' : 'building'} agent.`,
+        architecture: mockArchitecture
       });
     }
 
-    const systemPrompt = `Tu es l'Expert Architecte AI-Ops de Verytis. Ta mission est de concevoir un agent IA industriel complet, sécurisé et inter-connecté.
+    const fullSystemPrompt = `Tu es l'Expert Architecte AI-Ops de Verytis. Ta mission est de concevoir ou de MODIFIER un agent IA industriel complet, sécurisé et inter-connecté.
 
 Tu DOIS impérativement répondre au format JSON valide.
 
-### MISSIONS
+${isModification ? `### MODE MODIFICATION ACTIF
+L'utilisateur te fournit une architecture existante (\`current_architecture\`). 
+Ta mission est d'étendre, de corriger ou d'adapter cette architecture selon le \`prompt\` de l'utilisateur.
+
+RÈGLES DE MODIFICATION ET PROTECTION :
+1. PRÉSERVATION DE LA GOUVERNANCE (CRITIQUE) : Tu ne dois JAMAIS modifier les politiques de sécurité (\`data.policies\`) du nœud \`guardrailNode\` (s1) existant, SAUF si l'utilisateur le demande explicitement dans son prompt (ex: "change le budget", "bloque le mot X"). Si le prompt ne mentionne pas la sécurité ou le budget, recopie l'objet \`policies\` tel quel.
+2. ANALYSE L'EXISTANT : Regarde les nœuds (\`nodes\`) et les liens (\`edges\`) existants.
+3. ÉVOLUTION : Ajoute les outils demandés, modifie le \`system_prompt\` de l'agent central (p1) pour inclure les nouvelles capacités.
+4. PRÉSERVATION DES IDS : Garde les IDs (t1, s1, p1) pour assurer la continuité.
+5. PRÉSENCE OBLIGATOIRE : Un nœud \`guardrailNode\` (Verytis Shield) doit TOUJOURS être présent entre le Trigger et l'Agent central.
+6. RETOUR COMPLET : Tu DOIS renvoyer l'architecture COMPLÈTE (nœuds existants + modifiés + nouveaux).` : `### MODE CRÉATION ACTIF
+Conçois un nouvel agent de zéro.`}
+
+### MISSIONS GÉNÉRALES
 1. ANALYSE : Identifie le Trigger, le Bouclier Verytis (Shield), et crée une structure LOGIQUE de nœuds Outils/Agents.
-2.   - STRUCTURE EN ÉTOILE (HUB-AND-SPOKE) OBLIGATOIRE : Le 'Cerveau Central' (p1) est le Pivot.
+2. STRUCTURE EN ÉTOILE (HUB-AND-SPOKE) OBLIGATOIRE : Le 'Cerveau Central' (p1) est le Pivot.
    - INTERDICTION FORMELLE : Aucun \`toolNode\` ne doit être connecté à un autre \`toolNode\`.
    - CONNEXIONS : Toutes les arêtes (\`edges\`) des outils doivent avoir \`source: "p1"\`. C'est le LLM qui orchestre et appelle chaque outil individuellement.
 3. LOGIQUE GLOBALE : Trigger -> Shield -> LLM Hub -> [Tools en etoile].
-3b. TRIGGERS NATIFS VERYTIS : Le declencheur est TOUJOURS natif a Verytis. Jamais de Zapier/Make. Le trigger_type DOIT etre 'webhook', 'schedule' ou 'app_event'. Si le type est 'app_event', tu DOIS inclure un champ 'event_source' dans les data du noeud (ex: 'twitch.stream_offline', 'salesforce.opportunity_created') selon l'agent. Si webhook, nomme le label "Verytis Webhook Inbound". Si restriction IP, ajoute requires_ip_whitelist: true dans security.
-4. FICHE DE POSTE MATRICIELLE : Tu DOIS rédiger un 'system_prompt' professionnel et exhaustif (min 20 lignes). C'est le cerveau de l'agent.
-5. CONNECTIVITÉ & DATA BRIDGES : 
+4. TRIGGERS NATIFS VERYTIS : Le declencheur est TOUJOURS natif a Verytis. Jamais de Zapier/Make. Le trigger_type DOIT etre 'webhook', 'schedule' ou 'app_event'. Si le type est 'app_event', tu DOIS inclure un champ 'event_source' dans les data du noeud (ex: 'twitch.stream_offline', 'salesforce.opportunity_created') selon l'agent. Si webhook, nomme le label "Verytis Webhook Inbound". Si restriction IP, ajoute requires_ip_whitelist: true dans security.
+5. FICHE DE POSTE MATRICIELLE : Tu DOIS rédiger un 'system_prompt' professionnel et exhaustif (min 20 lignes). C'est le cerveau de l'agent.
+6. CONNECTIVITÉ & DATA BRIDGES : 
    - Toutes les intégrations (Slack, HubSpot, LinkedIn, GitHub) se connectent via un TOKEN ou une CLÉ API (MVP No-OAuth).
    - MÉDATA D'AUTH : Chaque \`toolNode\` DOIT inclure un objet \`auth_requirement\`. Pour les outils EXTERNES (API, DB), utilise : \`type\` (bearer_token, api_key, connection_string, webhook_url), \`label\` et \`placeholder\`.
    - COMPÉTENCES IA INTERNES : Si l'outil est purement analytique ou textuel (ex: Analyse de sentiment, Calculateur, Traducteur, Résumé, Classificateur) et ne requiert AUCUNE API externe, utilise \`auth_requirement: { "type": "none" }\`. Cela affichera le nœud avec un design violet "Compétence IA" distinct.
    - DÉCOUVERTE PROACTIVE : Si l'utilisateur mentionne la lecture ou l'analyse de données (ex: "Mes ventes", "Ma DB clients"), tu DOIS créer un nœud \`toolNode\` de type "Passerelle de Données" (ex: PostgreSQL, Google Sheets) avec le \`logoDomain\` approprié.
-6. RÔLES ET DESCRIPTIONS DÉTAILLÉES : Chaque nœud (Trigger, Shield, Agent, Tool) DOIT avoir une \`description\` précise expliquant son rôle EXACT dans le processus (ex: pour un nœud Slack: "Notifie l'équipe sur le canal #leads-ops dès qu'une opportunité SaaS est détectée").
-7. NOMMAGE PROFESSIONNEL : Donne des noms explicites aux nœuds (ex: "Gouvernance Budget LinkedIn"). Par défaut, utilise "Verytis Governance" pour le Shield.
-6. GOUVERNANCE SUR-MESURE : Le Shield (\`guardrailNode\`) NE DOIT PAS être générique. Tu DOIS remplir les \`policies\` (budget_daily_max, forbidden_words, etc.) intelligemment selon le rôle de l'agent (ex: SSN, PASSWORD pour un agent RH).
-7. PROMPT : Utilise le Chain-of-Thought pour détailler comment l'agent doit utiliser chaque outil.
+7. RÔLES ET DESCRIPTIONS DÉTAILLÉES : Chaque nœud (Trigger, Shield, Agent, Tool) DOIT avoir une \`description\` précise expliquant son rôle EXACT dans le processus.
+8. NOMMAGE PROFESSIONNEL : Donne des noms explicites aux nœuds (ex: "Gouvernance Budget LinkedIn"). Par défaut, utilise "Verytis Governance" pour le Shield.
+9. GOUVERNANCE SUR-MESURE : Le Shield (\`guardrailNode\`) NE DOIT PAS être générique. Tu DOIS remplir les \`policies\` intelligemment selon le rôle de l'agent.
+10. PROMPT : Utilise le Chain-of-Thought pour détailler comment l'agent doit utiliser chaque outil.
 
 ### ARCHITECTURE VERTICALE
 - Alignement vertical (X=250).
@@ -81,52 +83,29 @@ Tu DOIS impérativement répondre au format JSON valide.
   "system_prompt": "DESCRIPTION DE POSTE DÉTAILLÉE (min 20 lignes)",
   "architecture": {
     "nodes": [
-      { "id": "t1", "type": "triggerNode", "position": { "x": 250, "y": 0 }, "data": { "label": "Verytis Webhook Inbound", "description": "Role exact du trigger dans le flux", "trigger_type": "webhook", "security": { "requires_ip_whitelist": false, "header_secret": null } } },
-      {
-        "id": "s1", "type": "guardrailNode", "position": { "x": 250, "y": 250 },
-        "data": {
-          "label": "Verytis Governance",
-          "description": "Applique les politiques de sécurité et budget de l'agent",
-          "policies": {
-            "budget_daily_max": 25.0,
-            "budget_per_request_max": 2.0,
-            "forbidden_keywords": ["SSN", "PASSWORD", "SECRET"],
-            "blocked_actions": ["DELETE", "DROP_DATABASE"],
-            "require_approval": ["WRITE_PROD", "EXPORT_DATA"],
-            "allowed_scopes": ["PUBLIC", "INTERNAL"],
-            "max_consecutive_failures": 3,
-            "rate_limit_per_min": 60
-          }
-        }
-      },
-      { "id": "p1", "type": "placeholderNode", "position": { "x": 250, "y": 500 }, "data": { "label": "LLM DROPZONE", "description": "Cerveau central : orchestre les outils et génère les réponses" } },
-      { "id": "tool1", "type": "toolNode", "position": { "x": 50, "y": 750 }, "data": { "label": "Nom de l'outil externe", "description": "Action via API externe", "logoDomain": "slack.com", "auth_requirement": { "type": "bearer_token", "label": "Slack Bot Token", "placeholder": "xoxb-..." } } },
-      { "id": "tool2", "type": "toolNode", "position": { "x": 450, "y": 750 }, "data": { "label": "Analyseur de Texte", "description": "Analyse le contenu et extrait les insights clés", "auth_requirement": { "type": "none" } } }
+      { "id": "t1", "type": "triggerNode", "position": { "x": 250, "y": 0 }, "data": { "label": "Trigger", "description": "EXPLICATION CONCRÈTE ICI" } },
+      { "id": "s1", "type": "guardrailNode", "position": { "x": 250, "y": 250 }, "data": { "label": "Shield", "description": "EXPLICATION CONCRÈTE ICI" } },
+      { "id": "p1", "type": "placeholderNode", "position": { "x": 250, "y": 500 }, "data": { "label": "Agent", "description": "EXPLICATION CONCRÈTE ICI" } },
+      { "id": "tool1", "type": "toolNode", "position": { "x": 50, "y": 750 }, "data": { "label": "Outil", "description": "EXPLICATION CONCRÈTE ICI", "logoDomain": "..." } }
     ],
-    "edges": [
-      { "id": "e1", "source": "t1", "target": "s1", "animated": true },
-      { "id": "e2", "source": "s1", "target": "p1", "animated": true },
-      { "id": "e3", "source": "p1", "target": "tool1", "animated": true },
-      { "id": "e4", "source": "p1", "target": "tool2", "animated": true }
-    ]
+    "edges": [ ... ]
   }
 }
 
 ### RÈGLES D'AUTO-MAPPING
-- **TRIGGER MANDATORY**: Le flux DOIT commencer par un \`triggerNode\` à (Y=0). Il DOIT avoir une \`description\`.
-- **AGENT CENTRAL**: Le bloc central (\`placeholderNode\` ou \`llmNode\`) représente l'intelligence. Tu DOIS mettre le 'system_prompt' dans sa data ET une \`description\` claire.
-- **GOUVERNANCE SUR-MESURE**: Le Shield DOIT contenir des \`policies\` adaptées au contexte métier. Utilise TOUJOURS \`forbidden_keywords\` (jamais \`forbidden_words\`).
-- **DESCRIPTIONS OBLIGATOIRES**: CHAQUE nœud (triggerNode, guardrailNode, placeholderNode, toolNode) DOIT avoir un champ \`description\` renseigné.
-- **STRICT TOOL LIMIT**: N'ajoute QUE les outils explicitement mentionnés.
+- **TRIGGER MANDATORY**: Le flux DOIT commencer par un \`triggerNode\` à (Y=0).
+- **AGENT CENTRAL**: Le bloc central (\`placeholderNode\` ou \`llmNode\`) représente l'intelligence.
+- **DESCRIPTIONS OBLIGATOIRES**: CHAQUE nœud DOIT avoir un champ \`description\` renseigné.
+- **STRICT TOOL LIMIT**: N'ajoute QUE les outils explicitement mentionnés ou strictement nécessaires.
 - **Universal Icons**: Fournis toujours \`logoDomain\` (ex: \`slack.com\`) pour chaque outil.
-- **Typographie**: Utilise exclusivement **Verytis** (et non Verity's).
 
-### REGLE DE CONTEXTE ET VARIABLES
-- **EXTRACTION** : Si l'utilisateur mentionne un lien personnel (ex: Calendly), un nom d'entreprise, un e-mail ou toute donnee specifique, tu DOIS l'inclure TEL QUEL dans le champ system_prompt.
-- **PLACEHOLDERS** : Si l'utilisateur fait reference a une information personnelle MAIS ne la fournit PAS (ex: "envoie mon lien de rendez-vous", "contacte mon equipe"), tu DOIS inserer un texte a trous explicite en MAJUSCULES entre crochets directement dans le system_prompt. Exemples : [URL_CALENDLY_A_REMPLIR], [NOM_DE_VOTRE_ENTREPRISE], [VOTRE_EMAIL], [LIEN_LINKEDIN_PROFIL], [NOM_DU_CANAL_SLACK].
-- **VISIBILITE** : Ces placeholders indiquent visuellement a l'utilisateur qu'il doit configurer ces champs avant de deployer l'agent.
-- **NE PAS INVENTER** : N'invente JAMAIS de fausses URLs, de faux emails ou de fausses donnees. Utilise TOUJOURS un placeholder si l'information n'est pas fournie.`;
-
+### MISSION DESCRIPTIVE CRITIQUE (OBLIGATOIRE)
+Pour CHAQUE nœud sans exception (Trigger, Shield, LLM, Tool), tu DOIS fournir une \`description\` concrète et métier expliquant son utilité.
+- Interdit : "Description par défaut", "Nœud d'outil", "Agent Verytis".
+- Obligatoire : Explique ce que fait l'application précisément dans CE flux.
+  - Ex (Slack) : "Notifie automatiquement le canal #dev avec le rapport de faille de sécurité détecté."
+  - Ex (Trigger) : "Webhook entrant qui reçoit les métriques de performance du serveur toutes les heures."
+  - Ex (Shield) : "Applique une politique de sécurité stricte interdisant l'accès aux données de facturation.";`
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -137,8 +116,8 @@ Tu DOIS impérativement répondre au format JSON valide.
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt }
+          { role: 'system', content: fullSystemPrompt },
+          { role: 'user', content: `PROMPT: ${prompt}${isModification ? `\n\nARCHITECTURE ACTUELLE:\n${JSON.stringify(current_architecture, null, 2)}` : ''}` }
         ],
         response_format: { type: "json_object" },
         temperature: 0.7,
