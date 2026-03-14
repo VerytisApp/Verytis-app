@@ -44,7 +44,9 @@ import PlaceholderNode from '@/components/flow/nodes/PlaceholderNode';
 import Sidebar from '@/components/flow/layout/Sidebar';
 import ConfigPanel from '@/components/flow/layout/ConfigPanel';
 import ToolNode from '@/components/flow/nodes/ToolNode';
+import IntegrationSidebar from '@/components/flow/layout/IntegrationSidebar';
 import { Modal, Button } from '@/components/ui';
+import AgentPlaygroundSection from '@/components/pages/AgentPlaygroundSection';
 
 const nodeTypes = {
     triggerNode: TriggerNode,
@@ -64,7 +66,7 @@ export default function AgentBuilder() {
     const { mutate } = useSWRConfig();
 
     // UI State
-    const [viewMode, setViewMode] = useState('visual'); // 'visual' | 'code'
+    const [viewMode, setViewMode] = useState('visual'); // 'visual' | 'code' | 'playground'
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [reactFlowInstance, setReactFlowInstance] = useState(null);
@@ -80,6 +82,7 @@ export default function AgentBuilder() {
     const [isSaving, setIsSaving] = useState(false);
     const [deployedAgent, setDeployedAgent] = useState(null);
     const [connectedProviders, setConnectedProviders] = useState([]);
+    const [orgSettings, setOrgSettings] = useState(null);
 
     // Dynamic Code Generation
     const generateCodeSnippet = () => {
@@ -131,8 +134,16 @@ export default function AgentBuilder() {
             try {
                 const res = await fetch('/api/settings');
                 const data = await res.json();
-                if (res.ok && data.settings?.providers) {
-                    setConnectedProviders(data.settings.providers);
+                if (res.ok && data.settings) {
+                    setOrgSettings(data.settings);
+                    if (data.settings.providers) {
+                        setConnectedProviders(data.settings.providers);
+                        // Propagate to nodes for real-time visual update
+                        setNodes(nds => nds.map(node => ({
+                            ...node,
+                            data: { ...node.data, connectedProviders: data.settings.providers }
+                        })));
+                    }
                 }
             } catch (err) {
                 console.error("Failed to fetch settings", err);
@@ -142,24 +153,17 @@ export default function AgentBuilder() {
         if (idFromUrl) fetchAgent(idFromUrl);
         fetchSettings();
 
-        // Handle Magic Build redirection & stored config
-        if (urlParams.get('openMagic') === 'true') setShowMagicBar(true);
-        const urlPrompt = urlParams.get('prompt');
-        if (urlPrompt) setMagicPrompt(decodeURIComponent(urlPrompt));
-
-        const isMagic = urlParams.get('magic');
-        const storedConfig = sessionStorage.getItem('magic_build_config');
-
-        if (isMagic && storedConfig) {
-            try {
-                const config = JSON.parse(storedConfig);
-                applyLLMConfig(config);
-                sessionStorage.removeItem('magic_build_config');
-                window.history.replaceState({}, document.title, window.location.pathname);
-            } catch (err) {
-                console.error("Failed to parse magic build config", err);
+        // 1.1 Real-time Connection Listener
+        const handleRefresh = (event) => {
+            if (event.origin !== window.location.origin) return;
+            if (['SLACK_CONNECTED', 'GITHUB_CONNECTED', 'TRELLO_CONNECTED', 'TRELLO_LINKED', 'GITHUB_LINKED'].includes(event.data?.type)) {
+                console.log("[BUILDER] Connection detected, refreshing settings...", event.data.type);
+                fetchSettings();
             }
-        }
+        };
+
+        window.addEventListener('message', handleRefresh);
+        return () => window.removeEventListener('message', handleRefresh);
     }, [setNodes, setEdges]);
 
     // 2. Persistence Logic (Save & Auto-save)
@@ -529,6 +533,27 @@ export default function AgentBuilder() {
             const agentNode = nodes.find(n => n.type === 'llmNode' || n.type === 'placeholderNode');
             const guardrailNode = nodes.find(n => n.type === 'guardrailNode');
 
+            // ─── MANDATORY GOVERNANCE VALIDATION ───
+            if (orgSettings) {
+                const agentPolicies = guardrailNode?.data?.policies || {};
+                const missingKeywords = (orgSettings.banned_keywords || []).filter(k => 
+                    !(agentPolicies.forbidden_keywords || []).includes(k)
+                );
+                const missingActions = (orgSettings.blocked_actions || []).filter(a => 
+                    !(agentPolicies.blocked_actions || []).includes(a)
+                );
+
+                if (missingKeywords.length > 0 || missingActions.length > 0) {
+                    showToast({
+                        title: 'Conformité Requise',
+                        message: "L'agent ne peut pas être déployé car il ne respecte pas les réglages de gouvernance obligatoires de l'organisation. Veuillez vérifier les mots-clés interdits et les actions bloquées dans le Shield.",
+                        type: 'error'
+                    });
+                    setIsDeploying(false);
+                    return;
+                }
+            }
+
             const payload = {
                 id: agentId,
                 name: agentName,
@@ -713,6 +738,13 @@ export default function AgentBuilder() {
                     >
                         <Code className="w-3.5 h-3.5" />
                         Code
+                    </button>
+                    <button
+                        onClick={() => setViewMode('playground')}
+                        className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'playground' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Playground
                     </button>
                 </div>
 
@@ -910,14 +942,8 @@ export default function AgentBuilder() {
                                 )}
                             </ReactFlow>
                         </div>
-
-                        <ConfigPanel
-                            selectedNode={selectedNode}
-                            onUpdateNode={updateNodeData}
-                            onClose={() => setSelectedNode(null)}
-                        />
                     </ReactFlowProvider>
-                ) : (
+                ) : viewMode === 'code' ? (
                     <div className="flex-1 bg-slate-900 overflow-hidden flex flex-col animate-in fade-in duration-300">
                         <div className="h-10 bg-slate-800/50 border-b border-slate-800 flex items-center justify-between px-6">
                             <div className="flex items-center gap-2">
@@ -948,6 +974,8 @@ export default function AgentBuilder() {
                             </div>
                         </div>
                     </div>
+                ) : (
+                    <AgentPlaygroundSection agentId={agentId} agentName={agentName} />
                 )}
             </main>
 

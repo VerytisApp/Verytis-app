@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET(req) {
     if (!process.env.SLACK_CLIENT_ID) {
@@ -20,20 +20,20 @@ export async function GET(req) {
         .eq('id', user.id)
         .single();
 
-    if (!profile?.organization_id) return NextResponse.json({ error: 'No organization' }, { status: 400 });
-
-    const organizationId = profile.organization_id;
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
+    const type = searchParams.get('type') || 'integration';
+    const organizationId = profile?.organization_id;
 
     const scopes = [
-        'channels:history', 'channels:read', 'chat:write', 'files:read',
-        'groups:history', 'groups:read', 'reactions:read',
-        'users:read', 'users:read.email'
+        'chat:write', 'channels:read', 'groups:read', 
+        'reactions:write', 'users:read'
     ].join(',');
 
-    if (!organizationId) return NextResponse.json({ error: 'Missing organization context' }, { status: 400 });
-
     const state = JSON.stringify({
-        organizationId: organizationId
+        organizationId: organizationId,
+        userId: userId || user.id,
+        type: type
     });
 
     const installUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.SLACK_CLIENT_ID}&scope=${scopes}&redirect_uri=${process.env.NEXT_PUBLIC_BASE_URL}/api/slack/callback&state=${encodeURIComponent(state)}`;

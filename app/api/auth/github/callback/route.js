@@ -192,7 +192,7 @@ export async function GET(req) {
                 <body>
                     <script>
                         if (window.opener) {
-                            window.opener.postMessage({ type: 'GITHUB_CONNECTED' }, '${process.env.NEXT_PUBLIC_BASE_URL}');
+                            window.opener.postMessage({ type: 'GITHUB_CONNECTED' }, '*');
                             window.close();
                         } else {
                             // Fallback if not in a popup (e.g. direct visit)

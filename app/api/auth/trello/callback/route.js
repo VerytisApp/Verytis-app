@@ -11,7 +11,9 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req) {
     const { searchParams } = new URL(req.url);
-    const teamId = searchParams.get('teamId') || '';
+    const userId = searchParams.get('userId') || '';
+    const type = searchParams.get('type') || 'integration';
+    const organizationId = searchParams.get('organizationId') || '';
 
     const html = `
 <!DOCTYPE html>
@@ -71,7 +73,12 @@ export async function GET(req) {
                 const res = await fetch('/api/auth/trello/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: token, teamId: '${teamId}' })
+                    body: JSON.stringify({ 
+                        token: token, 
+                        userId: '${userId}',
+                        type: '${type}',
+                        organizationId: '${organizationId}' 
+                    })
                 });
 
                 const result = await res.json();

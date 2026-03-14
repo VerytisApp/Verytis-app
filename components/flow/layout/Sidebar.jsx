@@ -3,10 +3,13 @@ import useSWR from 'swr';
 import { Bot, Shield, Zap, Info, Library, Clock, ChevronRight, Loader2, Sparkles, Database, Trash2, ChevronLeft, LayoutPanelLeft, Box, Plus, Settings2 } from 'lucide-react';
 import { useSWRConfig } from 'swr';
 import { useToast } from '@/components/ui/Toast';
+import { useRole } from '@/lib/providers';
 
 const fetcher = (url) => fetch(url).then(r => r.json());
 
-export default function Sidebar({ onSelectDraft, onNewAgent, activeAgentId }) {
+export default function Sidebar({ onSelectDraft, onNewAgent, activeAgentId, hideNewAgent, hideHistory }) {
+    const { currentUser } = useRole();
+    const isPrivileged = currentUser?.role === 'Admin' || currentUser?.role === 'Manager';
     const [activeTab, setActiveTab] = useState('catalog'); // 'catalog' | 'history'
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isDeleting, setIsDeleting] = useState(null);
@@ -75,15 +78,17 @@ export default function Sidebar({ onSelectDraft, onNewAgent, activeAgentId }) {
             </button>
 
             {/* Nouveau Agent Button (ChatGPT style) */}
-            <div className={`p-4 border-b border-slate-100 ${isCollapsed ? 'px-2' : ''}`}>
-                <button
-                    onClick={onNewAgent}
-                    className={`w-full flex items-center gap-3 py-3 px-4 rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/30 text-blue-600 hover:bg-blue-50 hover:border-blue-400 transition-all active:scale-95 group/new`}
-                >
-                    <Plus className="w-5 h-5 group-hover/new:rotate-90 transition-transform duration-300" />
-                    {!isCollapsed && <span className="text-xs font-black uppercase tracking-widest">Nouvel Agent</span>}
-                </button>
-            </div>
+            {!hideNewAgent && (
+                <div className={`p-4 border-b border-slate-100 ${isCollapsed ? 'px-2' : ''}`}>
+                    <button
+                        onClick={onNewAgent}
+                        className={`w-full flex items-center gap-3 py-3 px-4 rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/30 text-blue-600 hover:bg-blue-50 hover:border-blue-400 transition-all active:scale-95 group/new`}
+                    >
+                        <Plus className="w-5 h-5 group-hover/new:rotate-90 transition-transform duration-300" />
+                        {!isCollapsed && <span className="text-xs font-black uppercase tracking-widest">Nouvel Agent</span>}
+                    </button>
+                </div>
+            )}
 
             {/* Sidebar Tabs */}
             <div className={`flex border-b border-slate-100 bg-slate-50/30 p-1 ${isCollapsed ? 'flex-col items-center gap-2' : ''}`}>
@@ -98,22 +103,24 @@ export default function Sidebar({ onSelectDraft, onNewAgent, activeAgentId }) {
                     <Database className="w-3.5 h-3.5" />
                     {!isCollapsed && "Outils"}
                 </button>
-                <button
-                    onClick={() => {
-                        setActiveTab('history');
-                        if (isCollapsed) setIsCollapsed(false);
-                    }}
-                    className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'history' ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'} ${isCollapsed ? 'w-10 h-10 p-0' : 'flex-1'}`}
-                    title="Historique"
-                >
-                    <Clock className="w-3.5 h-3.5" />
-                    {!isCollapsed && "Historique"}
-                    {!isCollapsed && drafts.length > 0 && (
-                        <span className="ml-1 bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full text-[9px]">
-                            {drafts.length}
-                        </span>
-                    )}
-                </button>
+                {!hideHistory && (
+                    <button
+                        onClick={() => {
+                            setActiveTab('history');
+                            if (isCollapsed) setIsCollapsed(false);
+                        }}
+                        className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'history' ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'} ${isCollapsed ? 'w-10 h-10 p-0' : 'flex-1'}`}
+                        title="Historique"
+                    >
+                        <Clock className="w-3.5 h-3.5" />
+                        {!isCollapsed && "Historique"}
+                        {!isCollapsed && drafts.length > 0 && (
+                            <span className="ml-1 bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full text-[9px]">
+                                {drafts.length}
+                            </span>
+                        )}
+                    </button>
+                )}
             </div>
 
             {activeTab === 'catalog' ? (
@@ -225,7 +232,7 @@ export default function Sidebar({ onSelectDraft, onNewAgent, activeAgentId }) {
                                 <Box className={`w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform ${isCollapsed ? 'w-5 h-5' : ''}`} />
                                 {!isCollapsed && <span className="font-bold text-slate-900 text-xs">Action / Tool</span>}
                             </div>
-                            {!isCollapsed && <p className="text-[10px] text-slate-500 leading-tight">Mise à jour CRM, Envoi d'email, Slack, etc.</p>}
+                            {!isCollapsed && <p className="text-[10px] text-slate-500 leading-tight">Mise à jour CRM, Envoi d'email, Slack, etc. (Intégrations configurées uniquement)</p>}
                         </div>
                     </div>
                 </div>

@@ -6,17 +6,26 @@ import { Settings2, X, Sparkles, AlertTriangle, AlertCircle, DollarSign, Ban, Da
 // ────────────────────────────────────────────────────────────────
 // Reusable Tag Input (for config panel)
 // ────────────────────────────────────────────────────────────────
-const PanelTagInput = ({ tags = [], onChange, placeholder }) => {
+const PanelTagInput = ({ tags = [], mandatoryTags = [], onChange, placeholder }) => {
     const [input, setInput] = useState('');
 
     const addTag = () => {
         const val = input.trim().toUpperCase();
-        if (val && !tags.includes(val)) onChange([...tags, val]);
+        if (val && !tags.includes(val) && !mandatoryTags.includes(val)) onChange([...tags, val]);
         setInput('');
     };
 
     return (
         <div className="flex flex-wrap gap-1.5 items-center bg-white border border-slate-200 rounded-xl px-2.5 py-2 min-h-[36px] focus-within:border-rose-300 transition-colors">
+            {/* Mandatory Global Tags */}
+            {mandatoryTags.map(tag => (
+                <span key={`global-${tag}`} className="inline-flex items-center gap-1 bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded text-[9px] font-mono font-bold" title="Règle de sécurité globale définie par l'administrateur.">
+                    <AlertCircle className="w-2.5 h-2.5" />
+                    {tag}
+                </span>
+            ))}
+            
+            {/* User Tags */}
             {tags.map(tag => (
                 <span key={tag} className="inline-flex items-center gap-0.5 bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded text-[9px] font-mono font-bold">
                     {tag}
@@ -28,7 +37,7 @@ const PanelTagInput = ({ tags = [], onChange, placeholder }) => {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
                 onBlur={addTag}
-                placeholder={tags.length === 0 ? placeholder : '+ ajouter'}
+                placeholder={tags.length === 0 && mandatoryTags.length === 0 ? placeholder : '+ ajouter'}
                 className="flex-1 min-w-[80px] bg-transparent text-[9px] text-slate-700 outline-none placeholder:text-slate-400 font-mono py-0.5"
             />
         </div>
@@ -74,7 +83,7 @@ const DEFAULT_POLICIES = {
     rate_limit_per_min: 100,
 };
 
-export default function ConfigPanel({ selectedNode, onUpdateNode, onClose }) {
+export default function ConfigPanel({ selectedNode, orgSettings, onUpdateNode, onClose }) {
     const [draftData, setDraftData] = useState({});
     const [policies, setPolicies] = useState(DEFAULT_POLICIES);
     const [policiesSaved, setPoliciesSaved] = useState(false);
@@ -361,8 +370,17 @@ export default function ConfigPanel({ selectedNode, onUpdateNode, onClose }) {
                             </h3>
                             <div className="space-y-3">
                                 <div>
-                                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1 font-mono">blocked_actions</label>
-                                    <PanelTagInput tags={policies.blocked_actions} onChange={v => updatePolicy('blocked_actions', v)} placeholder="DELETE, DROP_TABLE" />
+                                    <PanelTagInput 
+                                        tags={policies.blocked_actions} 
+                                        mandatoryTags={orgSettings?.blocked_actions || []}
+                                        onChange={v => updatePolicy('blocked_actions', v)} 
+                                        placeholder="DELETE, DROP_TABLE" 
+                                    />
+                                    {(orgSettings?.blocked_actions?.length > 0) && (
+                                        <p className="text-[8px] text-slate-400 mt-1 italic font-mono">
+                                            * Les actions en gris sont obligatoires et ne peuvent pas être supprimées sans l&apos;accord d&apos;un admin.
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1 font-mono">require_approval</label>
@@ -378,8 +396,17 @@ export default function ConfigPanel({ selectedNode, onUpdateNode, onClose }) {
                             </h3>
                             <div className="space-y-3">
                                 <div>
-                                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1 font-mono">forbidden_keywords</label>
-                                    <PanelTagInput tags={policies.forbidden_keywords} onChange={v => updatePolicy('forbidden_keywords', v)} placeholder="SALARY, SSN, PASSWORD" />
+                                    <PanelTagInput 
+                                        tags={policies.forbidden_keywords} 
+                                        mandatoryTags={orgSettings?.banned_keywords || []}
+                                        onChange={v => updatePolicy('forbidden_keywords', v)} 
+                                        placeholder="SALARY, SSN, PASSWORD" 
+                                    />
+                                    {(orgSettings?.banned_keywords?.length > 0) && (
+                                        <p className="text-[8px] text-slate-400 mt-1 italic font-mono">
+                                            * Les mots-clés en gris sont imposés par la politique de sécurité de l&apos;organisation.
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1 font-mono">allowed_scopes</label>

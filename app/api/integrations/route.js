@@ -25,20 +25,23 @@ export async function GET() {
 
         if (error) throw error;
 
-        // Filter connected ones only
-        const connectedIntegrations = (integrations || []).filter(i => {
-            if (i.provider === 'slack') return !!i.settings?.bot_token;
-            if (i.provider === 'github') return !!i.settings?.access_token;
-            if (i.provider === 'trello') return !!i.settings?.api_token;
-            return false;
-        }).map(i => ({
-            id: i.id,
-            provider: i.provider,
-            name: i.name || i.provider,
-            connected: true
-        }));
+        // Map all integrations with their connection status
+        const allIntegrations = (integrations || []).map(i => {
+            let connected = false;
+            if (i.provider === 'slack') connected = !!i.settings?.bot_token;
+            else if (i.provider === 'github') connected = !!i.settings?.access_token;
+            else if (i.provider === 'trello') connected = !!i.settings?.api_token;
 
-        return NextResponse.json({ integrations: connectedIntegrations });
+            return {
+                id: i.id,
+                provider: i.provider,
+                name: (i.name || i.provider).charAt(0).toUpperCase() + (i.name || i.provider).slice(1),
+                connected: connected,
+                auth_type: 'OAuth 2.0'
+            };
+        });
+
+        return NextResponse.json({ integrations: allIntegrations });
     } catch (error) {
         console.error('Error fetching integrations:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });

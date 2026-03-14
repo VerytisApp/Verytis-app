@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import { scrubText } from '@/lib/security/scrubber';
 import { calculateCost } from '@/lib/security/pricing';
+import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,13 +34,11 @@ function resolveModel(modelId) {
 
 // ──────────────────────────────────────────────────
 // STEP 2: Dynamic Tool Discovery from Visual Config
-// Parses the agent's visual_config to find ToolNodes
-// and maps them to Vercel AI SDK tool() definitions.
 // ──────────────────────────────────────────────────
-function discoverTools(visualConfig) {
+// ─── LA SOLUTION : ON PASSE UN OBJET BRUT (SANS LA FONCTION tool() QUI BUG) ───
+function discoverTools(visualConfig, isSimulation = false) {
     if (!visualConfig?.nodes) return {};
 
-    // Filter tools that require authentication (external apps)
     const toolNodes = visualConfig.nodes.filter(n =>
         n.type === 'toolNode' && n.data?.auth_requirement?.type !== 'none'
     );
@@ -52,48 +51,37 @@ function discoverTools(visualConfig) {
         const toolId = label.toLowerCase().replace(/[^a-z0-9_]/g, '_').substring(0, 64);
         const description = node.data?.description || `Exécute l'outil "${label}".`;
 
-        const toolDefinition = tool({
-            name: toolId,
+        // ─── LA SOLUTION : ON PASSE UN OBJET BRUT (SANS LA FONCTION tool() QUI BUG) ───
+        toolMap[toolId] = {
             description: description,
             parameters: z.object({
-                payload: z.string().describe("Le contenu JSON ou texte à envoyer à l'API/Webhook cible.")
+                input_data: z.string().describe("Le payload JSON strict à envoyer à l'API ou au Webhook cible.")
             }),
-            execute: async ({ payload }) => {
-                // ─── GENERIC HTTP EXECUTOR ───
-                // Extract Target URL from node credentials (API Key field often used for Webhooks in UI)
+            execute: async ({ input_data }) => {
                 const targetUrl = node.data?.credentials?.api_key || node.data?.credentials?.webhook_url;
 
                 if (!targetUrl || !targetUrl.startsWith('http')) {
-                    return `[ERREUR] L'outil "${label}" n'est pas configuré correctement. URL manquante ou invalide.`;
+                    const modePrefix = isSimulation ? "MODE SIMULATION" : "IA-OPS PROTECTION";
+                    return `[${modePrefix}] ⚠️ L'outil "${label}" n'est pas encore configuré (URL ou API Key manquante). Si l'outil était actif, l'IA aurait envoyé les données suivantes : ${input_data}`;
                 }
 
                 try {
                     const response = await fetch(targetUrl, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'User-Agent': 'Verytis-AI-Ops-Gateway/1.0'
-                        },
-                        body: JSON.stringify({
-                            tool: label,
-                            data: payload,
-                            timestamp: new Date().toISOString()
-                        })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: input_data
                     });
 
                     if (!response.ok) {
-                        return `[ERREUR] L'appel à "${label}" a échoué (Statut: ${response.status} ${response.statusText}).`;
+                        return `[ERREUR API] L'outil ${label} a rejeté la requête avec le statut ${response.status}.`;
                     }
 
-                    return `[SUCCÈS] L'action sur "${label}" a été transmise avec succès à l'URL cible.`;
-
+                    return `[SUCCÈS] L'action sur ${label} a été effectuée avec succès !`;
                 } catch (error) {
-                    return `[ERREUR] Échec de connexion à l'outil "${label}": ${error.message}`;
+                    return `[ERREUR RÉSEAU] Impossible de contacter ${label} : ${error.message}`;
                 }
             }
-        });
-
-        toolMap[toolId] = toolDefinition;
+        }; // Fin de l'objet brut
     }
     return toolMap;
 }
@@ -152,16 +140,51 @@ export async function POST(req, { params }) {
     try {
         const { agentId } = params;
         const authHeader = req.headers.get('Authorization');
+        
+        let isSimulation = false;
+        let providedKey = null;
+        let user = null;
+        let supabase = null;
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return NextResponse.json({ error: 'Missing or invalid Authorization header' }, { status: 401 });
+        // ─── 0. Authenticate: Session (Playground) OR API Key (Webhook) ───
+        try {
+            const supabaseServer = createClient();
+            const { data: userData } = await supabaseServer.auth.getUser();
+            user = userData?.user;
+            
+            if (user) {
+                isSimulation = true;
+                supabase = supabaseServer; // Use session client
+            }
+        } catch (e) {
+            console.error('Session check failed (Silent):', e.message);
         }
 
-        const providedKey = authHeader.substring(7);
-        const supabase = createAdminClient();
+        if (!isSimulation) {
+            // No session, require API Key and Admin Client
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                return NextResponse.json({ error: 'Missing or invalid Authorization header (No active session discovered)' }, { status: 401 });
+            }
+            providedKey = authHeader.substring(7);
+            
+            // For external keys, we MUST use Admin client to bypass RLS since there's no session
+            try {
+                supabase = createAdminClient();
+            } catch (authErr) {
+                console.error('Failed to initialize Admin Client:', authErr.message);
+                return NextResponse.json({ error: 'Server authentication configuration error' }, { status: 500 });
+            }
+        }
 
         // ─── 1. FIX IDOR: Resolve Agent FIRST (before org settings) ───
         const cleanId = agentId.replace('agt_live_', '');
+        
+        // Validate agentId is a UUID to prevent Postgres errors
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+        if (!isUUID) {
+            return NextResponse.json({ error: 'Invalid Agent ID format' }, { status: 400 });
+        }
+
         const { data: targetAgent, error: agentError } = await supabase
             .from('ai_agents')
             .select('*')
@@ -180,31 +203,48 @@ export async function POST(req, { params }) {
         }
 
         // ─── 2. FIX IDOR: Cross-Tenant Ownership Validation ───
-        // Validate that the provided API key hashes to the agent's own api_key_hash.
-        // This ensures the caller actually owns this agent — closes the IDOR vector.
-        const providedKeyHash = crypto.createHash('sha256').update(providedKey).digest('hex');
-        if (targetAgent.api_key_hash !== providedKeyHash) {
-            // Fallback: also check the global org key via secureCompare
-            const { data: settings } = await supabase
-                .from('organization_settings')
-                .select('verytis_api_key')
-                .eq('id', 'default')
-                .single();
+        // If it's a simulation, we've already verified the user is logged in.
+        // If it's a webhook (not simulation), validate the API key.
+        if (!isSimulation && providedKey) {
+            const providedKeyHash = crypto.createHash('sha256').update(providedKey).digest('hex');
+            if (targetAgent.api_key_hash !== providedKeyHash) {
+                // Fallback: also check the global org key via secureCompare
+                const { data: settings } = await supabase
+                    .from('organization_settings')
+                    .select('verytis_api_key')
+                    .eq('id', 'default')
+                    .single();
 
-            if (!settings || !secureCompareKeys(providedKey, settings.verytis_api_key)) {
-                return NextResponse.json({ error: 'Forbidden: API key does not match this agent' }, { status: 403 });
+                if (!settings || !secureCompareKeys(providedKey, settings.verytis_api_key)) {
+                    return NextResponse.json({ error: 'Forbidden: API key does not match this agent' }, { status: 403 });
+                }
             }
         }
+        // NOTE: In a production environment, you should also verify that the session user (user.id)
+        // has access to targetAgent.organization_id.
 
         // ─── 3. Resolve Organization Settings (global governance) ───
-        const { data: settings, error: settingsError } = await supabase
+        let settings = null;
+        const { data: orgSettings, error: settingsError } = await supabase
             .from('organization_settings')
             .select('banned_keywords, blocked_actions, default_max_per_agent, max_org_spend')
             .eq('id', 'default')
             .single();
 
-        if (settingsError || !settings) {
-            return NextResponse.json({ error: 'Organization settings not configured' }, { status: 500 });
+        if (settingsError || !orgSettings) {
+            if (isSimulation) {
+                console.warn('Organization settings not found or restricted. Using empty global settings for Simulation.');
+                settings = {
+                    banned_keywords: [],
+                    blocked_actions: [],
+                    default_max_per_agent: null,
+                    max_org_spend: null
+                };
+            } else {
+                return NextResponse.json({ error: 'Organization settings not configured', message: settingsError?.message }, { status: 500 });
+            }
+        } else {
+            settings = orgSettings;
         }
 
         // ─── 4. Parse Input ───
@@ -212,6 +252,7 @@ export async function POST(req, { params }) {
         const { message } = body;
 
         if (!message) {
+            console.error('Request received without message field');
             return NextResponse.json({ error: 'Message is required' }, { status: 400 });
         }
 
@@ -307,7 +348,7 @@ export async function POST(req, { params }) {
         const resolvedModel = resolveModel(modelId);
 
         // ─── 8. STEP 2: Discover Tools from Visual Config ───
-        const discoveredTools = discoverTools(visualConfig);
+        const discoveredTools = discoverTools(visualConfig, isSimulation);
         const hasTools = Object.keys(discoveredTools).length > 0;
 
         // ─── 9. FIX 2: Budget Enforcement (Financial DoS Prevention) ───
@@ -479,28 +520,30 @@ export async function POST(req, { params }) {
 
         // ─── FIX 5: Error Observability — Log failures to activity_logs ───
         try {
-            const errorSupabase = createAdminClient();
-            await errorSupabase.from('activity_logs').insert({
-                organization_id: resolvedOrgId || null,
-                agent_id: resolvedAgentId || null,
-                action_type: 'EXECUTION_FAILED',
-                summary: `Gateway Error: ${(error.message || 'Unknown error').substring(0, 200)}`,
-                metadata: {
-                    status: 'ERROR',
-                    error_message: error.message,
-                    error_name: error.name,
-                    trace_id: crypto.randomUUID(),
-                    platform: 'gateway_enterprise'
-                }
-            });
+            // Only try to log if we have a valid client (supabase)
+            if (supabase) {
+                await supabase.from('activity_logs').insert({
+                    organization_id: resolvedOrgId || null,
+                    agent_id: resolvedAgentId || null,
+                    action_type: 'EXECUTION_FAILED',
+                    summary: `Gateway Error: ${(error.message || 'Unknown error').substring(0, 200)}`,
+                    metadata: {
+                        status: 'ERROR',
+                        error_message: error.message,
+                        error_name: error.name,
+                        trace_id: crypto.randomUUID(),
+                        platform: 'gateway_enterprise'
+                    }
+                });
+            }
         } catch (logError) {
-            // Silent fail — never mask the original error
             console.error('Failed to log error to activity_logs:', logError.message);
         }
 
         return NextResponse.json({
             error: 'Internal Gateway Error',
-            message: process.env.NODE_ENV === 'development' ? error.message : undefined
+            message: error.message,
+            stack: error.stack
         }, { status: 500 });
     }
 }

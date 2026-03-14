@@ -92,40 +92,29 @@ export const SkeletonDashboard = () => (
 );
 
 export const SkeletonAgentCard = () => (
-    <div className="bg-white rounded-xl border border-slate-100 flex flex-col h-[400px]">
-        <div className="p-4 border-b border-slate-100 flex justify-between items-start">
-            <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-1/3" />
-                <Skeleton className="h-3 w-1/2" />
-            </div>
-            <div className="flex flex-col items-end gap-2">
-                <Skeleton className="w-6 h-6 rounded" />
-                <div className="flex gap-2">
-                    <Skeleton className="h-5 w-16 rounded" />
-                    <Skeleton className="h-5 w-12 rounded" />
-                </div>
+    <div className="bg-white rounded-[32px] border border-slate-200 p-6 flex flex-col h-full space-y-6">
+        <div className="flex justify-between items-start">
+            <Skeleton className="w-14 h-14 rounded-2xl" />
+            <div className="flex -space-x-2">
+                <Skeleton className="w-7 h-7 rounded-full" />
+                <Skeleton className="w-7 h-7 rounded-full" />
             </div>
         </div>
-        <div className="px-4 py-2 border-b border-slate-100 flex justify-between">
-            <div className="flex gap-3">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-3 w-20" />
-            </div>
-            <Skeleton className="h-3 w-24" />
+        <div className="flex-1 space-y-2">
+            <Skeleton className="h-6 w-3/4 rounded-lg" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-1/2" />
         </div>
-        <div className="flex-1 p-6 flex flex-col justify-center gap-6">
-            <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2"><Skeleton className="h-2 w-10" /><Skeleton className="h-6 w-16" /></div>
-                <div className="space-y-2"><Skeleton className="h-2 w-10" /><Skeleton className="h-6 w-16" /></div>
-                <div className="space-y-2"><Skeleton className="h-2 w-10" /><Skeleton className="h-6 w-16" /></div>
-            </div>
-            <div className="mt-2 space-y-2">
-                <div className="flex justify-between"><Skeleton className="h-2 w-24" /><Skeleton className="h-3 w-8" /></div>
-                <Skeleton className="h-1.5 w-full rounded-full" />
-            </div>
+        <div className="grid grid-cols-2 gap-2">
+            <Skeleton className="h-14 rounded-2xl" />
+            <Skeleton className="h-14 rounded-2xl" />
         </div>
-        <div className="p-4 border-t border-slate-100 flex justify-center mt-auto">
-            <Skeleton className="h-8 w-full rounded-lg" />
+        <div className="pt-4 border-t border-slate-50 flex justify-between items-center">
+            <Skeleton className="h-3 w-20" />
+            <div className="flex gap-2">
+                <Skeleton className="w-9 h-9 rounded-xl" />
+                <Skeleton className="w-9 h-9 rounded-xl" />
+            </div>
         </div>
     </div>
 );

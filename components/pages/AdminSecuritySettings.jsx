@@ -1,249 +1,241 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, Shield, Server, Box, Fingerprint, Key, Copy, RefreshCw, Globe, X, CheckCircle2 } from 'lucide-react';
+import { Shield, Smartphone, Key, Copy, RefreshCw, CheckCircle2, X } from 'lucide-react';
 import { Card, Button } from '../ui';
 import { useRole } from '@/lib/providers';
+import { createClient } from '@/lib/supabase/client';
 
-export default function AdminSecuritySettings() {
+export default function AdminSecuritySettings({
+    is2FAEnabled,
+    handleEnable2FA,
+    handleDisable2FA,
+    isSending2FA,
+    isVerifying2FA,
+    twoFaCode,
+    setTwoFaCode,
+    handleVerify2FA,
+    isConfirming2FA,
+    phone,
+    setIsVerifying2FA
+}) {
     const { currentRole } = useRole();
-    const [securityLogs, setSecurityLogs] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const supabase = createClient();
+    const [apiKey, setApiKey] = useState('Loading...');
     const [isCopied, setIsCopied] = useState(false);
-    const [isLoadingSettings, setIsLoadingSettings] = useState(true);
-    const [apiKey, setApiKey] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedKey, setGeneratedKey] = useState(null);
-    const generateNewKey = async () => {
-        if (window.confirm("Are you sure you want to generate a new Global API Key? The old one will be revoked immediately.")) {
-            setIsGenerating(true);
-            try {
-                const fullKey = `vrts_live_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
-
-                const res = await fetch('/api/settings', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ verytis_api_key: fullKey })
-                });
-
-                if (res.ok) {
-                    const suffix = fullKey.slice(-4);
-                    setGeneratedKey(fullKey);
-                    setApiKey(`vrts_live_***************************${suffix}`);
-                } else {
-                    console.error('Failed to update API key');
-                }
-            } catch (error) {
-                console.error('Error updating key:', error);
-            } finally {
-                setIsGenerating(false);
-            }
-        }
-    };
-
-    const handleCopy = () => {
-        if (apiKey && apiKey !== 'Not configured' && !apiKey.includes('Loading')) {
-            navigator.clipboard.writeText(apiKey);
-            setIsCopied(true);
-            setTimeout(() => setIsCopied(false), 2000);
-        }
-    };
-
-    const handleCopyGenerated = () => {
-        if (generatedKey) {
-            navigator.clipboard.writeText(generatedKey);
-            setIsCopied(true);
-            setTimeout(() => setIsCopied(false), 2000);
-        }
-    };
-
+    const [lastReset, setLastReset] = useState('Never');
+    const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+    const [resetStatus, setResetStatus] = useState({ message: '', type: null });
 
     useEffect(() => {
-        // Fetch real security logs from the database
-        const fetchLogs = async () => {
-            try {
-                // Fetch general activity logs and map to the format
-                const res = await fetch('/api/activity');
-                const data = await res.json();
-                if (data.events) {
-                    const formattedLogs = data.events
-                        .map(log => ({
-                            id: log.id,
-                            timestamp: new Date(log.timestamp).toLocaleString(),
-                            actor: log.actor || 'System',
-                            action: log.action,
-                            target: log.target || 'N/A',
-                            status: 'SUCCESS'
-                        }));
-
-                    setSecurityLogs(formattedLogs);
-                }
-            } catch (error) {
-                console.error("Failed to fetch security logs:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         const fetchSettings = async () => {
-            setIsLoadingSettings(true);
             try {
                 const res = await fetch('/api/settings');
                 const data = await res.json();
-                if (data.settings && data.settings.verytis_api_key) {
+                if (data.settings?.verytis_api_key) {
                     const suffix = data.settings.verytis_api_key.slice(-4);
                     setApiKey(`vrts_live_***************************${suffix}`);
                 } else {
                     setApiKey('Not configured');
                 }
             } catch (error) {
-                console.error("Failed to fetch settings:", error);
                 setApiKey('Not configured');
-            } finally {
-                setIsLoadingSettings(false);
+            }
+        };
+
+        const fetchUserMeta = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                if (user.last_sign_in_at) {
+                    const date = new Date(user.last_sign_in_at);
+                    setLastReset(date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }));
+                }
             }
         };
 
         if (currentRole === 'Admin') {
-            fetchLogs();
             fetchSettings();
+            fetchUserMeta();
         }
     }, [currentRole]);
 
+    const handleResetPassword = async () => {
+        setIsUpdatingPassword(true);
+        setResetStatus({ message: '', type: null });
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user?.email) throw new Error("User email not found");
 
-    if (currentRole !== 'Admin') {
-        return (
-            <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-sm border border-slate-200">
-                <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mb-4">
-                    <Shield className="w-8 h-8 text-rose-600" />
-                </div>
-                <h2 className="text-xl font-bold text-slate-900">Access Denied</h2>
-                <p className="text-sm text-slate-500 mt-2 text-center max-w-sm">
-                    You do not have the necessary privileges to view the Security & Governance Center. This area is strictly restricted to Administrators.
-                </p>
-            </div>
-        );
-    }
-
-    // Helper for badge colors
-    const getActionColor = (action) => {
-        if (!action) return 'bg-slate-50 text-slate-700 border-slate-200';
-        if (action.includes('REGISTERED') || action.includes('CONNECTED') || action.includes('APPROVED')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-        if (action.includes('REMOVED') || action.includes('REVOKED') || action.includes('DELETED')) return 'bg-rose-50 text-rose-700 border-rose-200';
-        if (action.includes('UPGRADED')) return 'bg-amber-50 text-amber-700 border-amber-200';
-        return 'bg-blue-50 text-blue-700 border-blue-200'; // Default
+            const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+                redirectTo: `${window.location.origin}/auth/callback?next=/settings`,
+            });
+            
+            if (error) throw error;
+            
+            setResetStatus({ message: 'Reset link sent to your email!', type: 'success' });
+        } catch (error) {
+            setResetStatus({ message: error.message || 'Failed to send reset link.', type: 'error' });
+        } finally {
+            setIsUpdatingPassword(false);
+        }
     };
 
-    return (
-        <div className="space-y-6 animate-in fade-in duration-300">
+    const generateNewKey = async () => {
+        if (window.confirm("Are you sure you want to generate a new Global API Key?")) {
+            setIsGenerating(true);
+            try {
+                const fullKey = `vrts_live_${Math.random().toString(36).substring(2, 15)}`;
+                const res = await fetch('/api/settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ verytis_api_key: fullKey })
+                });
+                if (res.ok) {
+                    setGeneratedKey(fullKey);
+                    setApiKey(`vrts_live_***************************${fullKey.slice(-4)}`);
+                }
+            } finally {
+                setIsGenerating(false);
+            }
+        }
+    };
 
-            {/* Header section replicating the screenshot style */}
+    if (currentRole !== 'Admin') return null;
+
+    return (
+        <div className="space-y-6 animate-in fade-in">
             <div className="pb-2 border-b border-slate-100">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <Shield className="w-6 h-6 text-indigo-600" />
-                    Security & Governance Center
+                    <Shield className="w-6 h-6 text-blue-600" />
+                    Security & Access Control
                 </h2>
-                <p className="text-sm text-slate-500 mt-1">
-                    Global overview of telemetry, access rules, and immutable audit logs.
-                </p>
-                <div className="flex gap-3 mt-4">
-                    <div className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded text-xs font-semibold shadow-sm">
-                        <Shield className="w-3.5 h-3.5" />
-                        AES-256-GCM Encryption
-                    </div>
-                </div>
+                <p className="text-sm text-slate-500 mt-1">Manage authentication methods, credentials, and platform keys.</p>
             </div>
 
-            {/* Global API Key */}
+            {/* 1. Account Password */}
             <Card className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                        <Key className="w-4 h-4 text-slate-500" />
-                        Platform API Keys (VERYTIS_API_KEY)
-                    </h3>
-                    <Button
-                        variant="secondary"
-                        className="h-8 text-[10px]"
-                        icon={RefreshCw}
-                        onClick={generateNewKey}
-                        disabled={isGenerating}
-                    >
-                        {isGenerating ? 'Generating...' : 'Generate New Key'}
-                    </Button>
-                </div>
-                <p className="text-xs text-slate-500 mb-4">
-                    Authenticates the SDK Proxy Gateway. Treat this as a sensitive production credential.
-                </p>
-                <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm">
-                    <div>
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Active Global Key</div>
-                        <code className="text-sm font-mono text-slate-700 select-none">{apiKey}</code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="secondary" icon={Copy} className="h-9 px-3 text-xs" onClick={handleCopy}>
-                            {isCopied ? 'Copied' : 'Copy'}
-                        </Button>
-                    </div>
-                </div>
-            </Card>
-
-            {/* Change Password */}
-            <Card className="p-6">
-                <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
-                    <Shield className="w-4 h-4 text-slate-500" />
-                    Change Account Password
-                </h3>
-                <p className="text-xs text-slate-500 mb-6">
-                    Regularly update your password to maintain account security. You will be logged out of other devices.
-                </p>
-
-                <div className="max-w-md space-y-4">
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Current Password</label>
-                        <input type="password" placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 focus:bg-white transition-colors" />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">New Password</label>
-                        <input type="password" placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 focus:bg-white transition-colors" />
-                    </div>
-                    <div className="pt-2">
-                        <Button className="w-full sm:w-auto">Update Password</Button>
-                    </div>
-                </div>
-            </Card>
-
-            {/* Modal for Newly Generated Key */}
-            {generatedKey && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-emerald-50/50">
-                            <h3 className="font-bold text-emerald-700 flex items-center gap-2">
-                                <Shield className="w-5 h-5" />
-                                New Key Generated
-                            </h3>
-                            <button onClick={() => setGeneratedKey(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                            <Key className="w-5 h-5" />
                         </div>
-                        <div className="p-6 space-y-4">
-                            <p className="text-sm text-slate-600">
-                                Your new <code className="text-xs bg-slate-100 px-1 py-0.5 rounded text-slate-700">VERYTIS_API_KEY</code> is ready. For security reasons, <strong>you will not be able to see it again</strong> after closing this window.
-                            </p>
-                            <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center justify-between shadow-sm">
-                                <code className="text-sm font-mono text-slate-900 break-all select-all mr-4">{generatedKey}</code>
-                            </div>
-                            <Button
-                                variant={isCopied ? 'primary' : 'secondary'}
-                                className={`w-full ${isCopied ? 'bg-emerald-600 hover:bg-emerald-700 border-transparent text-white' : ''}`}
-                                icon={isCopied ? CheckCircle2 : Copy}
-                                onClick={handleCopyGenerated}
+                        <div>
+                            <h4 className="text-sm font-bold text-slate-900">Account Password</h4>
+                            <p className="text-xs text-slate-500">Last updated: <span className="text-slate-900 font-medium">{lastReset}</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    <div className="flex flex-col md:flex-row gap-3">
+                        <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between">
+                            <span className="text-sm text-slate-500 font-medium truncate">
+                                Send a secure reset link to your email
+                            </span>
+                            <Button 
+                                variant="primary"
+                                className="h-9 px-6 shadow-sm"
+                                onClick={handleResetPassword}
+                                disabled={isUpdatingPassword}
                             >
-                                {isCopied ? 'Copied to clipboard!' : 'Copy to Clipboard'}
+                                {isUpdatingPassword ? 'Sending...' : 'Send Link'}
                             </Button>
                         </div>
-                        <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex justify-end">
-                            <Button onClick={() => setGeneratedKey(null)}>I've safely copied it</Button>
+                    </div>
+                    
+                    {resetStatus.message && (
+                        <div className={`p-3 rounded-lg text-xs font-bold flex items-center gap-2 animate-in fade-in slide-in-from-top-1 ${
+                            resetStatus.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'
+                        }`}>
+                            {resetStatus.type === 'success' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                            {resetStatus.message}
                         </div>
+                    )}
+                </div>
+            </Card>
+
+            {/* 2. Two-Factor Authentication */}
+            <Card className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${is2FAEnabled ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                            <Smartphone className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-bold text-slate-900">Two-Factor Authentication (SMS)</h4>
+                            <p className="text-xs text-slate-500">Secure your account with multi-factor verification.</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${is2FAEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                            {is2FAEnabled ? 'Active' : 'Disabled'}
+                        </span>
+                        {is2FAEnabled ? (
+                            <Button variant="danger" className="h-8" onClick={handleDisable2FA}>Disable</Button>
+                        ) : (
+                            <Button variant="primary" className="h-8" onClick={handleEnable2FA} disabled={isSending2FA}>
+                                {isSending2FA ? 'Sending...' : 'Enable 2FA'}
+                            </Button>
+                        )}
+                    </div>
+                </div>
+
+                {isVerifying2FA && (
+                    <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl animate-in slide-in-from-top-2">
+                        <p className="text-xs text-blue-800 mb-3">Code sent to <strong>{phone}</strong></p>
+                        <div className="flex gap-2">
+                            <input 
+                                type="text" 
+                                placeholder="000000" 
+                                value={twoFaCode}
+                                onChange={e => setTwoFaCode(e.target.value)}
+                                className="flex-1 px-3 py-2 border border-blue-200 rounded-lg text-sm text-center font-mono tracking-widest"
+                            />
+                            <Button onClick={handleVerify2FA} disabled={isConfirming2FA}>Verify</Button>
+                            <Button variant="ghost" onClick={() => setIsVerifying2FA(false)}>Cancel</Button>
+                        </div>
+                    </div>
+                )}
+            </Card>
+
+            {/* 3. Platform API Keys (Bottom) */}
+            <Card className="p-6 border-blue-100 bg-blue-50/20">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <Key className="w-4 h-4 text-blue-600" />
+                            Platform API Keys
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1">Sensitive credentials for SDK and Proxy access.</p>
+                    </div>
+                    <Button variant="secondary" icon={RefreshCw} onClick={generateNewKey} disabled={isGenerating}>
+                        {isGenerating ? 'Rotating...' : 'Rotate Key'}
+                    </Button>
+                </div>
+                <div className="bg-white border border-blue-200 p-4 rounded-xl flex items-center justify-between shadow-sm">
+                    <code className="text-xs font-mono text-slate-600">{apiKey}</code>
+                    <Button variant="ghost" icon={Copy} className="h-8" onClick={() => {
+                        navigator.clipboard.writeText(apiKey);
+                        setIsCopied(true);
+                        setTimeout(() => setIsCopied(false), 2000);
+                    }}>
+                        {isCopied ? 'Copied' : 'Copy'}
+                    </Button>
+                </div>
+            </Card>
+
+            {/* Modal for rotated key */}
+            {generatedKey && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95">
+                        <h3 className="text-lg font-bold text-slate-900 mb-2">New Key Generated</h3>
+                        <p className="text-sm text-slate-500 mb-4">Copy this key now. It will not be shown again.</p>
+                        <div className="bg-slate-100 p-3 rounded-lg font-mono text-xs break-all border border-slate-200 mb-6">
+                            {generatedKey}
+                        </div>
+                        <Button className="w-full" onClick={() => setGeneratedKey(null)}>I've Saved It</Button>
                     </div>
                 </div>
             )}

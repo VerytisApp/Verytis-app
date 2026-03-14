@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Card, Button, Modal } from '@/components/ui';
 import { useToast } from '@/components/ui/Toast';
+import AgentVisualBuilderSection from '@/components/pages/AgentVisualBuilderSection';
 
 import useSWR from 'swr';
 
@@ -170,6 +171,15 @@ export default function AgentGovernancePage({ params }) {
                     <div className="flex items-center gap-2">
                         <Sparkles className="w-3.5 h-3.5" />
                         Playground (Test)
+                    </div>
+                </button>
+                <button
+                    onClick={() => setActiveTab('builder')}
+                    className={`px-4 py-2 text-xs font-bold transition-all border-b-2 ${activeTab === 'builder' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                >
+                    <div className="flex items-center gap-2">
+                        <Layers className="w-3.5 h-3.5" />
+                        Visual Builder
                     </div>
                 </button>
                 <button
@@ -453,6 +463,10 @@ export default function AgentGovernancePage({ params }) {
                         </Card>
                     </div>
                 </div>
+            )}
+
+            {activeTab === 'builder' && (
+                <AgentVisualBuilderSection agent={agent} onSave={() => mutate()} />
             )}
 
             {activeTab === 'deployment' && (

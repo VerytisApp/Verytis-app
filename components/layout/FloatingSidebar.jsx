@@ -8,7 +8,7 @@ import {
     LayoutDashboard, MessageSquare, FileText, Users, Clock,
     Settings, LogOut, MoreVertical, Layers, ChevronLeft, Shield, ChevronDown, Check, Bot, Archive, Sparkles
 } from 'lucide-react';
-import IcareLogo from '../image/LOGO.PNG-ICARE.svg';
+import IcareLogo from '../image/Gemini-Generated-Image-_14_.svg';
 import { useRole } from '@/lib/providers';
 
 const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRole, onRoleChange, user, onLogout }) => {
@@ -38,7 +38,6 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
         { path: '/', altPath: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Manager'] },
         { path: '/builder', label: 'AI Builder', icon: Sparkles, roles: ['Admin', 'Manager'] },
         { path: '/agents', label: 'AI Agents', icon: Bot, roles: ['Admin', 'Manager', 'Member'] },
-        { path: '/library', label: 'Library', icon: Layers, roles: ['Admin', 'Manager', 'Member'] },
         { path: '/reports', label: 'Reports', icon: FileText, roles: ['Admin', 'Manager', 'Member'] },
         { path: '/teams', label: 'Team', icon: Users, roles: ['Admin', 'Manager', 'Member'] },
         { path: '/settings', label: 'Settings', icon: Settings, roles: ['Admin', 'Manager', 'Member'] },
@@ -76,7 +75,7 @@ const FloatingSidebar = ({ onModalOpen, isCollapsed, onToggleCollapse, currentRo
                         className="cursor-pointer hover:scale-105 transition-transform"
                         onClick={() => isCollapsed && onToggleCollapse(false)}
                     >
-                        <img src={IcareLogo.src || IcareLogo} alt="ICARE" className="w-10 h-10 object-contain" />
+                        <img src={IcareLogo.src || IcareLogo} alt="ICARE" className="h-10 w-auto object-contain" />
                     </Link>
 
                     {!isCollapsed && (

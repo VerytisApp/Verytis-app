@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { User, Shield, CreditCard, Bell, Key, Building2, Lock, Blocks, Smartphone } from 'lucide-react';
+import { User, Shield, CreditCard, Bell, Key, Building2, Lock, Blocks, Smartphone, Github, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useRole } from '@/lib/providers';
 import AdminSecuritySettings from '@/components/pages/AdminSecuritySettings';
 import WorkspaceSettings from '@/components/pages/settings/WorkspaceSettings';
@@ -20,6 +20,8 @@ export default function SettingsPage() {
     const [phone, setPhone] = useState('');
     const [isSavingPseudo, setIsSavingPseudo] = useState(false);
     const [isSavingPhone, setIsSavingPhone] = useState(false);
+    const [socialLinks, setSocialLinks] = useState({ google: false, github: false });
+    const [isConnecting, setIsConnecting] = useState({ google: false, github: false });
 
     // 2FA States
     const [is2FAEnabled, setIs2FAEnabled] = useState(false);
@@ -40,6 +42,13 @@ export default function SettingsPage() {
             }
             if (user?.user_metadata?.is_2fa_enabled) {
                 setIs2FAEnabled(true);
+            }
+            if (user?.identities) {
+                const providers = user.identities.map(id => id.provider);
+                setSocialLinks({
+                    google: providers.includes('google'),
+                    github: providers.includes('github')
+                });
             }
         };
         fetchUserData();
@@ -129,6 +138,29 @@ export default function SettingsPage() {
         }
     };
 
+    const handleConnectProvider = async (provider) => {
+        setIsConnecting(prev => ({ ...prev, [provider]: true }));
+        try {
+            // Using signInWithOAuth which also handles linking if the user is already authenticated
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider,
+                options: {
+                    redirectTo: `${window.location.origin}/auth/callback?next=/settings`,
+                    queryParams: {
+                        access_type: 'offline',
+                        prompt: 'consent',
+                    },
+                },
+            });
+            if (error) throw error;
+            // The browser will redirect, so we don't necessarily need to reset isConnecting
+        } catch (error) {
+            console.error(`Error connecting ${provider}:`, error);
+            alert(`Connection failed: ${error.message || 'Unknown error'}`);
+            setIsConnecting(prev => ({ ...prev, [provider]: false }));
+        }
+    };
+
     const allTabs = [
         { id: 'account', label: 'Account Profile', icon: User },
         { id: 'workspace', label: 'Workspace Preferences', icon: Building2 },
@@ -213,7 +245,7 @@ export default function SettingsPage() {
                                             <input type="email" readOnly value={currentUser?.email || ''} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 outline-none hover:bg-white focus:bg-white transition-colors" />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Author Pseudo (Library)</label>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Global Author Pseudo</label>
                                             <div className="flex gap-2">
                                                 <input
                                                     type="text"
@@ -253,69 +285,81 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
 
+                                {/* Providers Connected Section */}
                                 <div className="space-y-4 pt-6 border-t border-slate-100">
-                                    <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4">Advanced Security</h3>
-
-                                    <div className="flex flex-col gap-4">
-                                        {/* 2FA Toggle Block */}
-                                        <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${is2FAEnabled ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
-                                                    {is2FAEnabled ? <Shield className="w-5 h-5" /> : <Smartphone className="w-5 h-5" />}
+                                    <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                        Providers Connected
+                                    </h3>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Google */}
+                                        <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${socialLinks.google ? 'bg-emerald-50/20 border-emerald-100' : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-md hover:shadow-blue-500/5 group'}`}>
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-sm ${socialLinks.google ? 'bg-white' : 'bg-slate-200'}`}>
+                                                    <img src="https://www.google.com/s2/favicons?domain=google.com" className="w-4 h-4" alt="Google" />
                                                 </div>
                                                 <div>
-                                                    <h4 className="text-sm font-bold text-slate-900">Two-Factor Authentication (SMS)</h4>
-                                                    <p className="text-xs text-slate-500">Protect your account with a verification code sent to your phone via Twilio.</p>
+                                                    <p className="text-sm font-bold text-slate-900">Google</p>
+                                                    <p className="text-[10px] text-slate-500">{socialLinks.google ? 'Connected' : 'Not linked'}</p>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col sm:flex-row items-center gap-3">
-                                                <span className={`flex items-center gap-1.5 px-2.5 py-1 ${is2FAEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'} text-[10px] font-bold uppercase tracking-wider rounded-md`}>
-                                                    {is2FAEnabled ? 'Active' : 'Disabled'}
+                                            {socialLinks.google ? (
+                                                <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full">
+                                                    Linked
                                                 </span>
-
-                                                {is2FAEnabled ? (
-                                                    <button onClick={handleDisable2FA} className="px-3 py-1.5 bg-white border border-rose-200 text-rose-600 text-xs font-bold rounded hover:bg-rose-50 transition-colors">
-                                                        Disable 2FA
-                                                    </button>
-                                                ) : (
-                                                    <button onClick={handleEnable2FA} disabled={isSending2FA || isVerifying2FA} className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded hover:bg-slate-50 transition-colors disabled:opacity-50">
-                                                        {isSending2FA ? 'Sending SMS...' : 'Enable 2FA'}
-                                                    </button>
-                                                )}
-                                            </div>
+                                            ) : (
+                                                <button 
+                                                    onClick={() => !isConnecting.google && handleConnectProvider('google')}
+                                                    className={`px-4 py-1.5 border text-[11px] font-bold rounded-full shadow-sm transition-all active:scale-95 flex items-center gap-2 ${
+                                                        isConnecting.google 
+                                                        ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-wait' 
+                                                        : 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'
+                                                    }`}
+                                                >
+                                                    {isConnecting.google ? (
+                                                        <>
+                                                            <RefreshCw className="w-3 h-3 animate-spin" />
+                                                            Connecting...
+                                                        </>
+                                                    ) : 'Connect'}
+                                                </button>
+                                            )}
                                         </div>
 
-                                        {/* Verification Form */}
-                                        {isVerifying2FA && !is2FAEnabled && (
-                                            <div className="p-5 bg-indigo-50 border border-indigo-100 rounded-xl animate-in slide-in-from-top-2">
-                                                <h4 className="text-sm font-bold text-indigo-900 mb-2">Verify Your Phone Number</h4>
-                                                <p className="text-xs text-indigo-700 mb-4">We've sent a 6-digit verification code via Twilio SMS to <span className="font-bold">{phone}</span>.</p>
-
-                                                <div className="flex gap-2 max-w-sm">
-                                                    <input
-                                                        type="text"
-                                                        maxLength={6}
-                                                        placeholder="000000"
-                                                        value={twoFaCode}
-                                                        onChange={e => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
-                                                        className="flex-1 bg-white border border-indigo-200 rounded-lg px-3 py-2 text-sm text-center tracking-[0.5em] font-mono text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                                                    />
-                                                    <button
-                                                        onClick={handleVerify2FA}
-                                                        disabled={isConfirming2FA || twoFaCode.length !== 6}
-                                                        className="px-4 py-2 bg-indigo-600 border border-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                                                    >
-                                                        {isConfirming2FA ? 'Verifying...' : 'Verify'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => { setIsVerifying2FA(false); setTwoFaCode(''); }}
-                                                        className="px-3 py-2 text-xs font-bold text-indigo-600 hover:text-indigo-800"
-                                                    >
-                                                        Cancel
-                                                    </button>
+                                        {/* GitHub */}
+                                        <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${socialLinks.github ? 'bg-indigo-50/20 border-indigo-100' : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-md hover:shadow-blue-500/5 group'}`}>
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-sm ${socialLinks.github ? 'bg-white text-slate-900' : 'bg-slate-200 text-slate-400'}`}>
+                                                    <Github className="w-4 h-4" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-slate-900">GitHub</p>
+                                                    <p className="text-[10px] text-slate-500">{socialLinks.github ? 'Connected' : 'Not linked'}</p>
                                                 </div>
                                             </div>
-                                        )}
+                                            {socialLinks.github ? (
+                                                <span className="flex items-center gap-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-full">
+                                                    Linked
+                                                </span>
+                                            ) : (
+                                                <button 
+                                                    onClick={() => !isConnecting.github && handleConnectProvider('github')}
+                                                    className={`px-4 py-1.5 border text-[11px] font-bold rounded-full shadow-sm transition-all active:scale-95 flex items-center gap-2 ${
+                                                        isConnecting.github 
+                                                        ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-wait' 
+                                                        : 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'
+                                                    }`}
+                                                >
+                                                    {isConnecting.github ? (
+                                                        <>
+                                                            <RefreshCw className="w-3 h-3 animate-spin" />
+                                                            Connecting...
+                                                        </>
+                                                    ) : 'Connect'}
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -359,8 +403,20 @@ export default function SettingsPage() {
                         )}
 
                         {activeTab === 'security' && (
-                            <div className="animate-in fade-in">
-                                <AdminSecuritySettings />
+                            <div className="animate-in fade-in space-y-8">
+                                <AdminSecuritySettings 
+                                    is2FAEnabled={is2FAEnabled}
+                                    handleEnable2FA={handleEnable2FA}
+                                    handleDisable2FA={handleDisable2FA}
+                                    isSending2FA={isSending2FA}
+                                    isVerifying2FA={isVerifying2FA}
+                                    twoFaCode={twoFaCode}
+                                    setTwoFaCode={setTwoFaCode}
+                                    handleVerify2FA={handleVerify2FA}
+                                    isConfirming2FA={isConfirming2FA}
+                                    phone={phone}
+                                    setIsVerifying2FA={setIsVerifying2FA}
+                                />
                             </div>
                         )}
                     </div>

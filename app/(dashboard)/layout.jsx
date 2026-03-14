@@ -31,10 +31,10 @@ function DashboardContent({ children }) {
                     if (profile) {
                         setCurrentUser({
                             id: profile.id,
-                            name: profile.full_name || user.email.split('@')[0],
+                            name: profile.full_name || user.email?.split('@')[0] || 'User',
                             email: user.email,
-                            initials: (profile.full_name?.substring(0, 2) || user.email.substring(0, 2)).toUpperCase(),
-                            role: profile.role.charAt(0).toUpperCase() + profile.role.slice(1),
+                            initials: (profile.full_name?.substring(0, 2) || user.email?.substring(0, 2) || 'U').toUpperCase(),
+                            role: profile.role ? (profile.role.charAt(0).toUpperCase() + profile.role.slice(1)) : 'Member',
                             color: 'from-blue-500 to-indigo-600'
                         });
                     }

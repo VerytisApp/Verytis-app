@@ -44,23 +44,49 @@ export async function GET(req) {
 
         const { createClient } = require('@/lib/supabase/server');
         const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        
+        // CASE: Personal Account Connection
+        if (state.type === 'user_link' || state.type === 'personal') {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=unauthorized`);
 
-        if (!user) {
-            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=unauthorized`);
+            const { data: profile } = await supabase.from('profiles').select('social_profiles').eq('id', user.id).single();
+            const currentSocials = profile?.social_profiles || {};
+
+            const updatedSocials = {
+                ...currentSocials,
+                slack: {
+                    id: data.team.id,
+                    name: data.team.name,
+                    connected_at: new Date().toISOString(),
+                    bot_token: data.access_token
+                }
+            };
+
+            await supabase.from('profiles').update({ social_profiles: updatedSocials }).eq('id', user.id);
+
+            // Also save to 'connections' table for accountName mapping
+            const html = `
+                <html>
+                    <body>
+                        <script>
+                            if (window.opener) {
+                                window.opener.postMessage({ type: 'SLACK_CONNECTED' }, '*');
+                                window.close();
+                            } else {
+                                window.location.href = '/?connected=true&app=slack';
+                            }
+                        </script>
+                        <p>Slack Account Connection Successful! You can close this window.</p>
+                    </body>
+                </html>
+            `;
+            return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
         }
 
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('organization_id')
-            .eq('id', user.id)
-            .single();
-
-        if (!profile?.organization_id) {
-            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=no_org`);
-        }
-
-        const targetOrgId = profile.organization_id;
+        // CASE: Team Connection
+        const targetOrgId = state.organizationId;
+        if (!targetOrgId) return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=no_org`);
 
         const { data: existingInt } = await supabase.from('integrations')
             .select('id')
@@ -68,23 +94,40 @@ export async function GET(req) {
             .eq('provider', 'slack')
             .single();
 
+        const integrationData = {
+            organization_id: targetOrgId,
+            provider: 'slack',
+            name: data.team.name,
+            external_id: data.team.id,
+            settings: { bot_token: data.access_token, team_id: data.team.id }
+        };
+
         if (existingInt) {
-            await supabase.from('integrations').update({
-                settings: { bot_token: data.access_token, team_id: data.team.id },
-                name: data.team.name,
-                external_id: data.team.id
-            }).eq('id', existingInt.id);
+            await supabase.from('integrations').update(integrationData).eq('id', existingInt.id);
         } else {
-            await supabase.from('integrations').insert({
-                organization_id: targetOrgId,
-                provider: 'slack',
-                name: data.team.name,
-                external_id: data.team.id,
-                settings: { bot_token: data.access_token, team_id: data.team.id }
-            });
+            await supabase.from('integrations').insert(integrationData);
         }
 
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?connected=true&app=slack`);
+        // Return HTML to close popup and notify parent
+        const html = `
+            <html>
+                <body>
+                    <script>
+                        if (window.opener) {
+                            window.opener.postMessage({ type: 'SLACK_CONNECTED' }, '*');
+                            window.close();
+                        } else {
+                            window.location.href = '/?connected=true&app=slack';
+                        }
+                    </script>
+                    <p>Connection successful. You can close this window.</p>
+                </body>
+            </html>
+        `;
+
+        return new NextResponse(html, {
+            headers: { 'Content-Type': 'text/html' },
+        });
 
     } catch (err) {
         console.error('OAuth Exception:', err);

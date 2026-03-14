@@ -7,6 +7,8 @@ import crypto from 'crypto';
 export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
+    const type = searchParams.get('type') || 'user_link';
+    const organizationId = searchParams.get('organizationId');
 
     if (!userId) {
         return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
@@ -14,11 +16,11 @@ export async function GET(req) {
 
     const clientId = process.env.GITHUB_CLIENT_ID;
     const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/github/callback`;
-    const scope = 'read:user user:email';
+    const scope = 'repo workflow write:org read:user user:email';
 
     // SECURITY: Generate a random nonce and store it in a cookie to prevent CSRF
     const nonce = crypto.randomBytes(16).toString('hex');
-    const state = JSON.stringify({ userId, type: 'user_link', nonce });
+    const state = JSON.stringify({ userId, type, organizationId, nonce });
 
     const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${encodeURIComponent(state)}&prompt=consent`;
 

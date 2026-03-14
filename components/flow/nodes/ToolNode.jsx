@@ -1,7 +1,10 @@
 import React, { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Box, Check, AlertCircle, Key, Save, Loader2, ExternalLink, Brain, Sparkles } from 'lucide-react';
+import { Box, Check, AlertCircle, Key, Save, Loader2, ExternalLink, Brain, Sparkles, Plus, Shield } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { useSWRConfig } from 'swr';
+import { useRole } from '@/lib/providers';
+import { createClient } from '@/lib/supabase/client';
 
 const ToolNode = ({ data, isConnectable }) => {
     const { showToast } = useToast();
@@ -9,6 +12,23 @@ const ToolNode = ({ data, isConnectable }) => {
     const [isSynced, setIsSynced] = useState(false);
     const [tempKey, setTempKey] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const { currentUser } = useRole();
+    const isAdmin = currentUser?.role === 'Admin';
+    const isPrivileged = currentUser?.role === 'Admin' || currentUser?.role === 'Manager';
+
+    const { mutate } = useSWRConfig();
+
+    React.useEffect(() => {
+        const handleRefresh = (event) => {
+            if (event.origin !== window.location.origin) return;
+            if (['SLACK_CONNECTED', 'GITHUB_CONNECTED', 'TRELLO_CONNECTED', 'TRELLO_LINKED', 'GITHUB_LINKED'].includes(event.data?.type)) {
+                // If the builder parent already refreshes, this might be redundant but safer
+                mutate('/api/settings');
+            }
+        };
+        window.addEventListener('message', handleRefresh);
+        return () => window.removeEventListener('message', handleRefresh);
+    }, [mutate]);
 
     const label = data.label || 'Action / Integration';
     const description = data.description || '';
@@ -56,7 +76,16 @@ const ToolNode = ({ data, isConnectable }) => {
 
     const domain = getDomain();
     const providerName = domain ? domain.split('.')[0] : 'tool';
-    const isGlobalConnected = data.connectedProviders?.some(p => p.domain === domain && p.status === 'Connected');
+    
+    const connectedProvider = data.connectedProviders?.find(p => {
+        const pDomain = p.domain?.toLowerCase();
+        const targetDomain = domain?.toLowerCase();
+        return pDomain && targetDomain && pDomain.includes(targetDomain) && p.status === 'Connected';
+    });
+
+    const isGlobalConnected = !!connectedProvider;
+    const isOrgLevel = connectedProvider?.is_oauth && !connectedProvider?.is_perso;
+
     const isConnected = isGlobalConnected || isSynced || isInternalSkill;
 
     // Categorization for specialized messaging
@@ -174,20 +203,28 @@ const ToolNode = ({ data, isConnectable }) => {
                     <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5">
                         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
                         <span className="text-[10px] font-bold text-indigo-700 tracking-tight">
-                            🧠 Aucune configuration requise
+                            🧠 Compétence Native
                         </span>
                     </div>
                 ) : (
                     /* ─── External Tool: Connection status + key input ─── */
                     <>
+                    <div className="flex flex-col gap-2">
+                        {/* Status Row */}
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-slate-300'}`}></div>
-                                <span className={`text-[10px] font-bold tracking-tight ${isConnected ? 'text-blue-600' : 'text-slate-500'}`}>
-                                    {isConnected ? 'Opérationnel' : 'Non configuré'}
-                                </span>
+                            <div className="flex flex-wrap gap-1.5">
+                                {/* Org Status */}
+                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tighter ring-1 ${connectedOrg ? (data.config?.source === 'org' ? 'bg-blue-600 text-white ring-blue-600' : 'bg-blue-50 text-blue-600 ring-blue-100') : 'bg-slate-50 text-slate-300 ring-slate-100'}`}>
+                                    <Shield className="w-2 h-2" /> Org
+                                </div>
+                                {/* Perso Status */}
+                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tighter ring-1 ${connectedPerso ? (data.config?.source === 'perso' ? 'bg-amber-600 text-white ring-amber-600' : 'bg-amber-50 text-amber-600 ring-amber-100') : 'bg-slate-50 text-slate-300 ring-slate-100'}`}>
+                                    <Box className="w-2 h-2" /> Perso
+                                </div>
                             </div>
-                            {isConnected && (
+
+                            {/* Action / Modifier */}
+                            {isConnected && !isOrgLevel && (isPrivileged || !isInternalSkill) && (
                                 <button
                                     onClick={() => setShowInput(!showInput)}
                                     className="text-[9px] font-black uppercase text-blue-600 hover:text-blue-800 transition-colors"
@@ -195,41 +232,125 @@ const ToolNode = ({ data, isConnectable }) => {
                                     {showInput ? 'Annuler' : 'Modifier'}
                                 </button>
                             )}
-                        </div>
-
-                        {/* Key Input Zone (only for external tools) */}
-                        {(!isConnected || showInput) && domain && (
-                            <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-2">
-                                <div className="flex items-center justify-between px-1">
-                                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">{authRecord.label}</span>
+                            
+                            {/* Vault / Native Badges */}
+                            {isInternalSkill && (
+                                <div className="flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded text-[8px] font-black text-indigo-600 uppercase tracking-tighter ring-1 ring-indigo-100">
+                                    <Sparkles className="w-2.5 h-2.5" /> Native
                                 </div>
-                                <div className="relative group/input">
-                                    <Key className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
-                                    {authRecord.type === 'connection_string' ? (
-                                        <textarea
-                                            placeholder={authRecord.placeholder}
-                                            value={tempKey}
-                                            onChange={(e) => setTempKey(e.target.value)}
-                                            className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-8 pr-8 text-[10px] font-mono outline-none focus:border-blue-500 transition-all shadow-inner placeholder:text-slate-300 resize-none h-16"
+                            )}
+                            {data.type === 'llmNode' && (
+                                <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded text-[8px] font-black text-blue-600 uppercase tracking-tighter ring-1 ring-blue-100">
+                                    <Shield className="w-2.5 h-2.5" /> Vault
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                        {/* OAuth Connection Zone */}
+                        {(!isConnected || showInput) && domain && (
+                            <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-3">
+                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center gap-3 text-center transition-all group-hover:border-blue-200 group-hover:bg-blue-50/30">
+                                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100">
+                                        <img 
+                                            src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+                                            className="w-5 h-5 grayscale group-hover:grayscale-0 transition-all"
+                                            alt=""
                                         />
-                                    ) : (
-                                        <input
-                                            type="password"
-                                            placeholder={authRecord.placeholder}
-                                            value={tempKey}
-                                            onChange={(e) => setTempKey(e.target.value)}
-                                            className="w-full bg-white border border-slate-200 rounded-xl py-1.5 pl-8 pr-8 text-[10px] font-mono outline-none focus:border-blue-500 transition-all shadow-inner placeholder:text-slate-300"
-                                        />
-                                    )}
-                                    {tempKey.trim() && (
-                                        <button
-                                            onClick={handleSyncKey}
-                                            disabled={isSaving}
-                                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all active:scale-95 shadow-md"
-                                        >
-                                            {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                                        </button>
-                                    )}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-slate-900 font-black uppercase tracking-tighter">CONNECTION SÉCURISÉE</p>
+                                        <p className="text-[9px] text-slate-500 font-medium leading-tight px-2">
+                                            Autorisez Verytis à interagir avec {label} via OAuth 2.0.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            setIsSaving(true);
+                                            try {
+                                                const supabase = createClient();
+                                                const { data: { user } } = await supabase.auth.getUser();
+                                                
+                                                if (!user) {
+                                                    showToast({ title: 'Erreur', message: 'Veuillez vous reconnecter.', type: 'error' });
+                                                    return;
+                                                }
+
+                                                let authUrl = '';
+                                                
+                                                // Fetch organization_id
+                                                const { data: profile } = await supabase
+                                                    .from('profiles')
+                                                    .select('organization_id')
+                                                    .eq('id', user.id)
+                                                    .single();
+                                                const orgId = profile?.organization_id;
+
+                                                if (providerName === 'github') {
+                                                    authUrl = `/api/auth/github/login?userId=${user.id}&type=integration&organizationId=${orgId}`;
+                                                } else if (providerName === 'trello') {
+                                                    authUrl = `/api/auth/trello/login?userId=${user.id}&organizationId=${orgId}`;
+                                                } else if (providerName === 'slack') {
+                                                    authUrl = '/api/slack/install';
+                                                }
+
+                                                if (authUrl) {
+                                                    // Open in a popup to avoid "redirecting" the user away from the builder
+                                                    const width = 600;
+                                                    const height = 700;
+                                                    const left = window.screenX + (window.outerWidth - width) / 2;
+                                                    const top = window.screenY + (window.outerHeight - height) / 2;
+                                                    
+                                                    const popup = window.open(
+                                                        authUrl,
+                                                        `Connecter ${label}`,
+                                                        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,status=yes`
+                                                    );
+
+                                                    // Simple check for popup closure to refresh status
+                                                    const timer = setInterval(() => {
+                                                        if (popup.closed) {
+                                                            clearInterval(timer);
+                                                            showToast({
+                                                                title: 'Vérification',
+                                                                message: 'Vérification de la connexion en cours...',
+                                                                type: 'info'
+                                                            });
+                                                            // Logic to refresh node status would go here
+                                                            // Suggesting manual refresh for now if needed
+                                                            showToast({
+                                                                title: 'Actualisation',
+                                                                message: 'Veillez à sauvegarder votre flux.',
+                                                                type: 'success'
+                                                            });
+                                                        }
+                                                    }, 1000);
+                                                }
+                                            } catch (e) {
+                                                console.error(e);
+                                                showToast({ title: 'Erreur', message: 'Impossible de lancer la connexion.', type: 'error' });
+                                            } finally {
+                                                setIsSaving(false);
+                                            }
+                                        }}
+                                        disabled={isSaving}
+                                        className="w-full h-11 flex items-center justify-center gap-3 bg-[#111827] hover:bg-[#1f2937] text-white rounded-xl text-[11px] font-bold transition-all active:scale-[0.98] shadow-md group/btn"
+                                    >
+                                        {isSaving ? (
+                                            <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                                        ) : (
+                                            <>
+                                                <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center p-1 shadow-sm">
+                                                    <img 
+                                                        src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+                                                        className="w-4 h-4 object-contain"
+                                                        alt=""
+                                                    />
+                                                </div>
+                                                <span>Connecter {label}</span>
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
                             </div>
                         )}

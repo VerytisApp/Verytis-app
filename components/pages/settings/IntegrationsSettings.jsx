@@ -2,25 +2,38 @@
 
 import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
-import { Blocks, Key, Plus, Github, Box, Settings2, Trash2, X, CheckCircle2 } from 'lucide-react';
 import { Card, Button, SkeletonSettingsItem } from '@/components/ui';
+import { createClient } from '@/lib/supabase/client';
+import { useRole } from '@/lib/providers';
+import { 
+    Blocks, Key, Plus, Github, Box, Settings2, Trash2, X, CheckCircle2, Loader2, RefreshCw,
+    Shield, User, Lock, ExternalLink, MessageSquare, List, Layout, ShieldCheck, Activity, Flame
+} from 'lucide-react';
 
 const fetcher = (url) => fetch(url).then(res => res.json());
 
 const DEFAULT_PROVIDERS = [
     { id: 'openai', name: 'OpenAI', domain: 'openai.com', status: 'Not Configured', tokenPreview: '' },
     { id: 'anthropic', name: 'Anthropic Claude', domain: 'anthropic.com', status: 'Not Configured', tokenPreview: '' },
-    { id: 'github', name: 'GitHub Enterprise', domain: 'github.com', status: 'Not Configured', tokenPreview: '' },
+    { id: 'google', name: 'Google Gemini', domain: 'gemini.google.com', logo: 'https://www.gstatic.com/lamda/images/gemini_sparkle_4g_512_lt_f94943af3be039176192d.png', status: 'Not Configured', tokenPreview: '' },
+    { id: 'github', name: 'GitHub', domain: 'github.com', status: 'Not Configured', tokenPreview: '' },
     { id: 'slack', name: 'Slack', domain: 'slack.com', status: 'Not Configured', tokenPreview: '' },
+    { id: 'trello', name: 'Trello', domain: 'trello.com', status: 'Not Configured', tokenPreview: '' },
 ];
 
+const OAUTH_PROVIDERS = ['github', 'slack', 'trello'];
+
 export default function IntegrationsSettings() {
+    const { currentUser } = useRole();
+    const isAdmin = currentUser?.role === 'Admin';
+    const isPrivileged = currentUser?.role === 'Admin' || currentUser?.role === 'Manager';
     const { data, isLoading, mutate } = useSWR('/api/settings', fetcher);
 
     const [providers, setProviders] = useState(DEFAULT_PROVIDERS);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeProvider, setActiveProvider] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [processingIds, setProcessingIds] = useState([]); // Track individual button loading
 
     // Form fields for modal
     const [modalApiKey, setModalApiKey] = useState('');
@@ -28,12 +41,35 @@ export default function IntegrationsSettings() {
     const [modalEndpoint, setModalEndpoint] = useState('');
 
     useEffect(() => {
-        if (data?.settings?.providers?.length > 0) {
-            // Merge DB providers with defaults to ensure all base options exist
-            const dbProviders = data.settings.providers;
+        const handleRefresh = (event) => {
+            console.log("[SETTINGS] Message received from:", event.origin, "Data:", event.data);
+            
+            // Relaxed origin check for development/ngrok environments
+            const baseDomain = window.location.origin.replace(/^https?:\/\//, '').split(':')[0];
+            const eventDomain = event.origin.replace(/^https?:\/\//, '').split(':')[0];
+            
+            if (eventDomain !== baseDomain && event.origin !== 'null') {
+                console.warn("[SETTINGS] Origin mismatch ignored, but logging:", event.origin, "vs", window.location.origin);
+            }
+
+            if (['SLACK_CONNECTED', 'GITHUB_CONNECTED', 'TRELLO_CONNECTED', 'TRELLO_LINKED', 'GITHUB_LINKED'].includes(event.data?.type)) {
+                console.log("[SETTINGS] Connection SUCCESS detected, forcing re-fetch...", event.data.type);
+                mutate();
+            }
+        };
+
+        window.addEventListener('message', handleRefresh);
+        return () => window.removeEventListener('message', handleRefresh);
+    }, [mutate]);
+
+    useEffect(() => {
+        if (data?.settings?.providers) {
+            const dbProviders = data.settings.providers || [];
+            // Merge DB providers with defaults to ensure all base options (Trello, Gemini) exist
             const merged = DEFAULT_PROVIDERS.map(dp => {
                 const found = dbProviders.find(p => p.id === dp.id);
-                return found || dp;
+                // Preserve default name and domain for UI consistency
+                return found ? { ...dp, ...found, name: dp.name, domain: dp.domain } : dp;
             });
             // Add any custom providers from DB that aren't in defaults
             dbProviders.forEach(dbP => {
@@ -94,13 +130,66 @@ export default function IntegrationsSettings() {
             await mutate(); // Refresh UI cleanly
             setIsModalOpen(false);
             alert('Integration secret secured and saved!');
-        } catch (err) {
-            console.error(err);
-            alert('Failed to save integration.');
         } finally {
             setIsSaving(false);
         }
     };
+
+    const getConnectionStatus = (appName, type) => {
+        const integrations = data?.settings?.providers || [];
+        if (type === 'team') {
+            return integrations.some(i => i.id === appName && i.is_oauth && !i.is_perso);
+        } else if (type === 'personal') {
+            return integrations.some(i => i.id === appName && i.is_oauth && i.is_perso);
+        }
+        return false;
+    };
+
+    const handleDisconnect = async (appName, connectionType = 'llm') => {
+        const processKey = `${appName}-${connectionType}`;
+        const label = connectionType === 'llm' ? 'l\'accès' : connectionType.toUpperCase();
+        if (!confirm(`Souhaitez-vous vraiment déconnecter ${label} pour ${appName.charAt(0).toUpperCase() + appName.slice(1)} ?`)) return;
+        
+        setProcessingIds(prev => [...prev, processKey]);
+        console.log(`[SETTINGS] Requesting Granular Disconnect for ${appName} (${connectionType})...`);
+        
+        try {
+            // Use specialized route for team/personal, fallback to settings for llm
+            const endpoint = connectionType === 'llm' ? '/api/settings' : '/api/integrations/disconnect';
+            const method = connectionType === 'llm' ? 'DELETE' : 'POST';
+
+            const res = await fetch(endpoint, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    id: appName, // field used by /api/settings
+                    appName: appName, // field used by /api/integrations/disconnect
+                    type: connectionType, // field used by /api/settings
+                    connectionType: connectionType // field used by /api/integrations/disconnect
+                })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Failed to disconnect');
+            }
+
+            console.log('[SETTINGS] Disconnection successful, triggering mutate()...');
+            // INSTANT UI SYNC: Update local SWR cache or revalidation
+            await mutate(); 
+        } catch (err) {
+            console.error('[SETTINGS] Error during disconnection:', err);
+            alert(`Erreur lors de la déconnexion : ${err.message}`);
+        } finally {
+            // Revalidation safeguard
+            setTimeout(() => {
+                mutate();
+                setProcessingIds(prev => prev.filter(k => k !== processKey));
+            }, 600);
+        }
+    };
+
+    const isProcessing = (id, type) => processingIds.includes(`${id}-${type}`);
 
     if (isLoading) return (
         <div className="space-y-6 animate-in fade-in duration-300">
@@ -108,6 +197,9 @@ export default function IntegrationsSettings() {
             <SkeletonSettingsItem />
         </div>
     );
+
+    const llmProviders = providers.filter(p => !OAUTH_PROVIDERS.includes(p.id));
+    const oauthProviders = providers.filter(p => OAUTH_PROVIDERS.includes(p.id));
 
 
     return (
@@ -125,44 +217,236 @@ export default function IntegrationsSettings() {
                 <Button variant="primary" icon={Plus} onClick={() => handleOpenModal(null)}>Add Integration</Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {providers.map((p) => (
-                    <Card key={p.id} className="p-5 flex flex-col relative overflow-hidden group hover:border-blue-200 transition-colors">
-                        <div className="flex items-start justify-between mb-4">
-                            <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0 overflow-hidden">
-                                <img src={`https://www.google.com/s2/favicons?domain=${p.domain}&sz=128`} alt={p.name} className="w-6 h-6 object-contain" />
+            {/* LLM Section (Admin Only Config) */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-blue-600" />
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-800">Intelligence (Team)</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {llmProviders.map((p) => (
+                        <Card key={p.id} className="p-5 flex flex-col relative overflow-hidden group hover:border-blue-200 transition-colors">
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0 overflow-hidden">
+                                    <img src={`https://www.google.com/s2/favicons?domain=${p.domain}&sz=128&alt=404`} 
+                                         onError={(e) => { e.target.src = `https://logo.clearbit.com/${p.domain}`; }}
+                                         alt={p.name} className="w-6 h-6 object-contain" />
+                                </div>
+                                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${p.status === 'Connected' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                    {p.status}
+                                </span>
                             </div>
-                            <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${p.status === 'Connected' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                                {p.status}
-                            </span>
-                        </div>
 
-                        <h3 className="font-bold text-slate-900 mb-1">{p.name}</h3>
-                        <p className="text-xs text-slate-500 line-clamp-2 min-h-[32px]">
-                            Agent requests are routed to {p.domain} via the secure Verytis Gateway.
-                        </p>
+                            <h3 className="font-bold text-slate-900 mb-1">{p.name}</h3>
+                            <p className="text-xs text-slate-500 line-clamp-2 min-h-[32px]">
+                                {isAdmin ? 'Configurez la clé API globale pour toute l\'organisation.' : 'Licence Entreprise gérée par l\'administrateur.'}
+                            </p>
 
-                        <div className="mt-5 pt-4 border-t border-slate-100 space-y-3">
-                            {p.status === 'Connected' ? (
-                                <>
-                                    <div className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-md border border-slate-100">
-                                        <div className="flex items-center gap-2">
-                                            <Key className="w-3.5 h-3.5 text-slate-400" />
-                                            <code className="text-xs font-mono text-slate-700">{p.tokenPreview}</code>
+                            <div className="mt-5 pt-4 border-t border-slate-100 space-y-3">
+                                {p.status === 'Connected' ? (
+                                    <>
+                                        <div className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-md border border-slate-100">
+                                            <div className="flex items-center gap-2">
+                                                <Key className="w-3.5 h-3.5 text-slate-400" />
+                                                <code className="text-xs font-mono text-slate-700">{p.tokenPreview}</code>
+                                            </div>
                                         </div>
+                                        {isAdmin ? (
+                                            <Button variant="secondary" className="w-full text-xs py-1.5 h-auto text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDisconnect(p.id)}>Déconnecter</Button>
+                                        ) : (
+                                            <div className="w-full py-2 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest text-center rounded-lg border border-blue-100">
+                                                Vault Protégé
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    isAdmin ? (
+                                        <Button variant="secondary" className="w-full text-xs h-9 border-dashed border-2 bg-slate-50 hover:bg-slate-100 text-slate-500" onClick={() => handleOpenModal(p)}>
+                                            <Plus className="w-3.5 h-3.5 mr-1" /> Add Secure Key
+                                        </Button>
+                                    ) : (
+                                        <div className="w-full py-2 bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest text-center rounded-lg border border-dashed border-slate-200">
+                                            Contactez l'Admin
+                                        </div>
+                                    )
+                                )}
+                            </div>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+
+            {/* Apps Section (Hybrid Org/Perso) */}
+            <div className="space-y-4 pt-8">
+                <div className="flex items-center gap-2">
+                    <Blocks className="w-5 h-5 text-indigo-600" />
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-800">Applications & Outils</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {oauthProviders.map((p) => {
+                        const isOrgConnected = getConnectionStatus(p.id, 'team');
+                        const isPersoConnected = getConnectionStatus(p.id, 'personal');
+                        
+                        // Keep these for display helpers (account names)
+                        const orgConn = data?.settings?.providers?.find(db => db.id === p.id && db.is_oauth && !db.is_perso);
+                        const persoConn = data?.settings?.providers?.find(db => db.id === p.id && db.is_oauth && db.is_perso);
+
+                        return (
+                            <Card key={p.id} className="p-0 flex flex-col relative overflow-hidden group hover:border-blue-200 transition-all border-slate-200">
+                                <div className="p-5 border-b border-slate-100 bg-white">
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0 overflow-hidden">
+                                            <img src={`https://www.google.com/s2/favicons?domain=${p.domain}&sz=128&alt=404`} 
+                                                 onError={(e) => { e.target.src = `https://logo.clearbit.com/${p.domain}`; }}
+                                                 alt={p.name} className="w-6 h-6 object-contain" />
+                                        </div>
+                                        <h3 className="font-bold text-slate-900 mt-2 mr-auto ml-3">
+                                            {p.id === 'github' ? 'GitHub' : 
+                                             p.id === 'slack' ? 'Slack' : 
+                                             p.id === 'trello' ? 'Trello' : 
+                                             p.name}
+                                        </h3>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <Button variant="secondary" className="flex-1 text-xs py-1.5 h-auto" onClick={() => handleOpenModal(p)}>Configure Endpoint</Button>
+                                    <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                        Intégrez vos workflows en choisissant votre source de données.
+                                    </p>
+                                </div>
+
+                                <div className="p-5 space-y-6 bg-slate-50/50">
+                                    {/* Zone Team */}
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <Shield className="w-3.5 h-3.5 text-blue-600" />
+                                                <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Team</span>
+                                            </div>
+                                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase ${isOrgConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-400'}`}>
+                                                {isOrgConnected ? 'Connecté' : 'Non Config'}
+                                            </span>
+                                        </div>
+                                        
+                                        
+                                        {isAdmin ? (
+                                            <button 
+                                                disabled={isProcessing(p.id, 'team')}
+                                                className={`w-full py-4 px-4 h-auto text-[11px] font-bold uppercase tracking-wider rounded-2xl transition-all shadow-md flex items-center justify-center gap-3 active:scale-95 ${isProcessing(p.id, 'team') ? 'opacity-50 cursor-not-allowed' : ''} ${isOrgConnected ? 'bg-white border border-rose-100 text-rose-500 hover:bg-rose-50' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                                                onClick={isOrgConnected ? () => handleDisconnect(p.id, 'team') : async () => {
+                                                    const processKey = `${p.id}-team`;
+                                                    setProcessingIds(prev => [...prev, processKey]);
+                                                    try {
+                                                        const supabase = createClient();
+                                                        const { data: { user } } = await supabase.auth.getUser();
+                                                        const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
+                                                        const authUrl = p.id === 'github' ? `/api/auth/github/install?organizationId=${profile?.organization_id}` :
+                                                                        p.id === 'trello' ? `/api/auth/trello/login?userId=${user.id}&organizationId=${profile?.organization_id}` :
+                                                                        `/api/slack/install?userId=${user.id}&type=integration&organizationId=${profile?.organization_id}`;
+                                                        window.open(authUrl, `Connecter ${p.name} Team`, 'width=600,height=700');
+                                                    } finally {
+                                                        setTimeout(() => setProcessingIds(prev => prev.filter(k => k !== processKey)), 2000);
+                                                    }
+                                                }}
+                                            >
+                                                {isProcessing(p.id, 'team') ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                                                    p.id === 'github' ? <Github size={18} /> : 
+                                                    <img src={`https://www.google.com/s2/favicons?domain=${p.domain}&sz=128&alt=404`} 
+                                                         onError={(e) => { e.target.src = `https://logo.clearbit.com/${p.domain}`; }}
+                                                         className="w-5 h-5 shrink-0 object-contain" />
+                                                )}
+                                                {isOrgConnected ? 'DÉCONNECTER TEAM' : 'TEAM CONNECTION'}
+                                            </button>
+                                        ) : (
+                                            <div className="w-full py-2 bg-white border border-slate-200 rounded-xl text-center text-[9px] font-bold text-slate-400">
+                                                {isOrgConnected ? '✓ Opérationnel (Managed)' : 'Non activé par la Team Admin'}
+                                            </div>
+                                        )}
+
+                                        {orgConn?.accountName && (
+                                            <p className="text-[10px] font-medium text-slate-500 mt-2 flex items-center gap-2 px-1 truncate">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 shadow-sm shadow-blue-200" />
+                                                {orgConn.accountName}
+                                            </p>
+                                        )}
                                     </div>
-                                </>
-                            ) : (
-                                <Button variant="secondary" className="w-full text-xs h-9 border-dashed border-2 bg-slate-50 hover:bg-slate-100 text-slate-500" onClick={() => handleOpenModal(p)}>
-                                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Secure Key
-                                </Button>
-                            )}
+
+                                    {/* Zone Personnel */}
+                                    <div className="space-y-3 pt-4 border-t border-slate-200/60">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <User className="w-3.5 h-3.5 text-amber-600" />
+                                                <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Personnel</span>
+                                            </div>
+                                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase ${isPersoConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-400'}`}>
+                                                {isPersoConnected ? 'Connecté' : 'Non Config'}
+                                            </span>
+                                        </div>
+
+                                        <button 
+                                            disabled={isProcessing(p.id, 'personal')}
+                                            className={`w-full py-4 px-4 h-auto text-[11px] font-bold uppercase tracking-wider rounded-2xl transition-all shadow-md flex items-center justify-center gap-3 active:scale-95 ${isProcessing(p.id, 'personal') ? 'opacity-50 cursor-not-allowed' : ''} ${isPersoConnected ? 'bg-white border border-rose-100 text-rose-500 hover:bg-rose-50' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                                            onClick={isPersoConnected ? () => handleDisconnect(p.id, 'personal') : async () => {
+                                                const processKey = `${p.id}-personal`;
+                                                setProcessingIds(prev => [...prev, processKey]);
+                                                try {
+                                                    const supabase = createClient();
+                                                    const { data: { user } } = await supabase.auth.getUser();
+                                                    const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
+                                                    const authUrl = p.id === 'github' ? `/api/auth/github/login?userId=${user.id}&type=user_link` :
+                                                                    p.id === 'trello' ? `/api/auth/trello/login?userId=${user.id}&type=user_link` :
+                                                                    `/api/slack/install?userId=${user.id}&type=user_link&organizationId=${profile?.organization_id}`;
+                                                    window.open(authUrl, `Connecter ${p.name} Perso`, 'width=600,height=700');
+                                                } finally {
+                                                    setTimeout(() => setProcessingIds(prev => prev.filter(k => k !== processKey)), 2000);
+                                                }
+                                            }}
+                                        >
+                                            {isProcessing(p.id, 'personal') ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                                                p.id === 'github' ? <Github size={18} /> : 
+                                                <img src={`https://www.google.com/s2/favicons?domain=${p.domain}&sz=128&alt=404`} 
+                                                     onError={(e) => { e.target.src = `https://logo.clearbit.com/${p.domain}`; }}
+                                                     className="w-5 h-5 shrink-0 object-contain" />
+                                            )}
+                                            {isPersoConnected ? 'DÉCONNECTER PERSO' : 'PERSONAL ACCOUNT CONNECTION'}
+                                        </button>
+
+                                        {persoConn?.accountName && (
+                                            <p className="text-[10px] font-medium text-slate-500 mt-2 flex items-center gap-2 px-1 truncate">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 shadow-sm shadow-blue-200" />
+                                                {persoConn.accountName}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </Card>
+                        );
+                    })}
+                </div>
+            </div>
+
+            <div className={`grid grid-cols-1 ${isPrivileged ? 'md:grid-cols-2' : ''} gap-6 pt-4`}>
+                {isPrivileged && (
+                    <Card className="p-5 bg-sky-50/50 border-sky-100 flex gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center shrink-0">
+                            <Shield className="w-5 h-5 text-sky-600" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900">Team Hub Connections</h3>
+                            <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                                Force de travail collective. Connexions partagées et sécurisées, gérées par les Admin et Manager pour propulser les workflows de toute l'équipe.
+                            </p>
                         </div>
                     </Card>
-                ))}
+                )}
+                <Card className="p-5 bg-blue-50/50 border-blue-100 flex gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                        <Activity className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-slate-900">Solo Workspace Connections</h3>
+                        <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                            Force de travail individuelle. Étendez vos capacités avec vos propres accès outils. Idéal pour vos recherches et automatisations personnelles en toute fluidité.
+                        </p>
+                    </div>
+                </Card>
             </div>
 
             <Card className="p-6 bg-blue-50/50 border-blue-100">

@@ -43,7 +43,8 @@ const PlaceholderNode = ({ data, isConnectable }) => {
         },
         google: {
             name: 'Google Gemini',
-            domain: 'google.com',
+            domain: 'gemini.google.com',
+            logo: 'https://www.gstatic.com/lamda/images/gemini_sparkle_4g_512_lt_f94943af3be039176192d.png',
             baseColor: 'blue',
             text: 'text-blue-600',
             bg: 'bg-blue-100',
@@ -147,7 +148,7 @@ const PlaceholderNode = ({ data, isConnectable }) => {
             <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 relative shrink-0 ${getLogoClass()}`}>
                 {selectedProvider ? (
                     <img
-                        src={`https://www.google.com/s2/favicons?domain=${config.domain}&sz=128`}
+                        src={config.logo || `https://www.google.com/s2/favicons?domain=${config.domain}&sz=128`}
                         alt={config.name}
                         className={`w-10 h-10 object-contain transition-all ${!isConnected ? 'grayscale opacity-60' : ''}`}
                     />
@@ -173,7 +174,7 @@ const PlaceholderNode = ({ data, isConnectable }) => {
                             <option value="">-- Choisir un moteur IA --</option>
                             <option value="openai">OpenAI (Green Core)</option>
                             <option value="anthropic">Anthropic (Orange Core)</option>
-                            <option value="google">Google (Blue Core)</option>
+                            <option value="google">Google Gemini (Blue Core)</option>
                             <option value="custom">-- Custom LLM (URL) --</option>
                         </select>
                         <Settings2 className="absolute right-4 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />

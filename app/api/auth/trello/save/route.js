@@ -11,78 +11,90 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req) {
     try {
-        const { token, teamId } = await req.json();
+        const { token, userId, type, organizationId } = await req.json();
 
-        if (!token) {
-            return NextResponse.json({ error: 'Missing token' }, { status: 400 });
+        if (!token || !userId) {
+            return NextResponse.json({ error: 'Missing token or userId' }, { status: 400 });
         }
 
         const supabase = createAdminClient();
 
-        // Resolve organization_id from teamId
-        let organizationId = null;
-        if (teamId) {
-            const { data } = await supabase.from('teams').select('organization_id').eq('id', teamId).single();
-            if (data) organizationId = data.organization_id;
-        }
-
-        const targetOrgId = organizationId;
-
-        if (!targetOrgId) {
-            return NextResponse.json({ error: 'Could not resolve organization context' }, { status: 400 });
-        }
-
-        // Fetch Trello member info to get username (best-effort, don't block save)
+        // Fetch Trello member info to get username (best-effort)
         let member = {};
         try {
             const memberRes = await fetch(`https://api.trello.com/1/members/me?key=${process.env.TRELLO_API_KEY}&token=${token}`);
             const memberText = await memberRes.text();
-            console.log(`Trello /members/me response (${memberRes.status}): ${memberText.substring(0, 200)}`);
             if (memberRes.ok && memberText.startsWith('{')) {
                 member = JSON.parse(memberText);
-            } else {
-                console.warn(`⚠️ Trello member lookup failed: ${memberText}`);
             }
         } catch (memberErr) {
             console.warn(`⚠️ Trello member lookup error:`, memberErr.message);
         }
 
-        // Check for existing integration
-        const { data: existing } = await supabase.from('integrations')
-            .select('id')
-            .eq('organization_id', targetOrgId)
-            .eq('provider', 'trello')
-            .single();
+        if (type === 'user_link') {
+            // CASE: Personal Connection (save to profiles.social_profiles)
+            const { data: profile } = await supabase.from('profiles').select('social_profiles').eq('id', userId).single();
+            const currentSocials = profile?.social_profiles || {};
 
-        const integrationData = {
-            organization_id: targetOrgId,
-            provider: 'trello',
-            name: member.username || member.fullName || 'Trello',
-            external_id: member.id || `token_${token.substring(0, 16)}`,
-            settings: {
-                api_token: token,
-                api_key: process.env.TRELLO_API_KEY,
-                username: member.username || null,
-                full_name: member.fullName || null,
-                avatar_url: member.avatarUrl ? `https://trello-members.s3.amazonaws.com/${member.id}/${member.avatarHash}/170.png` : null,
-                connected_at: new Date().toISOString()
-            }
-        };
+            const updatedSocials = {
+                ...currentSocials,
+                trello: {
+                    id: member.id,
+                    username: member.username,
+                    full_name: member.fullName,
+                    avatar_url: member.avatarUrl ? `https://trello-members.s3.amazonaws.com/${member.id}/${member.avatarHash}/170.png` : null,
+                    connected_at: new Date().toISOString(),
+                    access_token: token
+                }
+            };
 
-        let dbResult;
-        if (existing) {
-            dbResult = await supabase.from('integrations').update(integrationData).eq('id', existing.id);
+            const { error } = await supabase.from('profiles')
+                .update({ social_profiles: updatedSocials })
+                .eq('id', userId);
+
+            if (error) throw error;
+
+            return NextResponse.json({ success: true, username: member.username || 'Trello User' });
+
         } else {
-            dbResult = await supabase.from('integrations').insert(integrationData);
-        }
+            // CASE: Team Integration (save to integrations table)
+            if (!organizationId) {
+                return NextResponse.json({ error: 'Missing organizationId for Team connection' }, { status: 400 });
+            }
 
-        if (dbResult.error) {
-            console.error('❌ Trello DB save error:', dbResult.error);
-            return NextResponse.json({ error: dbResult.error.message }, { status: 500 });
-        }
+            const { data: existing } = await supabase.from('integrations')
+                .select('id')
+                .eq('organization_id', organizationId)
+                .eq('provider', 'trello')
+                .single();
 
-        console.log('✅ Trello integration saved to DB');
-        return NextResponse.json({ success: true, username: member.username || 'Trello' });
+            const integrationData = {
+                organization_id: organizationId,
+                provider: 'trello',
+                name: member.username || member.fullName || 'Trello',
+                external_id: member.id || `token_${token.substring(0, 16)}`,
+                settings: {
+                    api_token: token,
+                    api_key: process.env.TRELLO_API_KEY,
+                    username: member.username || null,
+                    full_name: member.fullName || null,
+                    avatar_url: member.avatarUrl ? `https://trello-members.s3.amazonaws.com/${member.id}/${member.avatarHash}/170.png` : null,
+                    connected_at: new Date().toISOString()
+                }
+            };
+
+            let dbResult;
+            if (existing) {
+                dbResult = await supabase.from('integrations').update(integrationData).eq('id', existing.id);
+            } else {
+                dbResult = await supabase.from('integrations').insert(integrationData);
+            }
+
+            if (dbResult.error) throw dbResult.error;
+
+            console.log('✅ Trello Team integration saved to DB');
+            return NextResponse.json({ success: true, username: member.username || 'Trello' });
+        }
     } catch (err) {
         console.error('Trello save error:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });

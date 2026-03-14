@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
-    allowedDevOrigins: ['aperiodically-preinventive-ella.ngrok-free.dev'],
+    allowedDevOrigins: ['houndy-altha-clearstoried.ngrok-free.dev'],
     async headers() {
         return [
             {

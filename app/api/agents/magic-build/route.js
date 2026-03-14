@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST(req) {
   try {
@@ -9,6 +10,25 @@ export async function POST(req) {
     }
 
     const isModification = !!current_architecture && (current_architecture.nodes?.length > 0);
+
+    // ─── FETCH MANDATORY ORG SETTINGS ───
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Fetch global governance from organization_settings
+    const { data: orgSettings } = await supabase
+      .from('organization_settings')
+      .select('banned_keywords, blocked_actions, default_max_per_agent')
+      .eq('id', 'default')
+      .single();
+
+    const mandatoryGovernance = orgSettings ? `
+### RÈGLES DE GOUVERNANCE CORPORATE (OBLIGATOIRES)
+Ces règles sont définies au niveau de l'organisation et DOIVENT être incluses dans le nœud Shield (s1). Elles ne peuvent pas être supprimées par l'utilisateur :
+- MOTS-CLÉS INTERDITS : ${orgSettings.banned_keywords?.join(', ') || 'Aucun'}
+- ACTIONS BLOQUÉES : ${orgSettings.blocked_actions?.join(', ') || 'Aucune'}
+- BUDGET PAR DÉFAUT : ${orgSettings.default_max_per_agent || '1.00'}$ / jour
+` : '';
 
     const openAiApiKey = process.env.OPENAI_API_KEY;
 
@@ -70,6 +90,7 @@ Conçois un nouvel agent de zéro.`}
 7. RÔLES ET DESCRIPTIONS DÉTAILLÉES : Chaque nœud (Trigger, Shield, Agent, Tool) DOIT avoir une \`description\` précise expliquant son rôle EXACT dans le processus.
 8. NOMMAGE PROFESSIONNEL : Donne des noms explicites aux nœuds (ex: "Gouvernance Budget LinkedIn"). Par défaut, utilise "Verytis Governance" pour le Shield.
 9. GOUVERNANCE SUR-MESURE : Le Shield (\`guardrailNode\`) NE DOIT PAS être générique. Tu DOIS remplir les \`policies\` intelligemment selon le rôle de l'agent.
+${mandatoryGovernance}
 10. PROMPT : Utilise le Chain-of-Thought pour détailler comment l'agent doit utiliser chaque outil.
 
 ### ARCHITECTURE VERTICALE
