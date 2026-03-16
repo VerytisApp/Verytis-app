@@ -12,6 +12,11 @@ export async function middleware(request) {
 
     let limitResult;
 
+    // 0. BLOCK INACCESSIBLE ROUTES (Library)
+    if (path.startsWith('/library')) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
     // 1. ROUTE-SPECIFIC GLOBAL RATE LIMITING (Upstash Redis)
     try {
         if (path.startsWith('/api/run/')) {

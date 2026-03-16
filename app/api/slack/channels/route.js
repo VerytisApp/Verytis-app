@@ -18,13 +18,14 @@ export async function GET(req) {
 
     const targetOrgId = profile.organization_id;
 
-    const { data: integration } = await supabase.from('integrations')
-        .select('id, settings')
+    const { data: integration } = await supabase.from('user_connections')
+        .select('id, access_token')
         .eq('organization_id', targetOrgId)
         .eq('provider', 'slack')
-        .single();
+        .eq('connection_type', 'team')
+        .maybeSingle();
 
-    const token = integration?.settings?.bot_token;
+    const token = integration?.access_token;
 
     if (!token) {
         const { data: existing } = await supabase.from('monitored_resources')

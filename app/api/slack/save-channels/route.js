@@ -1,3 +1,6 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+
 export async function POST(req) {
     try {
         const { channels } = await req.json(); // Expecting array of {id, name, is_private}
@@ -17,12 +20,13 @@ export async function POST(req) {
 
         const targetOrgId = profile.organization_id;
 
-        // 1. Get Integration ID
-        const { data: integration } = await supabase.from('integrations')
+        // 1. Get Integration ID from user_connections
+        const { data: integration } = await supabase.from('user_connections')
             .select('id')
             .eq('organization_id', targetOrgId)
             .eq('provider', 'slack')
-            .single();
+            .eq('connection_type', 'team')
+            .maybeSingle();
 
         if (!integration) {
             return NextResponse.json({ error: 'Slack integration not found' }, { status: 404 });

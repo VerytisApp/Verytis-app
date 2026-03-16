@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 import { WebClient } from '@slack/web-api';
 
-export async function POST() {
+export async function POST(req) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -19,18 +19,19 @@ export async function POST() {
     const targetOrgId = profile.organization_id;
 
     try {
-        // 1. Get Slack token
-        const { data: integration } = await supabase.from('integrations')
-            .select('id, settings')
+        // 1. Get Slack token from user_connections
+        const { data: integration } = await supabase.from('user_connections')
+            .select('id, access_token')
             .eq('organization_id', targetOrgId)
             .eq('provider', 'slack')
-            .single();
+            .eq('connection_type', 'team')
+            .maybeSingle();
 
-        if (!integration?.settings?.bot_token) {
+        if (!integration?.access_token) {
             return NextResponse.json({ error: 'No Slack token found' }, { status: 401 });
         }
 
-        const client = new WebClient(integration.settings.bot_token);
+        const client = new WebClient(integration.access_token);
 
         // 2. Get all monitored resources for this integration
         const { data: resources } = await supabase.from('monitored_resources')

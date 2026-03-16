@@ -9,130 +9,168 @@ const OAUTH_PROVIDERS = ['github', 'slack', 'trello'];
 export async function GET(req) {
     try {
         const supabase = createClient();
+        console.log('[API SETTINGS] GET request initiated');
 
         // 1. Verify user is logged in
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) {
+            console.warn('[API SETTINGS] Unauthorized');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+        console.log('[API SETTINGS] User verified:', user.id);
 
-        // 2. Fetch the default organization settings
-        const { data: settings, error: fetchError } = await supabase
-            .from('organization_settings')
-            .select('*')
-            .eq('id', 'default')
+        // 2. Fetch profile and organization data
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('organization_id')
+            .eq('id', user.id)
             .maybeSingle();
 
-        // 2b. Fetch account integrations (OAuth) & Profile
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('organization_id, social_profiles')
-            .eq('id', user.id)
-            .single();
+        if (profileError) console.error('[API SETTINGS] Profile fetch error:', profileError);
 
-        // 2a. Fetch Organization name
         let orgName = 'Organisation';
         if (profile?.organization_id) {
             const { data: orgData } = await supabase
                 .from('organizations')
                 .select('name')
                 .eq('id', profile.organization_id)
-                .single();
+                .maybeSingle();
             if (orgData) orgName = orgData.name;
         }
+        console.log('[API SETTINGS] Org Context:', { orgId: profile?.organization_id, orgName });
 
-        // Filter helper to remove MSTeams
-        const isTeams = (item) => 
-            item.id?.toLowerCase().includes('teams') || 
-            item.name?.toLowerCase().includes('teams') || 
-            item.provider?.toLowerCase().includes('teams');
+        // 3. Fetch connections (Self Personal + Org Team)
+        let personalConnections = [];
+        let teamConnections = [];
 
-        let orgIntegrations = [];
+        // 3a. Personal connections
+        const { data: pData, error: pError } = await supabase
+            .from('user_connections')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('connection_type', 'personal');
+        
+        if (pError) console.error('[API SETTINGS] Error fetching personal connections:', pError.message);
+        else personalConnections = pData || [];
+
+        // 3b. Team connections (Query by org_id if exists)
         if (profile?.organization_id) {
-            const { data: intData } = await supabase
-                .from('integrations')
-                .select('id, provider, name, settings')
-                .eq('organization_id', profile.organization_id);
-            
-            if (intData) {
-                orgIntegrations = intData
-                    .filter(i => !isTeams(i))
-                    .map(i => ({
-                        id: i.provider,
-                        name: i.provider === 'github' ? 'GitHub' : 
-                              i.provider === 'slack' ? 'Slack' : 
-                              i.provider === 'trello' ? 'Trello' : 
-                              (i.name || i.provider),
-                        domain: i.provider === 'github' ? 'github.com' : i.provider === 'slack' ? 'slack.com' : i.provider === 'trello' ? 'trello.com' : 'example.com',
-                        status: 'Connected',
-                        is_oauth: true,
-                        is_perso: false,
-                        accountName: orgName
-                    }));
-            }
+            const { data: tData, error: tError } = await supabase
+                .from('user_connections')
+                .select('*')
+                .eq('organization_id', profile.organization_id)
+                .eq('connection_type', 'team');
+            if (tError) console.error('[API SETTINGS] Error fetching team connections:', tError.message);
+            else teamConnections = tData || [];
         }
 
-        // 2c. Fetch Personal integrations from connections (for email/name)
-        const { data: userConnections } = await supabase
-            .from('connections')
-            .select('provider, email, metadata')
-            .eq('user_id', user.id);
+        const connections = [...personalConnections, ...teamConnections];
+        console.log('[API SETTINGS] Connections found:', connections.length);
 
-        let personalIntegrations = [];
-        if (profile?.social_profiles) {
-            personalIntegrations = Object.keys(profile.social_profiles)
-                .filter(provider => !provider.toLowerCase().includes('teams'))
-                .map(provider => {
-                    const conn = userConnections?.find(c => c.provider === provider);
-                    return {
-                        id: provider,
-                        name: provider === 'github' ? 'GitHub' : 
-                              provider === 'slack' ? 'Slack' : 
-                              provider === 'trello' ? 'Trello' : 
-                              (provider.charAt(0).toUpperCase() + provider.slice(1)),
-                        domain: provider === 'github' ? 'github.com' : provider === 'slack' ? 'slack.com' : provider === 'trello' ? 'trello.com' : 'example.com',
-                        status: 'Connected',
-                        is_oauth: true,
-                        is_perso: true,
-                        accountName: conn?.email || user.email
-                    };
-                });
-        }
+        // 4. Fetch organization settings (for LLM providers)
+        const { data: settingsData, error: settingsError } = await supabase
+            .from('organization_settings')
+            .select('*')
+            .eq('id', 'default')
+            .maybeSingle();
+        
+        if (settingsError) console.error('[API SETTINGS] Settings fetch error:', settingsError);
+        const settings = settingsData || {};
 
-        // 3. Scrub sensitive encrypted tokens & Filter unwanted providers
-        if (settings && settings.providers && Array.isArray(settings.providers)) {
-            settings.providers = settings.providers
-                .filter(p => !isTeams(p) && !OAUTH_PROVIDERS.includes(p.id))
-                .map(p => {
-                    const { encryptedToken, ...rest } = p;
-                    return { ...rest, is_org: true }; 
-                });
-        }
-
-        // 4. Combine everything
-        // We do NOT deduplicate by ID here because we want to show BOTH Org and Perso connections
-        // for the same provider (GitHub, Slack, etc.) in the UI.
-        const combinedProviders = [
-            ...orgIntegrations,
-            ...personalIntegrations,
-            ...(settings?.providers || [])
+        const DEFAULT_PROVIDERS = [
+            { id: 'openai', name: 'OpenAI', domain: 'openai.com', status: 'Not Configured', tokenPreview: '' },
+            { id: 'anthropic', name: 'Anthropic Claude', domain: 'anthropic.com', status: 'Not Configured', tokenPreview: '' },
+            { id: 'google', name: 'Google Gemini', domain: 'gemini.google.com', status: 'Not Configured', tokenPreview: '' },
+            { id: 'github', name: 'GitHub', domain: 'github.com', status: 'Not Configured', tokenPreview: '' },
+            { id: 'slack', name: 'Slack', domain: 'slack.com', status: 'Not Configured', tokenPreview: '' },
+            { id: 'trello', name: 'Trello', domain: 'trello.com', status: 'Not Configured', tokenPreview: '' },
         ];
 
+        const catalog = [];
+
+        // 5a. Add LLM Providers (from settings.providers)
+        (settings?.providers || []).forEach(p => {
+            const { encryptedToken, ...rest } = p;
+            const meta = DEFAULT_PROVIDERS.find(d => d.id === p.id) || {};
+            catalog.push({ 
+                ...meta, 
+                ...rest, 
+                status: 'Connected', 
+                connection_type: 'llm' 
+            });
+        });
+
+        // 5b. Add OAuth Connections (from user_connections)
+        connections.forEach(c => {
+            const meta = DEFAULT_PROVIDERS.find(d => d.id === c.provider) || {};
+            catalog.push({
+                ...meta,
+                id: c.provider,
+                account_name: c.account_name || c.external_account_name,
+                connection_type: c.connection_type,
+                status: 'Connected',
+                is_oauth: true
+            });
+        });
+
+        // 5c. Add Default Providers (Placeholders for not-configured apps)
+        DEFAULT_PROVIDERS.forEach(dp => {
+            // Only add if not already present in some form
+            if (!catalog.some(c => c.id === dp.id)) {
+                catalog.push({ ...dp, status: 'Not Configured' });
+            }
+        });
+
+        console.log('[API SETTINGS] Unified catalog size:', catalog.length);
+
+        const orgIntegrations = (teamConnections || []).map(c => ({
+            id: c.provider,
+            account_name: c.account_name || c.external_account_name || orgName,
+            is_oauth: true,
+            is_perso: false
+        }));
+
+        const personalIntegrations = (personalConnections || []).map(c => ({
+            id: c.provider,
+            account_name: c.account_name || c.external_account_name || user.email,
+            is_oauth: true,
+            is_perso: true
+        }));
+
+        // 5a. LLM Providers (from organization_settings)
+        const llmCatalog = (settings?.providers || []).map(p => ({
+            id: p.id,
+            provider: p.id,
+            connection_type: 'llm',
+            status: 'Connected',
+            account_name: 'Team Key'
+        }));
+
+        // 5b. OAuth Connections (only from user_connections)
+        const oauthCatalog = connections.map(c => ({
+            id: c.provider,
+            provider: c.provider,
+            connection_type: c.connection_type,
+            status: 'Connected',
+            account_name: c.account_name,
+            metadata: c.metadata // Expose metadata for specific tool links
+        }));
+
+        const finalProviders = [...llmCatalog, ...oauthCatalog];
+
+        console.log('[API SETTINGS] Final Providers count:', finalProviders.length);
+
         return NextResponse.json({ 
-            settings: { 
-                ...(settings || {}), 
-                providers: combinedProviders 
-            }, 
+            providers: finalProviders,
             user: {
                 id: user.id,
-                email: user.email,
-                name: user.user_metadata?.full_name || user.email?.split('@')[0]
+                email: user.email
             }
         });
 
     } catch (error) {
-        console.error('Unexpected error in settings API:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        console.error('[API SETTINGS] Unexpected error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
 
@@ -154,14 +192,18 @@ export async function PUT(req) {
         const { id, updated_at, ...updateData } = body;
 
         // 3. Encrypt sensitive provider LLM tokens via AES-256-GCM
+        // IMPORTANT: Only save LLM providers into the global organization_settings.
+        // OAuth providers are handled separately in the user_connections table.
         if (updateData.providers && Array.isArray(updateData.providers)) {
-            updateData.providers = updateData.providers.map(p => {
-                if (p.rawToken) {
-                    p.encryptedToken = encrypt(p.rawToken);
-                    delete p.rawToken;
-                }
-                return p;
-            });
+            updateData.providers = updateData.providers
+                .filter(p => !p.is_oauth && (p.connection_type === 'llm' || p.id === 'openai' || p.id === 'anthropic' || p.id === 'google'))
+                .map(p => {
+                    if (p.rawToken) {
+                        p.encryptedToken = encrypt(p.rawToken);
+                        delete p.rawToken;
+                    }
+                    return p;
+                });
         }
 
         // 4. Update the global settings
@@ -215,12 +257,12 @@ export async function DELETE(req) {
         // 2. Fetch profile for organization context
         const { data: profile } = await supabase
             .from('profiles')
-            .select('organization_id, social_profiles')
+            .select('organization_id')
             .eq('id', user.id)
             .single();
 
         if (type === 'llm') {
-            // Handle LLM/Custom Providers
+            // Handle LLM/Custom Providers (Team managed in organization_settings)
             const { data: settings } = await supabase
                 .from('organization_settings')
                 .select('providers')
@@ -235,54 +277,33 @@ export async function DELETE(req) {
                     .eq('id', 'default');
                 if (llmErr) throw llmErr;
             }
-        } else if (type === 'team') {
-            // Handle Team OAuth Connections
-            console.log(`[API DELETE] Removing TEAM ${providerId} for org ${profile?.organization_id}`);
-            if (!profile?.organization_id) return NextResponse.json({ error: 'No organization context found' }, { status: 400 });
+        } else {
+            // Security: Only Admins can delete 'team' connections
+            const { data: userProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+            if (type.toLowerCase() === 'team' && userProfile?.role !== 'Admin') {
+                return NextResponse.json({ error: 'Permission denied: Only Admins can disconnect Team integrations' }, { status: 403 });
+            }
 
+            // Handle OAuth Connections (Team or Personal in user_connections)
+            console.log(`[API SETTINGS DELETE] Removing ${type.toUpperCase()} ${providerId} for user ${user.id}`);
+            
             const { error: delError } = await supabase
-                .from('integrations')
+                .from('user_connections')
                 .delete()
-                .eq('organization_id', profile.organization_id)
-                .eq('provider', providerId);
+                .match({ 
+                    user_id: user.id,
+                    provider: providerId.toLowerCase(),
+                    connection_type: type.toLowerCase()
+                });
             
             if (delError) {
-                console.error(`[API DELETE] Integrations table delete error:`, delError);
+                console.error(`[API SETTINGS DELETE] Error:`, delError.message);
                 throw delError;
             }
-            console.log(`[API DELETE] TEAM ${providerId} removed successfully`);
-        } else if (type === 'personal') {
-            // Handle Personal OAuth Connections
-            console.log(`[API DELETE] Removing PERSONAL ${providerId} for user ${user.id}`);
-            // a. Remove from profile json
-            const currentSocials = profile?.social_profiles || {};
-            const { [providerId]: removed, ...updatedSocials } = currentSocials;
-            
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({ social_profiles: updatedSocials })
-                .eq('id', user.id);
-            
-            if (profileError) {
-                console.error(`[API DELETE] Profile update error:`, profileError);
-                throw profileError;
-            }
-
-            // b. Delete from connections table (accountName mapping)
-            const { error: connError } = await supabase
-                .from('connections')
-                .delete()
-                .eq('user_id', user.id)
-                .eq('provider', providerId);
-            
-            if (connError) {
-                console.warn(`[API DELETE] Connections table delete warn:`, connError.message);
-            }
-            console.log(`[API DELETE] PERSONAL ${providerId} removed successfully`);
         }
 
         // AGGRESSIVE CLEANUP: Also search and destroy in organization_settings.providers 
-        // regardless of type, just in case of ghost records.
+        // to prevent ghost records in the main list.
         const { data: ghostSettings } = await supabase
             .from('organization_settings')
             .select('providers')
@@ -292,12 +313,10 @@ export async function DELETE(req) {
         if (ghostSettings?.providers) {
             const updatedProviders = ghostSettings.providers.filter(p => p.id !== providerId);
             if (updatedProviders.length !== ghostSettings.providers.length) {
-                console.log(`[API DELETE] Cleaning up ghost record for ${providerId} in org_settings`);
-                const { error: ghostErr } = await supabase
+                await supabase
                     .from('organization_settings')
                     .update({ providers: updatedProviders })
                     .eq('id', 'default');
-                if (ghostErr) console.warn('[API DELETE] Ghost cleanup failed (RLS?):', ghostErr.message);
             }
         }
 

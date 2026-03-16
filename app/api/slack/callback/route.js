@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET(req) {
     const { searchParams } = new URL(req.url);
@@ -33,79 +35,104 @@ export async function GET(req) {
             return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=${data.error}`);
         }
 
-        // Parse state to get Organization ID
+        // Supabase Clients
+        const supabaseStandard = createClient();
+        const { data: { user: sessionUser } } = await supabaseStandard.auth.getUser();
+
+        if (!sessionUser) {
+            console.error('❌ [API SLACK] No active session found');
+            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=unauthorized`);
+        }
+
+        // 2. Parse State for context
         const stateParam = searchParams.get('state');
         let state = {};
         try {
             if (stateParam) state = JSON.parse(stateParam);
         } catch (e) {
-            // ignore
+            console.warn('[API SLACK] Failed to parse state:', e.message);
         }
 
-        const { createClient } = require('@/lib/supabase/server');
-        const supabase = createClient();
+        const supabase = createAdminClient();
+        const isPersonal = state.type === 'user_link' || state.type === 'personal';
         
-        // CASE: Personal Account Connection
-        if (state.type === 'user_link' || state.type === 'personal') {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=unauthorized`);
+        let accountName = data.team?.name || 'Slack Workspace';
+        let accessToken = data.access_token;
+        let slackUserId = data.bot_user_id;
 
-            const { data: profile } = await supabase.from('profiles').select('social_profiles').eq('id', user.id).single();
-            const currentSocials = profile?.social_profiles || {};
-
-            const updatedSocials = {
-                ...currentSocials,
-                slack: {
-                    id: data.team.id,
-                    name: data.team.name,
-                    connected_at: new Date().toISOString(),
-                    bot_token: data.access_token
+        // "SIGN IN" / PERSONAL IDENTIFICATION LOGIC
+        if (isPersonal) {
+            // For OAuth v2 with identity scopes, data might contain authed_user or user
+            const targetUser = data.authed_user || data.user;
+            if (targetUser) {
+                accessToken = targetUser.access_token || accessToken;
+                slackUserId = targetUser.id;
+                
+                // Prioritize EMAIL for display name in personal connections
+                const email = targetUser.email || (data.user && data.user.email);
+                if (email) {
+                    accountName = email;
+                    console.log('[API SLACK] Personal connection resolved to Email:', email);
+                } else {
+                    accountName = `User: ${slackUserId} (${data.team?.name || 'Slack'})`;
+                    console.log('[API SLACK] Personal connection resolved to ID (Email missing):', slackUserId);
                 }
-            };
-
-            await supabase.from('profiles').update({ social_profiles: updatedSocials }).eq('id', user.id);
-
-            // Also save to 'connections' table for accountName mapping
-            const html = `
-                <html>
-                    <body>
-                        <script>
-                            if (window.opener) {
-                                window.opener.postMessage({ type: 'SLACK_CONNECTED' }, '*');
-                                window.close();
-                            } else {
-                                window.location.href = '/?connected=true&app=slack';
-                            }
-                        </script>
-                        <p>Slack Account Connection Successful! You can close this window.</p>
-                    </body>
-                </html>
-            `;
-            return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
+            }
         }
 
-        // CASE: Team Connection
-        const targetOrgId = state.organizationId;
-        if (!targetOrgId) return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=no_org`);
-
-        const { data: existingInt } = await supabase.from('integrations')
-            .select('id')
-            .eq('organization_id', targetOrgId)
-            .eq('provider', 'slack')
-            .single();
-
-        const integrationData = {
-            organization_id: targetOrgId,
+        const connectionData = {
+            user_id: sessionUser.id,
+            organization_id: state.organizationId || null,
             provider: 'slack',
-            name: data.team.name,
-            external_id: data.team.id,
-            settings: { bot_token: data.access_token, team_id: data.team.id }
+            connection_type: isPersonal ? 'personal' : 'team',
+            account_name: accountName,
+            access_token: accessToken,
+            metadata: {
+                team_id: data.team?.id,
+                team_name: data.team?.name,
+                bot_user_id: data.bot_user_id,
+                user_id: slackUserId,
+                scope: data.scope,
+                user_scope: data.authed_user?.scope || data.user?.scope,
+                app_id: data.app_id,
+                authed_user: data.authed_user || data.user
+            }
         };
 
-        if (existingInt) {
-            await supabase.from('integrations').update(integrationData).eq('id', existingInt.id);
+        console.log('[API SLACK] Attempting upsert to user_connections:', {
+            user_id: connectionData.user_id,
+            provider: 'slack',
+            type: connectionData.connection_type
+        });
+
+        const { error: upsertError } = await supabase.from('user_connections').upsert(connectionData, {
+            onConflict: 'user_id, provider, connection_type'
+        });
+
+        if (upsertError) {
+            console.error('❌ [API SLACK] Upsert error:', upsertError);
+            
+            // FALLBACK: If 'account_name' is missing, try 'external_account_name'
+            if (upsertError.message?.includes('account_name')) {
+                console.log('⚠️ [API SLACK] "account_name" missing, falling back to "external_account_name"');
+                const fallbackData = { ...connectionData };
+                fallbackData.external_account_name = fallbackData.account_name;
+                delete fallbackData.account_name;
+
+                const { error: fallbackError } = await supabase.from('user_connections').upsert(fallbackData, {
+                    onConflict: 'user_id, provider, connection_type'
+                });
+
+                if (fallbackError) {
+                    console.error('❌ [API SLACK] Fallback upsert also failed:', fallbackError);
+                    throw new Error(`Database upsert failed (both column attempts): ${fallbackError.message}`);
+                }
+                console.log('✅ [API SLACK] Connection saved successfully (fallback column)');
+            } else {
+                throw new Error(`Database upsert failed: ${upsertError.message}`);
+            }
         } else {
-            await supabase.from('integrations').insert(integrationData);
+            console.log('✅ [API SLACK] Connection saved successfully');
         }
 
         // Return HTML to close popup and notify parent
@@ -117,10 +144,10 @@ export async function GET(req) {
                             window.opener.postMessage({ type: 'SLACK_CONNECTED' }, '*');
                             window.close();
                         } else {
-                            window.location.href = '/?connected=true&app=slack';
+                            window.location.href = '/?connected=true&app=slack&type=${connectionData.connection_type}';
                         }
                     </script>
-                    <p>Connection successful. You can close this window.</p>
+                    <p>Slack ${isPersonal ? 'Account Linked' : 'Team Hub Connected'} successful. You can close this window.</p>
                 </body>
             </html>
         `;
@@ -130,7 +157,8 @@ export async function GET(req) {
         });
 
     } catch (err) {
-        console.error('OAuth Exception:', err);
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=server_error`);
+        console.error('❌ Slack OAuth Exception:', err);
+        const encodedError = encodeURIComponent(err.message || 'unknown_slack_error');
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=server_error&details=${encodedError}`);
     }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
@@ -93,113 +94,135 @@ export async function GET(req) {
         const responseHeaders = new Headers();
         // Note: In Next.js App Router, we usually handle this via the returned NextResponse object
 
+        const supabaseStandard = createClient();
+        const { data: { user: sessionUser }, error: sessionError } = await supabaseStandard.auth.getUser();
+
+        if (sessionError) console.error('❌ [API GITHUB] Session retrieval error:', sessionError);
+        console.log('[API GITHUB] Session User:', sessionUser?.id || 'NONE');
+
         const supabase = createAdminClient();
-
         // CASE 1: Member Linking (Passport ID)
-        if (state.type === 'user_link' && state.userId) {
+        // MIGRATION: Centralized saving to user_connections
+        let accountName = userData.login;
+        const connectionType = (state.type === 'user_link' && !installationId) ? 'personal' : 'team';
+        let finalInstallationId = installationId;
 
-            // Get current profile
-            const { data: profile } = await supabase.from('profiles').select('social_profiles').eq('id', state.userId).single();
+        // "HUNT" STRATEGY: Proactively look for organization installations if it's a team connection
+        if (connectionType === 'team') {
+            try {
+                console.log('[API GITHUB] Hunting for Organization Installations...');
+                const installationsRes = await fetch('https://api.github.com/user/installations', {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (installationsRes.ok) {
+                    const instData = await installationsRes.json();
+                    const installations = instData.installations || [];
+                    
+                    // SELECTION PRIORITY: 
+                    // 1. Direct match for the installationId passed in the URL (The user's specific choice)
+                    // 2. Any Organization-type account
+                    // 3. Fallback to first available
+                    const orgInst = installations.find(i => i.id.toString() === installationId?.toString()) ||
+                                   installations.find(i => i.account?.type === 'Organization') || 
+                                   installations[0];
 
-            const currentSocials = profile?.social_profiles || {};
-
-            // Update social_profiles
-            const updatedSocials = {
-                ...currentSocials,
-                github: {
-                    id: userData.id,
-                    username: userData.login,
-                    email: primaryEmail, // fetched above
-                    avatar_url: userData.avatar_url,
-                    html_url: userData.html_url,
-                    connected_at: new Date().toISOString(),
-                    access_token: accessToken // Store token for user-specific actions
+                    if (orgInst) {
+                        console.log('[API GITHUB] Hub Account Found:', orgInst.account.login, `(${orgInst.account.type})`);
+                        accountName = orgInst.account.login;
+                        finalInstallationId = orgInst.id.toString();
+                    }
                 }
-            };
-
-            await supabase.from('profiles')
-                .update({ social_profiles: updatedSocials })
-                .eq('id', state.userId);
-
-            // Return HTML to notify success
-            const html = `
-                <html>
-                    <body>
-                        <script>
-                            if (window.opener) {
-                                window.opener.postMessage({ type: 'GITHUB_LINKED', user: ${JSON.stringify(userData.login)} }, '*');
-                                window.close();
-                            } else {
-                                window.location.href = '/?linked=github';
-                            }
-                        </script>
-                        <p>GitHub Account Linked! You can close this window.</p>
-                    </body>
-                </html>
-            `;
-            const finalResponse = new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
-            finalResponse.cookies.delete('github_oauth_nonce');
-            return finalResponse;
+            } catch (e) {
+                console.error('[API GITHUB] Hunt failed:', e);
+            }
         }
 
-        // CASE 2: Org App Installation (Existing Logic)
-        // Retrieve Org ID from state if available
-        const targetOrgId = state.organizationId;
-
-        if (!targetOrgId) {
-            console.error('❌ Missing targetOrgId in GitHub callback state');
-            return NextResponse.json({ error: 'Missing organization context in OAuth state' }, { status: 400 });
-        }
-
-        console.log(`Linking GitHub App for User ${userData.login} to Org ${targetOrgId}`);
-
-        // Check for existing integration
-        const { data: existingInt } = await supabase.from('integrations')
-            .select('id')
-            .eq('organization_id', targetOrgId)
-            .eq('provider', 'github')
-            .single();
-
-        const integrationData = {
-            organization_id: targetOrgId,
+        const connectionData = {
+            user_id: state.userId || sessionUser?.id,
+            organization_id: state.organizationId || null,
             provider: 'github',
-            name: userData.login,
-            external_id: String(userData.id),
-            settings: {
-                access_token: data.access_token,
-                refresh_token: data.refresh_token,
-                expires_in: data.expires_in,
-                refresh_token_expires_in: data.refresh_token_expires_in,
-                token_type: data.token_type,
-                scope: data.scope,
-                created_at: Math.floor(Date.now() / 1000), // Store as seconds timestamp
-                installation_id: installationId,
-                username: userData.login,
+            connection_type: connectionType,
+            account_name: accountName,
+            access_token: accessToken,
+            refresh_token: data.refresh_token,
+            metadata: {
+                github_id: userData.id,
                 avatar_url: userData.avatar_url,
-                html_url: userData.html_url
+                html_url: userData.html_url,
+                email: primaryEmail,
+                installation_id: finalInstallationId,
+                scope: data.scope,
+                token_type: data.token_type,
+                expires_in: data.expires_in
             }
         };
+ 
 
-        if (existingInt) {
-            await supabase.from('integrations').update(integrationData).eq('id', existingInt.id);
-        } else {
-            await supabase.from('integrations').insert(integrationData);
+        // If it's a team installation, try to ensure organization_id is present
+        if (connectionType === 'team' && !connectionData.organization_id && sessionUser) {
+            const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', sessionUser.id).single();
+            if (profile?.organization_id) {
+                connectionData.organization_id = profile.organization_id;
+            }
         }
 
-        // Return HTML to close popup and notify parent
+        // If it's a team installation, we might not have a userId in state, 
+        // but we definitely have it if coming from the Settings page.
+        if (!connectionData.user_id) {
+            console.error('❌ [API GITHUB] No user_id found in state or session');
+            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=unauthorized`);
+        }
+
+        const { error: upsertError } = await supabase.from('user_connections').upsert(connectionData, {
+            onConflict: 'user_id, provider, connection_type'
+        });
+
+        if (upsertError) {
+            console.error('❌ [API GITHUB] Upsert error:', upsertError);
+            
+            // FALLBACK: If 'account_name' is missing, try 'external_account_name'
+            if (upsertError.message?.includes('account_name')) {
+                console.log('⚠️ [API GITHUB] "account_name" missing, falling back to "external_account_name"');
+                const fallbackData = { ...connectionData };
+                fallbackData.external_account_name = fallbackData.account_name;
+                delete fallbackData.account_name;
+
+                const { error: fallbackError } = await supabase.from('user_connections').upsert(fallbackData, {
+                    onConflict: 'user_id, provider, connection_type'
+                });
+
+                if (fallbackError) {
+                    console.error('❌ [API GITHUB] Fallback upsert also failed:', fallbackError);
+                    throw new Error(`Database upsert failed (both column attempts): ${fallbackError.message}`);
+                }
+                console.log('✅ [API GITHUB] Connection saved successfully (fallback column)');
+            } else {
+                throw new Error(`Database upsert failed: ${upsertError.message}`);
+            }
+        } else {
+            console.log('✅ [API GITHUB] Connection saved successfully');
+        }
+
+        // Prepare response HTML
         const html = `
             <html>
                 <body>
                     <script>
                         if (window.opener) {
-                            window.opener.postMessage({ type: 'GITHUB_CONNECTED' }, '*');
+                            window.opener.postMessage({ 
+                                type: '${connectionType === 'personal' ? 'GITHUB_LINKED' : 'GITHUB_CONNECTED'}', 
+                                user: ${JSON.stringify(accountName)} 
+                            }, '*');
                             window.close();
                         } else {
-                            // Fallback if not in a popup (e.g. direct visit)
-                            window.location.href = '/?connected=true&app=github';
+                            window.location.href = '/?connected=true&app=github&type=${connectionType}';
                         }
                     </script>
-                    <p>Connection successful. You can close this window.</p>
+                    <p>GitHub ${connectionType === 'personal' ? 'Account Linked' : 'Team Hub Connected'}! You can close this window.</p>
                 </body>
             </html>
         `;
@@ -212,7 +235,8 @@ export async function GET(req) {
         return finalResponse;
 
     } catch (err) {
-        console.error('OAuth Exception:', err);
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=server_error`);
+        console.error('❌ OAuth Exception Details:', err);
+        const encodedError = encodeURIComponent(err.message || 'unknown_server_error');
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=server_error&details=${encodedError}`);
     }
 }

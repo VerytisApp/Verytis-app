@@ -19,21 +19,22 @@ export async function GET(req) {
 
     const targetOrgId = profile.organization_id;
 
-    // 2. Check if we have a token in 'integrations'
-    const { data, error } = await supabase.from('integrations')
-        .select('id, settings, name')
+    // 2. Check if we have a token in 'user_connections'
+    const { data, error } = await supabase.from('user_connections')
+        .select('id, access_token, account_name')
         .eq('organization_id', targetOrgId)
         .eq('provider', 'slack')
+        .eq('connection_type', 'team')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
     // 3. Determine status
-    const isConnected = !!(data && (data.settings?.bot_token || data.settings?.access_token));
+    const isConnected = !!(data && data.access_token);
 
     return NextResponse.json({
         connected: isConnected,
-        teamName: data?.name || null,
+        teamName: data?.account_name || null,
         lastSync: isConnected ? new Date().toISOString() : null
     });
 }

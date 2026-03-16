@@ -17,6 +17,11 @@ export async function GET(req) {
         nonce: nonce
     });
 
+    const clientId = process.env.GITHUB_CLIENT_ID;
+    const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/github/callback`;
+    const scope = 'repo workflow write:org read:user user:email';
+
+    // Use native GitHub App installation URL to allow choosing an organization
     const appSlug = 'VerytisApp';
     const installUrl = `https://github.com/apps/${appSlug}/installations/new?state=${encodeURIComponent(state)}`;
 

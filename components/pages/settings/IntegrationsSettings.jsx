@@ -63,19 +63,9 @@ export default function IntegrationsSettings() {
     }, [mutate]);
 
     useEffect(() => {
-        if (data?.settings?.providers) {
-            const dbProviders = data.settings.providers || [];
-            // Merge DB providers with defaults to ensure all base options (Trello, Gemini) exist
-            const merged = DEFAULT_PROVIDERS.map(dp => {
-                const found = dbProviders.find(p => p.id === dp.id);
-                // Preserve default name and domain for UI consistency
-                return found ? { ...dp, ...found, name: dp.name, domain: dp.domain } : dp;
-            });
-            // Add any custom providers from DB that aren't in defaults
-            dbProviders.forEach(dbP => {
-                if (!merged.find(m => m.id === dbP.id)) merged.push(dbP);
-            });
-            setProviders(merged);
+        if (data?.providers) {
+            // Merge backend connected states into the visual providers list if necessary
+            // For now, we prefer keeping DEFAULT_PROVIDERS for visual structure
         }
     }, [data]);
 
@@ -136,19 +126,26 @@ export default function IntegrationsSettings() {
     };
 
     const getConnectionStatus = (appName, type) => {
-        const integrations = data?.settings?.providers || [];
-        if (type === 'team') {
-            return integrations.some(i => i.id === appName && i.is_oauth && !i.is_perso);
-        } else if (type === 'personal') {
-            return integrations.some(i => i.id === appName && i.is_oauth && i.is_perso);
-        }
-        return false;
+        // Isolation parfaite : On cherche une ligne qui a EXACTEMENT le bon nom d'app ET le bon type
+        return data?.providers?.some(p => 
+            p.id === appName && 
+            p.connection_type === type
+        );
     };
 
     const handleDisconnect = async (appName, connectionType = 'llm') => {
         const processKey = `${appName}-${connectionType}`;
-        const label = connectionType === 'llm' ? 'l\'accès' : connectionType.toUpperCase();
-        if (!confirm(`Souhaitez-vous vraiment déconnecter ${label} pour ${appName.charAt(0).toUpperCase() + appName.slice(1)} ?`)) return;
+        if (processingIds.includes(processKey)) return;
+
+        // SAFEGUARD: Confirmation before action
+        const isGitHubTeam = appName === 'github' && connectionType === 'team';
+        const confirmMsg = isGitHubTeam
+            ? "Note : La déconnexion ici supprime le lien avec Verytis. Pour révoquer totalement l'accès ou changer d'organisation, vous devez également désinstaller l'application dans vos paramètres GitHub. Continuer ?"
+            : (connectionType === 'team' 
+                ? `Êtes-vous sûr de vouloir déconnecter l'intégration d'équipe "${appName}" ? Cela affectera toute l'organisation.`
+                : `Voulez-vous déconnecter votre compte personnel "${appName}" ?`);
+        
+        if (!window.confirm(confirmMsg)) return;
         
         setProcessingIds(prev => [...prev, processKey]);
         console.log(`[SETTINGS] Requesting Granular Disconnect for ${appName} (${connectionType})...`);
@@ -198,8 +195,13 @@ export default function IntegrationsSettings() {
         </div>
     );
 
-    const llmProviders = providers.filter(p => !OAUTH_PROVIDERS.includes(p.id));
-    const oauthProviders = providers.filter(p => OAUTH_PROVIDERS.includes(p.id));
+    // Deduplicate providers by ID for the UI cards
+    const uniqueProviders = providers.filter((p, index, self) => 
+        index === self.findIndex((t) => t.id === p.id)
+    );
+
+    const llmProviders = uniqueProviders.filter(p => !OAUTH_PROVIDERS.includes(p.id));
+    const oauthProviders = uniqueProviders.filter(p => OAUTH_PROVIDERS.includes(p.id));
 
 
     return (
@@ -287,9 +289,9 @@ export default function IntegrationsSettings() {
                         const isOrgConnected = getConnectionStatus(p.id, 'team');
                         const isPersoConnected = getConnectionStatus(p.id, 'personal');
                         
-                        // Keep these for display helpers (account names)
-                        const orgConn = data?.settings?.providers?.find(db => db.id === p.id && db.is_oauth && !db.is_perso);
-                        const persoConn = data?.settings?.providers?.find(db => db.id === p.id && db.is_oauth && db.is_perso);
+                        // Display helpers: Find specific connection records in the flat providers list at root
+                        const orgConn = data?.providers?.find(c => c.id === p.id && c.connection_type === 'team');
+                        const persoConn = data?.providers?.find(c => c.id === p.id && c.connection_type === 'personal');
 
                         return (
                             <Card key={p.id} className="p-0 flex flex-col relative overflow-hidden group hover:border-blue-200 transition-all border-slate-200">
@@ -327,43 +329,73 @@ export default function IntegrationsSettings() {
                                         
                                         
                                         {isAdmin ? (
-                                            <button 
-                                                disabled={isProcessing(p.id, 'team')}
-                                                className={`w-full py-4 px-4 h-auto text-[11px] font-bold uppercase tracking-wider rounded-2xl transition-all shadow-md flex items-center justify-center gap-3 active:scale-95 ${isProcessing(p.id, 'team') ? 'opacity-50 cursor-not-allowed' : ''} ${isOrgConnected ? 'bg-white border border-rose-100 text-rose-500 hover:bg-rose-50' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
-                                                onClick={isOrgConnected ? () => handleDisconnect(p.id, 'team') : async () => {
-                                                    const processKey = `${p.id}-team`;
-                                                    setProcessingIds(prev => [...prev, processKey]);
-                                                    try {
-                                                        const supabase = createClient();
-                                                        const { data: { user } } = await supabase.auth.getUser();
-                                                        const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
-                                                        const authUrl = p.id === 'github' ? `/api/auth/github/install?organizationId=${profile?.organization_id}` :
-                                                                        p.id === 'trello' ? `/api/auth/trello/login?userId=${user.id}&organizationId=${profile?.organization_id}` :
-                                                                        `/api/slack/install?userId=${user.id}&type=integration&organizationId=${profile?.organization_id}`;
-                                                        window.open(authUrl, `Connecter ${p.name} Team`, 'width=600,height=700');
-                                                    } finally {
-                                                        setTimeout(() => setProcessingIds(prev => prev.filter(k => k !== processKey)), 2000);
-                                                    }
-                                                }}
-                                            >
-                                                {isProcessing(p.id, 'team') ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                                                    p.id === 'github' ? <Github size={18} /> : 
-                                                    <img src={`https://www.google.com/s2/favicons?domain=${p.domain}&sz=128&alt=404`} 
-                                                         onError={(e) => { e.target.src = `https://logo.clearbit.com/${p.domain}`; }}
-                                                         className="w-5 h-5 shrink-0 object-contain" />
-                                                )}
-                                                {isOrgConnected ? 'DÉCONNECTER TEAM' : 'TEAM CONNECTION'}
-                                            </button>
+                                            isOrgConnected && p.id === 'github' ? (
+                                                <div className="space-y-3">
+                                                    <button 
+                                                        className="w-full py-4 px-4 h-auto text-[11px] font-bold uppercase tracking-wider rounded-2xl transition-all shadow-md flex items-center justify-center gap-3 active:scale-95 bg-white border border-blue-100 text-blue-600 hover:bg-blue-50"
+                                                        onClick={() => {
+                                                            const instId = orgConn?.metadata?.installation_id;
+                                                            const orgName = orgConn?.account_name;
+                                                            
+                                                            let url = `https://github.com/settings/installations`;
+                                                            if (instId) {
+                                                                // Team/Org installations have a different URL pattern than personal ones
+                                                                url = orgName 
+                                                                    ? `https://github.com/organizations/${orgName}/settings/installations/${instId}`
+                                                                    : `https://github.com/settings/installations/${instId}`;
+                                                            }
+                                                            window.open(url, '_blank');
+                                                        }}
+                                                    >
+                                                        <ExternalLink className="w-4 h-4" />
+                                                        GÉRER SUR GITHUB
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDisconnect(p.id, 'team')}
+                                                        className="w-full text-center text-[9px] text-slate-400 hover:text-rose-500 transition-colors uppercase font-black tracking-widest"
+                                                    >
+                                                        Supprimer le lien local
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button 
+                                                    disabled={isProcessing(p.id, 'team')}
+                                                    className={`w-full py-4 px-4 h-auto text-[11px] font-bold uppercase tracking-wider rounded-2xl transition-all shadow-md flex items-center justify-center gap-3 active:scale-95 ${isProcessing(p.id, 'team') ? 'opacity-50 cursor-not-allowed' : ''} ${isOrgConnected ? 'bg-white border border-rose-100 text-rose-500 hover:bg-rose-50' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                                                    onClick={isOrgConnected ? () => handleDisconnect(p.id, 'team') : async () => {
+                                                        const processKey = `${p.id}-team`;
+                                                        setProcessingIds(prev => [...prev, processKey]);
+                                                        try {
+                                                            const supabase = createClient();
+                                                            const { data: { user } } = await supabase.auth.getUser();
+                                                            const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
+                                                            const authUrl = p.id === 'github' ? `/api/auth/github/install?organizationId=${profile?.organization_id}` :
+                                                                            p.id === 'trello' ? `/api/auth/trello/login?userId=${user.id}&organizationId=${profile?.organization_id}` :
+                                                                            `/api/slack/install?userId=${user.id}&type=integration&organizationId=${profile?.organization_id}`;
+                                                            window.open(authUrl, `Connecter ${p.name} Team`, 'width=600,height=700');
+                                                        } finally {
+                                                            setTimeout(() => setProcessingIds(prev => prev.filter(k => k !== processKey)), 2000);
+                                                        }
+                                                    }}
+                                                >
+                                                    {isProcessing(p.id, 'team') ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                                                        p.id === 'github' ? <Github size={18} /> : 
+                                                        <img src={`https://www.google.com/s2/favicons?domain=${p.domain}&sz=128&alt=404`} 
+                                                             onError={(e) => { e.target.src = `https://logo.clearbit.com/${p.domain}`; }}
+                                                             className="w-5 h-5 shrink-0 object-contain" />
+                                                    )}
+                                                    {isOrgConnected ? 'DÉCONNECTER TEAM' : 'TEAM CONNECTION'}
+                                                </button>
+                                            )
                                         ) : (
                                             <div className="w-full py-2 bg-white border border-slate-200 rounded-xl text-center text-[9px] font-bold text-slate-400">
                                                 {isOrgConnected ? '✓ Opérationnel (Managed)' : 'Non activé par la Team Admin'}
                                             </div>
                                         )}
 
-                                        {orgConn?.accountName && (
+                                         {orgConn?.account_name && (
                                             <p className="text-[10px] font-medium text-slate-500 mt-2 flex items-center gap-2 px-1 truncate">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 shadow-sm shadow-blue-200" />
-                                                {orgConn.accountName}
+                                                {orgConn.account_name}
                                             </p>
                                         )}
                                     </div>
@@ -408,10 +440,10 @@ export default function IntegrationsSettings() {
                                             {isPersoConnected ? 'DÉCONNECTER PERSO' : 'PERSONAL ACCOUNT CONNECTION'}
                                         </button>
 
-                                        {persoConn?.accountName && (
+                                        {persoConn?.account_name && (
                                             <p className="text-[10px] font-medium text-slate-500 mt-2 flex items-center gap-2 px-1 truncate">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 shadow-sm shadow-blue-200" />
-                                                {persoConn.accountName}
+                                                {persoConn.account_name}
                                             </p>
                                         )}
                                     </div>

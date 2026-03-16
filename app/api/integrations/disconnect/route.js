@@ -23,63 +23,92 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // 2. Fetch profile for organization and social_profiles context
-        const { data: profile } = await supabase
+        console.log(`[API DISCONNECT] App: ${appName}, Type: ${connectionType}, User: ${user.id}`);
+
+        // Security: Only Admins/Managers can delete 'team' connections
+        const { data: userProfile } = await supabase
             .from('profiles')
-            .select('organization_id, social_profiles')
+            .select('role, organization_id')
             .eq('id', user.id)
             .single();
 
-        console.log(`[API DISCONNECT] App: ${appName}, Type: ${connectionType}, User: ${user.id}`);
-
-        if (connectionType === 'team') {
-            // CASE: Team Integration
-            if (!profile?.organization_id) {
-                return NextResponse.json({ error: 'No organization context found' }, { status: 400 });
-            }
-
-            const { error: delError } = await supabase
-                .from('integrations')
-                .delete()
-                .match({ 
-                    organization_id: profile.organization_id, 
-                    provider: appName.toLowerCase() 
-                });
-            
-            if (delError) throw delError;
-            console.log(`[API DISCONNECT] TEAM ${appName} removed successfully`);
-
-        } else if (connectionType === 'personal') {
-            // CASE: Personal Account Connection
-            
-            // a. Remove from profile.social_profiles (JSONB)
-            const currentSocials = profile?.social_profiles || {};
-            const providerKey = appName.toLowerCase();
-            const { [providerKey]: removed, ...updatedSocials } = currentSocials;
-            
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({ social_profiles: updatedSocials })
-                .eq('id', user.id);
-            
-            if (profileError) throw profileError;
-
-            // b. Delete from connections table (accountName mapping)
-            const { error: connError } = await supabase
-                .from('connections')
-                .delete()
-                .match({ 
-                    user_id: user.id, 
-                    provider: providerKey 
-                });
-            
-            if (connError) {
-                console.warn(`[API DISCONNECT] Connections table delete hint:`, connError.message);
-            }
-            console.log(`[API DISCONNECT] PERSONAL ${appName} removed successfully`);
+        const userRole = userProfile?.role?.toLowerCase();
+        if (connectionType.toLowerCase() === 'team' && userRole !== 'admin' && userRole !== 'manager') {
+            return NextResponse.json({ 
+                error: 'Permission denied: Only Admins can disconnect Team integrations' 
+            }, { status: 403 });
         }
 
-        // 3. Aggressive Cleanup: Remove from organization_settings.providers (Ghosts)
+        // 2. Fetch connection details BEFORE deletion to revoke token if necessary
+        let connectionToRevoke = null;
+        if (appName.toLowerCase() === 'slack') {
+            const fetchQuery = supabase.from('user_connections').select('access_token');
+            if (connectionType.toLowerCase() === 'team') {
+                fetchQuery.match({
+                    organization_id: userProfile.organization_id,
+                    provider: 'slack',
+                    connection_type: 'team'
+                });
+            } else {
+                fetchQuery.match({
+                    user_id: user.id,
+                    provider: 'slack',
+                    connection_type: 'personal'
+                });
+            }
+            const { data: connData } = await fetchQuery.single();
+            connectionToRevoke = connData;
+        }
+
+        // Revoke Slack Token if found
+        if (connectionToRevoke?.access_token) {
+            try {
+                console.log(`[API DISCONNECT] Revoking Slack token for ${connectionType}...`);
+                const revokeRes = await fetch('https://slack.com/api/auth.revoke', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${connectionToRevoke.access_token}`,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                });
+                const revokeData = await revokeRes.json();
+                console.log(`[API DISCONNECT] Slack Revocation Result:`, revokeData.ok ? 'SUCCESS' : `FAILED (${revokeData.error})`);
+            } catch (revErr) {
+                console.error('[API DISCONNECT] Slack Revocation Error:', revErr);
+                // We continue even if revocation fails to ensure local cleanup
+            }
+        }
+
+        // 3. Targeted deletion in the centralized table
+        const query = supabase.from('user_connections').delete();
+
+        if (connectionType.toLowerCase() === 'team') {
+            // Team disconnect removes it for the WHOLE organization
+            if (!userProfile?.organization_id) throw new Error('User has no organization');
+            
+            query.match({
+                organization_id: userProfile.organization_id,
+                provider: appName.toLowerCase(),
+                connection_type: 'team'
+            });
+            console.log(`[API DISCONNECT] Org-wide removal for ${appName}`);
+        } else {
+            // Personal disconnect only for THIS user
+            query.match({ 
+                user_id: user.id,
+                provider: appName.toLowerCase(),
+                connection_type: 'personal'
+            });
+        }
+
+        const { error: delError } = await query;
+        
+        if (delError) {
+            console.error('[API DISCONNECT] Table delete error:', delError.message);
+            throw delError;
+        }
+
+        // 3. Cleanup: Remove from organization_settings.providers (Ghosts)
         const { data: orgSettings } = await supabase
             .from('organization_settings')
             .select('providers')

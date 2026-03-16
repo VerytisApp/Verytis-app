@@ -19,23 +19,24 @@ export async function GET(req) {
 
     const targetOrgId = profile.organization_id;
 
-    const { data } = await supabase.from('integrations')
-        .select('id, settings, name')
+    const { data } = await supabase.from('user_connections')
+        .select('id, access_token, account_name, metadata')
         .eq('organization_id', targetOrgId)
         .eq('provider', 'trello')
+        .eq('connection_type', 'team')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-    const isConnected = !!(data && data.settings?.api_token);
+    const isConnected = !!(data && data.access_token);
 
     // Fetch workspace name from Trello API (organization name)
-    let workspaceName = data?.settings?.username || data?.name || null;
+    let workspaceName = data?.account_name || null;
 
-    if (isConnected && data.settings?.api_token) {
+    if (isConnected && data.access_token) {
         try {
             const API_KEY = process.env.TRELLO_API_KEY;
-            const token = data.settings.api_token;
+            const token = data.access_token;
 
             // First, try to get organizations
             const orgRes = await fetch(`https://api.trello.com/1/members/me/organizations?key=${API_KEY}&token=${token}&fields=displayName,name`, {

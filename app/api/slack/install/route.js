@@ -25,7 +25,11 @@ export async function GET(req) {
     const type = searchParams.get('type') || 'integration';
     const organizationId = profile?.organization_id;
 
-    const scopes = [
+    const isPersonal = type === 'user_link' || type === 'personal';
+    
+    // For Team connections: full bot rights
+    // For Personal: no bot rights, only identity
+    const botScopes = isPersonal ? '' : [
         'chat:write', 'channels:read', 'groups:read', 
         'reactions:write', 'users:read'
     ].join(',');
@@ -36,7 +40,15 @@ export async function GET(req) {
         type: type
     });
 
-    const installUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.SLACK_CLIENT_ID}&scope=${scopes}&redirect_uri=${process.env.NEXT_PUBLIC_BASE_URL}/api/slack/callback&state=${encodeURIComponent(state)}`;
+    // Base URL with bot scopes
+    let installUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.SLACK_CLIENT_ID}&scope=${botScopes}&redirect_uri=${process.env.NEXT_PUBLIC_BASE_URL}/api/slack/callback&state=${encodeURIComponent(state)}`;
+
+    if (isPersonal) {
+        // Request ONLY user identity for personal connections (OpenID Connect style)
+        // This makes the Slack screen much simpler ("Verytis wants to know who you are")
+        // prompt=consent forces Slack to show the authorization screen again
+        installUrl += `&user_scope=openid,profile,email&prompt=consent`;
+    }
 
     return NextResponse.redirect(installUrl);
 }
