@@ -165,7 +165,7 @@ const PlaceholderNode = ({ data, isConnectable }) => {
                     <p className={`text-[10px] font-black uppercase tracking-widest transition-colors ${selectedProvider ? config.text : 'text-slate-400'}`}>
                         {isConnected ? config.name + ' Configuré' : selectedProvider ? 'Validation Requise' : 'Selection du Cerveau'}
                     </p>
-                    <div className="relative px-2">
+                    <div className="relative px-2" onClick={(e) => e.stopPropagation()}>
                         <select
                             value={selectedProvider || ''}
                             onChange={handleProviderChange}

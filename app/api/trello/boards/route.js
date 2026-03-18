@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getValidToken } from '@/lib/auth-util';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -17,27 +18,25 @@ export async function GET() {
 
     if (!profile?.organization_id) return NextResponse.json({ error: 'No organization' }, { status: 400 });
 
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get('type') || 'team'; // 'team' or 'personal'
+
     const targetOrgId = profile.organization_id;
     const API_KEY = process.env.TRELLO_API_KEY;
 
     try {
-        // 1. Get Trello Integration
-        const { data: integration, error: intError } = await supabase
-            .from('integrations')
-            .select('id, settings')
-            .eq('organization_id', targetOrgId)
-            .eq('provider', 'trello')
-            .single();
+        const { token, id: integration_id } = await getValidToken('trello', type, { 
+            userId: user.id, 
+            organizationId: targetOrgId 
+        });
 
-        if (intError || !integration) {
-            console.warn('No Trello integration found for org:', targetOrgId);
+        if (!token) {
+            console.warn(`[API TRELLO BOARDS] No token found for type: ${type}`);
             return NextResponse.json({ boards: [] });
         }
 
-        const token = integration.settings?.api_token;
-
-        // 2. Try Fetch Boards from Trello (if token and key are present)
-        if (token && API_KEY && !token.includes('demo')) {
+        // 2. Try Fetch Boards from Trello
+        if (API_KEY && !token.toString().includes('demo')) {
             try {
                 const response = await fetch(`https://api.trello.com/1/members/me/boards?key=${API_KEY}&token=${token}&fields=id,name,url&filter=open`);
                 if (response.ok) {
@@ -45,8 +44,6 @@ export async function GET() {
                     return NextResponse.json({
                         boards: boards.map(b => ({ id: b.id, name: b.name, url: b.url, provider: 'trello' }))
                     });
-                } else {
-                    console.warn('Trello API returned non-ok status:', response.status);
                 }
             } catch (e) {
                 console.error('Trello API Fetch failed:', e.message);
@@ -54,24 +51,23 @@ export async function GET() {
         }
 
         // 3. Fallback: Return already monitored boards from DB
-        // This ensures demo data shows up 100% of the time
-        const { data: existing, error: dbError } = await supabase.from('monitored_resources')
-            .select('*')
-            .eq('integration_id', integration.id);
+        if (integration_id) {
+            const { data: existing } = await supabase.from('monitored_resources')
+                .select('*')
+                .eq('integration_id', integration_id)
+                .eq('type', 'folder');
 
-        if (dbError) {
-            console.error('Error fetching monitored boards from DB:', dbError.message);
-            return NextResponse.json({ error: dbError.message }, { status: 500 });
+            return NextResponse.json({
+                boards: (existing || []).map(b => ({
+                    id: b.external_id,
+                    name: b.name,
+                    url: '#',
+                    provider: 'trello'
+                }))
+            });
         }
 
-        return NextResponse.json({
-            boards: (existing || []).map(b => ({
-                id: b.external_id,
-                name: b.name,
-                url: '#',
-                provider: 'trello'
-            }))
-        });
+        return NextResponse.json({ boards: [] });
 
     } catch (error) {
         console.error('Critical failure in Trello boards route:', error);

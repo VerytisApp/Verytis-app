@@ -155,7 +155,7 @@ const LLMNodeV3 = ({ data, isConnectable }) => {
                     )}
                 </div>
                 <div className="text-center w-full">
-                    <div className="relative inline-block mb-1">
+                    <div className="relative inline-block mb-1" onClick={(e) => e.stopPropagation()}>
                         <select
                             value={selectedProvider || ''}
                             onChange={handleProviderChange}

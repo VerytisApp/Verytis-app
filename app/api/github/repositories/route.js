@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getValidGitHubToken } from '@/lib/github';
+import { getValidToken } from '@/lib/auth-util';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get('type') || 'team';
+
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -21,52 +24,65 @@ export async function GET(req) {
     const targetOrgId = profile.organization_id;
 
     try {
-        const { data: integration } = await supabase.from('integrations')
-            .select('id, settings')
-            .eq('organization_id', targetOrgId)
-            .eq('provider', 'github')
-            .single();
+        const { token: access_token, metadata, id: integration_id } = await getValidToken('github', type, {
+            userId: user.id,
+            organizationId: targetOrgId
+        });
 
-        if (!integration) {
+        const installation_id = metadata?.installation_id;
+
+        if (!access_token) {
+            console.warn(`[API GITHUB REPOS] No token found for type: ${type}`);
             return NextResponse.json({ repositories: [] });
         }
 
-        const access_token = await getValidGitHubToken(integration.id);
-        const { installation_id } = integration.settings;
-
-        console.log('[DEBUG repos] integration.id:', integration.id);
-        console.log('[DEBUG repos] installation_id:', installation_id);
-        console.log('[DEBUG repos] token prefix:', access_token?.substring(0, 10));
-
-        if (!access_token || !installation_id) {
-            const { data: existing } = await supabase.from('monitored_resources')
-                .select('*')
-                .eq('integration_id', integration.id)
-                .eq('type', 'repo');
-
-            return NextResponse.json({
-                repositories: (existing || []).map(r => ({
-                    id: r.external_id,
-                    name: r.name,
-                    private: true,
-                    url: '#',
-                    description: 'Resource from database',
-                    updated_at: r.last_active_at
-                }))
-            });
-        }
-
         try {
-            const res = await fetch(`https://api.github.com/user/installations/${installation_id}/repositories`, {
+            // Priority: Use installation if available (Team/Org)
+            let apiUrl = '';
+            if (installation_id) {
+                apiUrl = `https://api.github.com/user/installations/${installation_id}/repositories`;
+            } else {
+                // Fallback for Personal OAuth
+                apiUrl = `https://api.github.com/user/repos?per_page=100&sort=updated`;
+            }
+
+            console.log(`[API GITHUB REPOS] Fetching from: ${apiUrl}`);
+
+            let res = await fetch(apiUrl, {
                 headers: {
                     'Authorization': `Bearer ${access_token}`,
-                    'Accept': 'application/vnd.github.v3+json'
+                    'Accept': 'application/vnd.github.v3+json',
+                    'User-Agent': 'Verytis-AI-Ops'
                 }
             });
 
+            // 401 RETRY LOGIC
+            if (res.status === 401) {
+                console.warn(`[API GITHUB REPOS] 401 Detected. Forcing refresh and retrying...`);
+                
+                const { token: newToken } = await getValidToken('github', type, {
+                    userId: user.id,
+                    organizationId: targetOrgId,
+                    forceRefresh: true
+                });
+
+                if (newToken) {
+                    res = await fetch(apiUrl, {
+                        headers: {
+                            'Authorization': `Bearer ${newToken}`,
+                            'Accept': 'application/vnd.github.v3+json',
+                            'User-Agent': 'Verytis-AI-Ops'
+                        }
+                    });
+                }
+            }
+
             if (res.ok) {
                 const data = await res.json();
-                const repositories = (data.repositories || []).map(repo => ({
+                console.log(`[API GITHUB REPOS] Success! Found ${data.total_count || data.length} items`);
+                
+                const rawRepos = data.repositories || (Array.isArray(data) ? data : []);
+                const repositories = rawRepos.map(repo => ({
                     id: repo.id,
                     name: repo.full_name,
                     private: repo.private,
@@ -75,26 +91,36 @@ export async function GET(req) {
                     updated_at: repo.updated_at
                 }));
                 return NextResponse.json({ repositories });
+            } else {
+                const errText = await res.text();
+                console.error(`[API GITHUB REPOS] API Error ${res.status}:`, errText);
             }
         } catch (e) {
-            console.error('GitHub API Failed:', e);
+            console.error('[API GITHUB REPOS] Fetch Exception:', e);
         }
 
-        const { data: existing } = await supabase.from('monitored_resources')
-            .select('*')
-            .eq('integration_id', integration.id)
-            .eq('type', 'repo');
+        // Fallback to database if API fails
+        if (integration_id) {
+            const { data: existing } = await supabase.from('monitored_resources')
+                .select('*')
+                .eq('integration_id', integration_id)
+                .eq('type', 'repo');
 
-        return NextResponse.json({
-            repositories: (existing || []).map(r => ({
-                id: r.external_id,
-                name: r.name,
-                private: true,
-                url: '#',
-                description: 'Cached resource',
-                updated_at: r.last_active_at
-            }))
-        });
+            if (existing && existing.length > 0) {
+                return NextResponse.json({
+                    repositories: existing.map(r => ({
+                        id: r.external_id,
+                        name: r.name,
+                        private: true,
+                        url: '#',
+                        description: 'Cached resource',
+                        updated_at: r.last_active_at
+                    }))
+                });
+            }
+        }
+
+        return NextResponse.json({ repositories: [] });
 
     } catch (error) {
         console.error('Error fetching GitHub repos:', error);

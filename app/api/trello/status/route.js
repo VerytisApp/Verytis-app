@@ -37,31 +37,37 @@ export async function GET(req) {
         try {
             const API_KEY = process.env.TRELLO_API_KEY;
             const token = data.access_token;
+            const isTeam = data.connection_type === 'team';
 
-            // First, try to get organizations
-            const orgRes = await fetch(`https://api.trello.com/1/members/me/organizations?key=${API_KEY}&token=${token}&fields=displayName,name`, {
-                headers: { 'Accept': 'application/json' }
-            });
+            if (isTeam) {
+                // For Team: Try to get organizations first
+                const orgRes = await fetch(`https://api.trello.com/1/members/me/organizations?key=${API_KEY}&token=${token}&fields=displayName,name`, {
+                    headers: { 'Accept': 'application/json' }
+                });
 
-            if (orgRes.ok) {
-                const orgs = await orgRes.json();
-                if (orgs && orgs.length > 0) {
-                    // Use first organization's display name
-                    workspaceName = orgs[0].displayName || orgs[0].name;
-                } else {
-                    // Fallback: if no org, get member's full name
-                    const memberRes = await fetch(`https://api.trello.com/1/members/me?key=${API_KEY}&token=${token}&fields=fullName,username`, {
-                        headers: { 'Accept': 'application/json' }
-                    });
-                    if (memberRes.ok) {
-                        const member = await memberRes.json();
-                        workspaceName = member.fullName || member.username;
+                if (orgRes.ok) {
+                    const orgs = await orgRes.json();
+                    if (orgs && orgs.length > 0) {
+                        workspaceName = orgs[0].displayName || orgs[0].name;
                     }
+                }
+                
+                // For Team, if still no name, use placeholder instead of member name
+                if (!workspaceName) {
+                    workspaceName = 'Trello Workspace';
+                }
+            } else {
+                // For Personal: get member name
+                const memberRes = await fetch(`https://api.trello.com/1/members/me?key=${API_KEY}&token=${token}&fields=fullName,username`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (memberRes.ok) {
+                    const member = await memberRes.json();
+                    workspaceName = member.fullName || member.username;
                 }
             }
         } catch (e) {
-            console.error('Failed to fetch Trello workspace name:', e);
-            // Fall back to stored username
+            console.error('Failed to fetch Trello status name:', e);
         }
     }
 

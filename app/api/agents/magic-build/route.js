@@ -79,8 +79,21 @@ Conçois un nouvel agent de zéro.`}
 2. STRUCTURE EN ÉTOILE (HUB-AND-SPOKE) OBLIGATOIRE : Le 'Cerveau Central' (p1) est le Pivot.
    - INTERDICTION FORMELLE : Aucun \`toolNode\` ne doit être connecté à un autre \`toolNode\`.
    - CONNEXIONS : Toutes les arêtes (\`edges\`) des outils doivent avoir \`source: "p1"\`. C'est le LLM qui orchestre et appelle chaque outil individuellement.
-3. LOGIQUE GLOBALE : Trigger -> Shield -> LLM Hub -> [Tools en etoile].
-4. TRIGGERS NATIFS VERYTIS : Le declencheur est TOUJOURS natif a Verytis. Jamais de Zapier/Make. Le trigger_type DOIT etre 'webhook', 'schedule' ou 'app_event'. Si le type est 'app_event', tu DOIS inclure un champ 'event_source' dans les data du noeud (ex: 'twitch.stream_offline', 'salesforce.opportunity_created') selon l'agent. Si webhook, nomme le label "Verytis Webhook Inbound". Si restriction IP, ajoute requires_ip_whitelist: true dans security.
+   - AUCUN LABEL SUR LES ARÊTES : Ne mets JAMAIS de texte ou de "label" sur les arêtes (edges). Les traits doivent être propres et sans texte (exit les "Governance Check", etc).
+3. LOGIQUE GLOBALE ET HIÉRARCHIE DE SÉCURITÉ (INVIOLABLE) :
+   - L'AXE DE CONTRÔLE : t1 (Trigger) -> s1 (Shield) -> p1 (LLM Hub). C'est la ligne rouge.
+   - L'ENRICHISSEMENT : k1 (Savoir) se connecte uniquement à p1 (LLM Hub).
+   - INTERDICTIONS CRITIQUES : 
+     * JAMAIS de lien direct Trigger (t1) -> LLM (p1).
+     * JAMAIS de lien Trigger (t1) -> Savoir (k1). Le savoir n'est pas un point de passage, c'est une source de données pour le LLM.
+     * Le Shield (s1) est l'unique point d'entrée sécurisé pour le cerveau (p1).
+4. TRIGGERS NATIFS VERYTIS (SCHEMA OBLIGATOIRE) : Le déclencheur DOIT être natif à Verytis. Jamais de Zapier/Make. Le trigger_type DOIT être l'une de ces valeurs : 'app', 'webhook', ou 'scheduled'.
+   - Si trigger_type est 'app' : inclure 'provider' (ex: 'gmail', 'slack', 'github', 'stripe', 'trello', 'hubspot', 'salesforce', 'notion', 'google', 'linear') ET 'event_name' (ex: 'email_received', 'push', 'payment_succeeded') dans les data du nœud.
+   - Si trigger_type est 'webhook' : nomme le label "Verytis Webhook Inbound". Si restriction IP, ajoute requires_ip_whitelist: true dans security.
+   - Si trigger_type est 'scheduled' : inclure 'cron_expression' (ex: '0 8 * * *') dans les data.
+   - INTERDIT : Ne jamais mettre de 'api_key', 'token', 'credentials' dans le nœud Trigger. L'authentification passe par OAuth (connection_id).
+   - Ajouter TOUJOURS 'governance_linked: true' et 'schema_linked: true' dans les data du triggerNode pour signifier que le flux passe par Verytis Gouvernance et Schéma.
+   - SCHEMA JSON pour le trigger : { "id": "t1", "type": "triggerNode", "data": { "trigger_type": "app|webhook|scheduled", "provider": "gmail|slack|null", "event_name": "email_received|null", "governance_linked": true, "schema_linked": true } }
 5. FICHE DE POSTE MATRICIELLE : Tu DOIS rédiger un 'system_prompt' professionnel et exhaustif (min 20 lignes). C'est le cerveau de l'agent.
 6. CONNECTIVITÉ & DATA BRIDGES : 
    - Toutes les intégrations (Slack, HubSpot, LinkedIn, GitHub) se connectent via un TOKEN ou une CLÉ API (MVP No-OAuth).
@@ -93,31 +106,40 @@ Conçois un nouvel agent de zéro.`}
 ${mandatoryGovernance}
 10. PROMPT : Utilise le Chain-of-Thought pour détailler comment l'agent doit utiliser chaque outil.
 
-### ARCHITECTURE VERTICALE
-- Alignement vertical (X=250).
-- Trigger (Y=0) -> Shield (Y=250) -> LLM Node (Y=500) -> Tools (Y=750+).
-
-### SCHEMA JSON ATTENDU
+### GÉOMÉTRIE DE PLACEMENT STRICTE (ANTI-CHEVAUCHEMENT)
+1. LA COLONNE VERTÉBRALE (X=250) : Aligne impérativement Trigger (Y=0), Shield (Y=300) et LLM (p1) (Y=600).
+2. LE SATELLITE SAVOIR (k1) : Place-le IMPÉRATIVEMENT à DROITE du LLM (p1). Coordonnées recommandées : X=700, Y=600. Ne le place JAMAIS sur le chemin vertical ou entre le Shield et le LLM.
+3. L'ÉVENTAIL DES OUTILS (Y=900+) : Répartis les outils horizontalement pour qu'ils respirent (min 400px d'écart).
+   - 1 outil : X=250
+   - 2 outils : X=-150 et X=650
+   - 3 outils : X=-450, X=250, X=950
+### SCHEMA JSON ATTENDU (EXEMPLE COMPLET)
 {
   "name": "Nom de l'agent",
   "description": "Valeur ajoutée métier",
   "system_prompt": "DESCRIPTION DE POSTE DÉTAILLÉE (min 20 lignes)",
   "architecture": {
     "nodes": [
-      { "id": "t1", "type": "triggerNode", "position": { "x": 250, "y": 0 }, "data": { "label": "Trigger", "description": "EXPLICATION CONCRÈTE ICI" } },
-      { "id": "s1", "type": "guardrailNode", "position": { "x": 250, "y": 250 }, "data": { "label": "Shield", "description": "EXPLICATION CONCRÈTE ICI" } },
-      { "id": "p1", "type": "placeholderNode", "position": { "x": 250, "y": 500 }, "data": { "label": "Agent", "description": "EXPLICATION CONCRÈTE ICI" } },
-      { "id": "tool1", "type": "toolNode", "position": { "x": 50, "y": 750 }, "data": { "label": "Outil", "description": "EXPLICATION CONCRÈTE ICI", "logoDomain": "..." } }
+      { "id": "t1", "type": "triggerNode", "position": { "x": 250, "y": 0 }, "data": { "label": "Trigger", "description": "Entrée" } },
+      { "id": "s1", "type": "guardrailNode", "position": { "x": 250, "y": 300 }, "data": { "label": "Shield", "description": "Contrôle" } },
+      { "id": "p1", "type": "placeholderNode", "position": { "x": 250, "y": 600 }, "data": { "label": "Agent", "description": "Cerveau" } },
+      { "id": "k1", "type": "knowledgeNode", "position": { "x": 700, "y": 600 }, "data": { "label": "Savoir", "description": "RAG" } },
+      { "id": "tool1", "type": "toolNode", "position": { "x": -150, "y": 900 }, "data": { "label": "App", "description": "Action", "logoDomain": "..." } }
     ],
-    "edges": [ ... ]
+    "edges": [
+      { "id": "e-t1-s1", "source": "t1", "target": "s1", "animated": true },
+      { "id": "e-s1-p1", "source": "s1", "target": "p1", "animated": true },
+      { "id": "e-k1-p1", "source": "k1", "target": "p1", "animated": true },
+      { "id": "e-p1-tool1", "source": "p1", "target": "tool1" }
+    ]
   }
 }
 
-### RÈGLES D'AUTO-MAPPING
+### RÈGLES D'AUTO-MAPPING ET GRAPHES
+- **LIEN DE SÉCURITÉ OBLIGATOIRE** : Tu DOIS impérativement créer l'arête reliant le Trigger au Shield (\`t1 -> s1\`). Aucun flux ne doit contourner la gouvernance.
 - **TRIGGER MANDATORY**: Le flux DOIT commencer par un \`triggerNode\` à (Y=0).
 - **AGENT CENTRAL**: Le bloc central (\`placeholderNode\` ou \`llmNode\`) représente l'intelligence.
 - **DESCRIPTIONS OBLIGATOIRES**: CHAQUE nœud DOIT avoir un champ \`description\` renseigné.
-- **STRICT TOOL LIMIT**: N'ajoute QUE les outils explicitement mentionnés ou strictement nécessaires.
 - **Universal Icons**: Fournis toujours \`logoDomain\` (ex: \`slack.com\`) pour chaque outil.
 
 ### MISSION DESCRIPTIVE CRITIQUE (OBLIGATOIRE)
@@ -159,6 +181,14 @@ Pour CHAQUE nœud sans exception (Trigger, Shield, LLM, Tool), tu DOIS fournir u
     console.log("[MAGIC_BUILD_RAW_RESPONSE]", rawContent);
 
     const generatedConfig = JSON.parse(rawContent);
+
+    // ─── POST-PROCESS: STRIP EDGE LABELS ───
+    if (generatedConfig.architecture?.edges) {
+      generatedConfig.architecture.edges = generatedConfig.architecture.edges.map(edge => {
+        const { label, ...rest } = edge;
+        return rest;
+      });
+    }
 
     return NextResponse.json(generatedConfig);
 

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import {
     ChevronRight,
@@ -32,13 +32,28 @@ import useSWR from 'swr';
 
 const fetcher = (url) => fetch(url).then(r => r.json());
 
-export default function AgentGovernancePage({ params }) {
+export default function AgentGovernancePage(props) {
+    return (
+        <Suspense fallback={<div className="p-12 text-center text-slate-500 font-medium">Initialisation du Supervisor...</div>}>
+            <AgentGovernanceContent {...props} />
+        </Suspense>
+    );
+}
+
+function AgentGovernanceContent({ params }) {
     const router = useRouter();
     const { showToast } = useToast();
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [reportMessage, setReportMessage] = useState('');
     const [isReporting, setIsReporting] = useState(false);
-    const [activeTab, setActiveTab] = useState('telemetry');
+    const searchParams = useSearchParams();
+    const initialTab = searchParams.get('tab') || 'telemetry';
+    const [activeTab, setActiveTab] = useState(initialTab);
+
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab) setActiveTab(tab);
+    }, [searchParams]);
     const [chatInput, setChatInput] = useState('');
     const [messages, setMessages] = useState([]);
     const [isChatting, setIsChatting] = useState(false);

@@ -81,7 +81,7 @@ export async function POST(req) {
 
         // 3. Parse Body
         const body = await req.json();
-        const { id, name, description, system_prompt, policies, visual_config, is_draft } = body;
+        const { id, name, description, system_prompt, policies, visual_config, is_draft, knowledge_configuration } = body;
 
         if (!name && !id) {
             return NextResponse.json({ error: 'Name or ID is required' }, { status: 400 });
@@ -150,8 +150,9 @@ export async function POST(req) {
             system_prompt: system_prompt || '',
             policies: enforcedPolicies,
             visual_config: sanitizeVisualConfig(visual_config),
+            knowledge_configuration: knowledge_configuration || {},
             is_draft: is_draft || false,
-            status: 'active'
+            status: is_draft ? 'draft' : 'active'
         };
 
         if (hashedKey) {
@@ -180,7 +181,21 @@ export async function POST(req) {
         const { data: agent, error: dbError } = result;
 
         if (dbError) {
-            console.error('Failed to save agent:', dbError);
+            console.error('[DATABASE ERROR] Failed to save agent:', dbError);
+            // Proactive fallback: retry without knowledge_configuration if it failed due to missing column
+            if (dbError.message.includes('knowledge_configuration') || dbError.code === '42703') {
+                console.warn('[FALLBACK] retrying without knowledge_configuration column...');
+                delete agentData.knowledge_configuration;
+                // re-run upsert
+                if (id) {
+                    result = await supabase.from('ai_agents').update(agentData).eq('id', id).eq('organization_id', profile.organization_id).select('id, name, created_at').single();
+                } else {
+                     result = await supabase.from('ai_agents').insert(agentData).select('id, name, created_at').single();
+                }
+                const { data: retryAgent, error: retryError } = result;
+                if (retryError) return NextResponse.json({ error: retryError.message }, { status: 500 });
+                return NextResponse.json({ success: true, agent: retryAgent });
+            }
             return NextResponse.json({ error: dbError.message }, { status: 500 });
         }
 

@@ -68,8 +68,28 @@ export async function GET(req) {
                 accessToken = targetUser.access_token || accessToken;
                 slackUserId = targetUser.id;
                 
-                // Prioritize EMAIL for display name in personal connections
-                const email = targetUser.email || (data.user && data.user.email);
+                // Try to get email from the response first
+                let email = targetUser.email || (data.user && data.user.email);
+                
+                // If missing, try the OpenID UserInfo endpoint
+                if (!email && accessToken) {
+                    console.log('[API SLACK] Email missing in callback, fetching via userInfo endpoint...');
+                    try {
+                        const infoRes = await fetch('https://slack.com/api/openid.connect.userInfo', {
+                            headers: { 'Authorization': `Bearer ${accessToken}` }
+                        });
+                        if (infoRes.ok) {
+                            const info = await infoRes.json();
+                            if (info.ok !== false) {
+                                email = info.email;
+                                console.log('[API SLACK] User info fetch success:', email);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('[API SLACK] Failed to fetch UserInfo:', e.message);
+                    }
+                }
+
                 if (email) {
                     accountName = email;
                     console.log('[API SLACK] Personal connection resolved to Email:', email);

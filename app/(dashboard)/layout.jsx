@@ -20,6 +20,18 @@ function DashboardContent({ children }) {
     useEffect(() => {
         const fetchUser = async () => {
             try {
+                // Bridge Logic: If we land here with OAuth params, it's a miss-redirect from GitHub App Setup
+                const searchParams = new URLSearchParams(window.location.search);
+                const hasState = searchParams.get('state');
+                const hasCode = searchParams.get('code');
+                const hasInstallId = searchParams.get('installation_id');
+
+                if (hasState && (hasCode || hasInstallId)) {
+                    console.log('[DASHBOARD] Stray GitHub/OAuth params detected, forwarding to API...');
+                    window.location.href = `/api/auth/github/callback${window.location.search}`;
+                    return;
+                }
+
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
                     const { data: profile } = await supabase

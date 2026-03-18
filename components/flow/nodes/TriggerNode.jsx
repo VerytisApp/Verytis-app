@@ -1,77 +1,102 @@
-import React, { memo, useState } from 'react';
+'use client';
+import React, { memo, useState, useEffect } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Zap, Radio, Copy, Check, Clock, Globe, ChevronDown, ChevronUp, Shield, Lock, Webhook, Key, Save, Loader2, AlertCircle } from 'lucide-react';
+import { Zap, Radio, Copy, Check, Clock, Globe, ChevronDown, ChevronUp, Shield, Lock, Webhook, AlertCircle, CheckCircle2, RefreshCw, ExternalLink } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 
+// ─── Allowed trigger types (no API Key / Token – OAuth only) ───
 const TRIGGER_TYPES = [
     {
-        id: 'webhook', label: 'Webhook Inbound', icon: Webhook, color: 'emerald',
+        id: 'app',
+        label: 'App (OAuth)',
+        icon: Globe,
+        color: 'violet',
+        activeClass: 'bg-violet-100 text-violet-700 border border-violet-300 shadow-sm'
+    },
+    {
+        id: 'webhook',
+        label: 'Webhook',
+        icon: Webhook,
+        color: 'emerald',
         activeClass: 'bg-emerald-100 text-emerald-700 border border-emerald-300 shadow-sm'
     },
     {
-        id: 'schedule', label: 'Planifié (Cron)', icon: Clock, color: 'blue',
+        id: 'scheduled',
+        label: 'Planifié',
+        icon: Clock,
+        color: 'blue',
         activeClass: 'bg-blue-100 text-blue-700 border border-blue-300 shadow-sm'
-    },
-    {
-        id: 'app_event', label: 'App Event', icon: Globe, color: 'violet',
-        activeClass: 'bg-violet-100 text-violet-700 border border-violet-300 shadow-sm'
     },
 ];
 
+// Known OAuth providers and their display info
+const OAUTH_PROVIDERS = {
+    gmail:      { label: 'Gmail',        domain: 'gmail.com',      events: ['email_received', 'email_sent', 'label_applied'] },
+    slack:      { label: 'Slack',        domain: 'slack.com',      events: ['message_received', 'channel_post', 'reaction_added', 'mention'] },
+    github:     { label: 'GitHub',       domain: 'github.com',     events: ['push', 'pull_request', 'issue_opened', 'issue_closed', 'release'] },
+    stripe:     { label: 'Stripe',       domain: 'stripe.com',     events: ['payment_succeeded', 'payment_failed', 'subscription_created', 'invoice_paid'] },
+    trello:     { label: 'Trello',       domain: 'trello.com',     events: ['card_created', 'card_moved', 'card_updated', 'comment_added'] },
+    notion:     { label: 'Notion',       domain: 'notion.so',      events: ['page_created', 'page_updated', 'database_updated'] },
+    hubspot:    { label: 'HubSpot',      domain: 'hubspot.com',    events: ['contact_created', 'deal_updated', 'ticket_opened'] },
+    salesforce: { label: 'Salesforce',   domain: 'salesforce.com', events: ['opportunity_created', 'lead_converted', 'account_updated'] },
+    google:     { label: 'Google',       domain: 'google.com',     events: ['calendar_event', 'drive_file_created', 'forms_response'] },
+    linear:     { label: 'Linear',       domain: 'linear.app',     events: ['issue_created', 'issue_updated', 'project_updated'] },
+};
 
 const TriggerNode = ({ data, isConnectable }) => {
     const { showToast } = useToast();
-    const label = data.label || 'Verytis Webhook Inbound';
-    const description = data.description || '';
+    const label = data.label || 'Verytis Trigger';
     const agentId = data.agentId || 'bcb58aa1-31d7-4aa2-a735-c1886662a723';
     const webhookUrl = `https://api.verytis-ops.com/api/run/${agentId}`;
 
     const [copied, setCopied] = useState(false);
     const [showSecurity, setShowSecurity] = useState(false);
+    const [oauthConnections, setOauthConnections] = useState([]);
+    const [isLoadingConnections, setIsLoadingConnections] = useState(false);
 
-    // Local state for trigger type (instant UI switch, synced via onChange)
+    // Sync from node data
     const [localTriggerType, setLocalTriggerType] = useState(data.trigger_type || 'webhook');
-    const triggerType = localTriggerType;
-    const security = data.security || { requires_ip_whitelist: false, header_secret: null };
-
+    const [selectedProvider, setSelectedProvider] = useState(data.provider || '');
+    const [selectedEvent, setSelectedEvent] = useState(data.event_name || '');
+    const [selectedConnectionId, setSelectedConnectionId] = useState(data.connection_id || '');
     const [cronExpression, setCronExpression] = useState(data.cron_expression || '0 8 * * *');
-    const [eventSource, setEventSource] = useState(data.event_source || '');
+
+    // Security for webhook mode
+    const security = data.security || { requires_ip_whitelist: false, header_secret: null };
     const [ipWhitelist, setIpWhitelist] = useState(security.ip_whitelist || '');
     const [headerSecret, setHeaderSecret] = useState(security.header_secret || '');
 
-    // App Event credentials state
-    const [appApiKey, setAppApiKey] = useState(data.credentials?.api_key || '');
-    const [isSynced, setIsSynced] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [showKeyInput, setShowKeyInput] = useState(false);
-    const isAppConnected = isSynced || !!data.credentials?.api_key;
-
-    // Trigger type config
+    const triggerType = localTriggerType;
     const currentType = TRIGGER_TYPES.find(t => t.id === triggerType) || TRIGGER_TYPES[0];
     const TypeIcon = currentType.icon;
 
-    // App event branding - resolve domains dynamically from the prefix
-    const getAppEventDomain = () => {
-        const src = eventSource || '';
-        const prefix = src.split('.')[0];
-        if (!prefix || prefix === 'custom') return null;
+    // Color theming
+    const colorMap = {
+        violet: { border: 'border-violet-400 hover:border-violet-500', bg: 'bg-violet-50/30', icon: 'bg-violet-100 text-violet-600', label: 'text-violet-600/50', handle: 'bg-violet-600', dot: 'text-violet-500' },
+        emerald: { border: 'border-emerald-400 hover:border-emerald-500', bg: 'bg-emerald-50/30', icon: 'bg-emerald-100 text-emerald-600', label: 'text-emerald-600/50', handle: 'bg-emerald-600', dot: 'text-emerald-500' },
+        blue: { border: 'border-blue-400 hover:border-blue-500', bg: 'bg-blue-50/30', icon: 'bg-blue-100 text-blue-600', label: 'text-blue-600/50', handle: 'bg-blue-600', dot: 'text-blue-500' },
+    };
+    const theme = colorMap[currentType.color] || colorMap.emerald;
 
-        // Map known anomalies, otherwise default to prefix.com
-        const knownDomains = {
-            'twitch': 'twitch.tv',
-            'gmail': 'gmail.com',
-            'email': 'gmail.com',
-            'notion': 'notion.so'
+    // Fetch OAuth connections from the DB when in 'app' mode
+    useEffect(() => {
+        if (triggerType !== 'app') return;
+        const fetchConnections = async () => {
+            setIsLoadingConnections(true);
+            try {
+                const res = await fetch('/api/settings');
+                const json = await res.json();
+                // user_connections from settings or providers list
+                const connections = json.user_connections || json.settings?.user_connections || [];
+                setOauthConnections(connections);
+            } catch (err) {
+                console.error('[TriggerNode] Failed to fetch OAuth connections', err);
+            } finally {
+                setIsLoadingConnections(false);
+            }
         };
-
-        return knownDomains[prefix] || `${prefix}.com`;
-    };
-
-    const handleCopy = () => {
-        navigator.clipboard.writeText(webhookUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
+        fetchConnections();
+    }, [triggerType]);
 
     const handleTriggerTypeChange = (newType) => {
         setLocalTriggerType(newType);
@@ -82,101 +107,92 @@ const TriggerNode = ({ data, isConnectable }) => {
         if (data.onChange) data.onChange(field, value);
     };
 
-    // Sync app event API key to vault (same pattern as ToolNode)
-    const handleSyncAppKey = async () => {
-        if (!appApiKey.trim()) return;
-        setIsSaving(true);
-        try {
-            const prefix = (eventSource || '').split('.')[0] || 'app_event';
-            const res = await fetch('/api/settings/keys', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ provider: prefix, apiKey: appApiKey, scope: 'workspace' })
-            });
-            if (res.ok) {
-                setIsSynced(true);
-                setShowKeyInput(false);
-                handleFieldChange('credentials', { api_key: appApiKey });
-                showToast({
-                    title: 'Vault Mis à Jour',
-                    message: `Clé API pour ${prefix} sauvegardée dans le Vault.`,
-                    type: 'success'
-                });
-            } else {
-                showToast({ title: 'Erreur', message: 'Impossible de sauvegarder dans le Vault.', type: 'error' });
-            }
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsSaving(false);
-        }
+    const handleProviderChange = (provider) => {
+        setSelectedProvider(provider);
+        setSelectedEvent('');
+        setSelectedConnectionId('');
+        handleFieldChange('provider', provider);
+        handleFieldChange('event_name', '');
+        handleFieldChange('connection_id', '');
     };
 
-    // Color theming per trigger type
-    const colorMap = {
-        emerald: {
-            border: 'border-emerald-400 hover:border-emerald-500',
-            bg: 'bg-emerald-50/30',
-            icon: 'bg-emerald-100 text-emerald-600',
-            label: 'text-emerald-600/50',
-            handle: 'bg-emerald-600',
-            dot: 'text-emerald-500',
-        },
-        blue: {
-            border: 'border-blue-400 hover:border-blue-500',
-            bg: 'bg-blue-50/30',
-            icon: 'bg-blue-100 text-blue-600',
-            label: 'text-blue-600/50',
-            handle: 'bg-blue-600',
-            dot: 'text-blue-500',
-        },
-        violet: {
-            border: 'border-violet-400 hover:border-violet-500',
-            bg: 'bg-violet-50/30',
-            icon: 'bg-violet-100 text-violet-600',
-            label: 'text-violet-600/50',
-            handle: 'bg-violet-600',
-            dot: 'text-violet-500',
-        },
+    const handleEventChange = (event) => {
+        setSelectedEvent(event);
+        handleFieldChange('event_name', event);
     };
 
-    const theme = colorMap[currentType.color] || colorMap.emerald;
-    const appDomain = triggerType === 'app_event' ? getAppEventDomain() : null;
+    const handleConnectionChange = (connId) => {
+        setSelectedConnectionId(connId);
+        handleFieldChange('connection_id', connId);
+        // Mark as governance + schema linked (mandatory for all flows)
+        handleFieldChange('governance_linked', true);
+        handleFieldChange('schema_linked', true);
+    };
 
-    // Dynamic border for app_event mode: red if no key, green if connected
+    const handleCopy = () => {
+        navigator.clipboard.writeText(webhookUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    // Resolve favicon
+    const providerInfo = selectedProvider ? OAUTH_PROVIDERS[selectedProvider.toLowerCase()] : null;
+    const faviconDomain = providerInfo?.domain || null;
+    const availableEvents = providerInfo?.events || [];
+
+    // Find connections filtered by selected provider
+    const connectedProviderConnections = oauthConnections.filter(conn => {
+        const p = (conn.provider || '').toLowerCase();
+        return !selectedProvider || p === selectedProvider.toLowerCase();
+    });
+
+    // Status of the app trigger
+    const isAppFullyConfigured = triggerType === 'app'
+        ? !!selectedProvider && !!selectedEvent && !!selectedConnectionId
+        : true;
+
     const getBorderClass = () => {
-        if (triggerType === 'app_event') {
-            return isAppConnected
+        if (triggerType === 'app') {
+            return isAppFullyConfigured
                 ? 'border-emerald-500 hover:border-emerald-600'
-                : 'border-red-500 hover:border-red-600';
+                : 'border-amber-400 hover:border-amber-500';
         }
         return theme.border;
     };
 
+    // Display logo or icon
+    const renderIcon = () => {
+        if (triggerType === 'app' && faviconDomain) {
+            return (
+                <div className="w-16 h-16 bg-white shadow-md border border-slate-100 rounded-2xl flex items-center justify-center overflow-hidden">
+                    <img
+                        src={`https://www.google.com/s2/favicons?domain=${faviconDomain}&sz=128`}
+                        alt={selectedProvider}
+                        className="w-10 h-10 object-contain"
+                    />
+                </div>
+            );
+        }
+        return (
+            <div className={`p-3 rounded-2xl transition-all group-hover:scale-110 duration-300 flex items-center justify-center w-16 h-16 ${theme.icon}`}>
+                <TypeIcon className="w-8 h-8" />
+            </div>
+        );
+    };
+
     return (
-        <div className={`bg-white border-2 rounded-2xl shadow-sm hover:shadow-xl transition-all group min-w-[260px] ${getBorderClass()}`}>
+        <div className={`bg-white border-2 rounded-2xl shadow-sm hover:shadow-xl transition-all group min-w-[280px] max-w-[320px] ${getBorderClass()}`}>
             {/* Header */}
             <div className={`p-4 flex flex-col items-center gap-3 border-b border-slate-100 rounded-t-2xl ${theme.bg}`}>
-                <div className={`p-3 rounded-2xl transition-all group-hover:scale-110 duration-300 flex items-center justify-center w-16 h-16 ${appDomain
-                    ? 'bg-white shadow-md border border-slate-100 overflow-hidden'
-                    : theme.icon
-                    }`}>
-                    {appDomain ? (
-                        <img
-                            src={`https://www.google.com/s2/favicons?domain=${appDomain}&sz=128`}
-                            alt={label}
-                            className="w-10 h-10 object-contain"
-                        />
-                    ) : (
-                        <TypeIcon className="w-8 h-8" />
-                    )}
-                </div>
+                {renderIcon()}
                 <div className="text-center px-2">
                     <div className={`text-[10px] font-black uppercase tracking-widest mb-0.5 ${theme.label}`}>
                         Déclencheur Verytis
                     </div>
                     <div className="text-xs font-bold text-slate-900 line-clamp-1">
-                        {label}
+                        {triggerType === 'app' && selectedProvider
+                            ? `${OAUTH_PROVIDERS[selectedProvider.toLowerCase()]?.label || selectedProvider} Trigger`
+                            : label}
                     </div>
                 </div>
             </div>
@@ -198,7 +214,7 @@ const TriggerNode = ({ data, isConnectable }) => {
                                     }`}
                             >
                                 <TIcon className="w-3.5 h-3.5" />
-                                {t.id === 'webhook' ? 'Webhook' : t.id === 'schedule' ? 'Planifié' : 'App'}
+                                {t.id === 'webhook' ? 'Webhook' : t.id === 'scheduled' ? 'Planifié' : 'App'}
                             </button>
                         );
                     })}
@@ -207,6 +223,130 @@ const TriggerNode = ({ data, isConnectable }) => {
 
             {/* Dynamic Content Zone */}
             <div className="px-4 py-3 space-y-3">
+
+                {/* ─── App OAuth Mode ─── */}
+                {triggerType === 'app' && (
+                    <div className="space-y-3">
+                        {/* Provider Selector */}
+                        <div>
+                            <label className="text-[9px] font-black uppercase text-slate-400 tracking-tighter block mb-1 px-0.5">
+                                Application (Provider)
+                            </label>
+                            <select
+                                value={selectedProvider}
+                                onChange={e => handleProviderChange(e.target.value)}
+                                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 nodrag"
+                            >
+                                <option value="">-- Choisir une app --</option>
+                                {Object.entries(OAUTH_PROVIDERS).map(([key, val]) => (
+                                    <option key={key} value={key}>{val.label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Event Selector */}
+                        {selectedProvider && (
+                            <div>
+                                <label className="text-[9px] font-black uppercase text-slate-400 tracking-tighter block mb-1 px-0.5">
+                                    Événement déclencheur
+                                </label>
+                                <select
+                                    value={selectedEvent}
+                                    onChange={e => handleEventChange(e.target.value)}
+                                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 nodrag"
+                                >
+                                    <option value="">-- Choisir un événement --</option>
+                                    {availableEvents.map(evt => (
+                                        <option key={evt} value={evt}>{evt.replace(/_/g, ' ')}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {/* OAuth Connection Selector */}
+                        {selectedProvider && (
+                            <div>
+                                <div className="flex items-center justify-between mb-1 px-0.5">
+                                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">
+                                        Connexion OAuth
+                                    </label>
+                                    <a
+                                        href="/settings?tab=integrations"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[8px] font-bold text-violet-600 hover:text-violet-800 flex items-center gap-0.5 transition-colors"
+                                    >
+                                        Gérer <ExternalLink className="w-2.5 h-2.5" />
+                                    </a>
+                                </div>
+
+                                {isLoadingConnections ? (
+                                    <div className="flex items-center gap-2 text-slate-400 text-[10px] py-2">
+                                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                        Chargement des connexions...
+                                    </div>
+                                ) : connectedProviderConnections.length === 0 ? (
+                                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
+                                        <div className="flex items-center gap-1.5">
+                                            <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                            <span className="text-[10px] font-bold text-amber-700">
+                                                Aucune connexion {OAUTH_PROVIDERS[selectedProvider]?.label} trouvée
+                                            </span>
+                                        </div>
+                                        <p className="text-[9px] text-amber-600 leading-tight">
+                                            Connectez votre compte dans <strong>Paramètres → Intégrations</strong> pour utiliser ce trigger.
+                                        </p>
+                                        <a
+                                            href="/settings?tab=integrations"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-1 text-[9px] font-black text-violet-600 hover:text-violet-800 transition-colors"
+                                        >
+                                            <ExternalLink className="w-3 h-3" /> Connecter {OAUTH_PROVIDERS[selectedProvider]?.label}
+                                        </a>
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={selectedConnectionId}
+                                        onChange={e => handleConnectionChange(e.target.value)}
+                                        className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 nodrag"
+                                    >
+                                        <option value="">-- Choisir une connexion --</option>
+                                        {connectedProviderConnections.map(conn => (
+                                            <option key={conn.id} value={conn.id}>
+                                                {conn.account_label || conn.metadata?.email || conn.provider}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Status indicator */}
+                        <div className="flex items-center gap-2 pt-1">
+                            {isAppFullyConfigured ? (
+                                <>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                    <span className="text-[10px] font-bold text-emerald-600">✅ Trigger configuré</span>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
+                                    <span className="text-[10px] font-bold text-amber-600">⚠️ Configuration incomplète</span>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Mandatory governance indicator */}
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 border border-indigo-100 rounded-xl">
+                            <Shield className="w-3 h-3 text-indigo-500 shrink-0" />
+                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-tight">
+                                Flux protégé par Verytis Governance
+                            </span>
+                        </div>
+                    </div>
+                )}
+
                 {/* ─── Webhook Mode ─── */}
                 {triggerType === 'webhook' && (
                     <>
@@ -276,8 +416,8 @@ const TriggerNode = ({ data, isConnectable }) => {
                     </>
                 )}
 
-                {/* ─── Schedule Mode ─── */}
-                {triggerType === 'schedule' && (
+                {/* ─── Scheduled Mode ─── */}
+                {triggerType === 'scheduled' && (
                     <div className="space-y-2">
                         <div className="flex items-center gap-2">
                             <Clock className={`w-3.5 h-3.5 ${theme.dot}`} />
@@ -294,79 +434,20 @@ const TriggerNode = ({ data, isConnectable }) => {
                             />
                             <p className="text-[8px] text-slate-400 mt-1 font-mono px-0.5">ex: "0 8 * * *" = tous les jours à 8h</p>
                         </div>
-                    </div>
-                )}
-
-                {/* ─── App Event Mode ─── */}
-                {triggerType === 'app_event' && (
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                            <Globe className={`w-3.5 h-3.5 ${theme.dot}`} />
-                            <span className="text-[10px] font-bold text-slate-500 tracking-tight">Événement applicatif</span>
+                        {/* Mandatory governance indicator for scheduled too */}
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 border border-indigo-100 rounded-xl">
+                            <Shield className="w-3 h-3 text-indigo-500 shrink-0" />
+                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-tight">
+                                Flux protégé par Verytis Governance
+                            </span>
                         </div>
-                        <div>
-                            <label className="text-[9px] font-black uppercase text-slate-400 tracking-tighter block mb-1 px-0.5">Source de l'événement</label>
-                            <input
-                                type="text"
-                                value={eventSource}
-                                onChange={e => { setEventSource(e.target.value); handleFieldChange('event_source', e.target.value); }}
-                                placeholder="ex: twitch.stream_offline"
-                                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400"
-                            />
-                        </div>
-
-                        {/* ─── Connection Status ─── */}
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className={`w-1.5 h-1.5 rounded-full ${isAppConnected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.4)]'}`}></div>
-                                <span className={`text-[10px] font-bold tracking-tight ${isAppConnected ? 'text-emerald-600' : 'text-red-500'}`}>
-                                    {isAppConnected ? '✅ Connecté' : '⚠️ Connexion requise'}
-                                </span>
-                            </div>
-                            {isAppConnected && (
-                                <button
-                                    onClick={() => setShowKeyInput(!showKeyInput)}
-                                    className="text-[9px] font-black uppercase text-violet-600 hover:text-violet-800 transition-colors"
-                                >
-                                    {showKeyInput ? 'Annuler' : 'Modifier'}
-                                </button>
-                            )}
-                        </div>
-
-                        {/* ─── API Key Input (same pattern as ToolNode) ─── */}
-                        {(!isAppConnected || showKeyInput) && (
-                            <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-2">
-                                <div className="flex items-center justify-between px-1">
-                                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">Clé API / Token de l'application</span>
-                                </div>
-                                <div className="relative group/input nodrag">
-                                    <Key className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
-                                    <input
-                                        type="password"
-                                        placeholder="Collez votre Token / Clé API..."
-                                        value={appApiKey}
-                                        onChange={e => setAppApiKey(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 rounded-xl py-1.5 pl-8 pr-8 text-[10px] font-mono outline-none focus:border-violet-500 transition-all shadow-inner placeholder:text-slate-300"
-                                    />
-                                    {appApiKey.trim() && (
-                                        <button
-                                            onClick={handleSyncAppKey}
-                                            disabled={isSaving}
-                                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-all active:scale-95 shadow-md"
-                                        >
-                                            {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
 
                 {/* Description */}
-                {description && (
+                {data.description && (
                     <div className="text-[9px] text-slate-400 font-medium leading-tight pt-1">
-                        {description}
+                        {data.description}
                     </div>
                 )}
             </div>

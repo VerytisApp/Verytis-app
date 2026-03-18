@@ -18,10 +18,10 @@ export async function GET() {
 
         if (!profile?.organization_id) return NextResponse.json({ error: 'Organization not found' }, { status: 400 });
 
-        // Fetch agents
+        // Fetch agents – updated_at est géré par Supabase (modifié uniquement lors des vraies sauvegardes PUT/PATCH)
         const { data: agents, error: agentsError } = await supabase
             .from('ai_agents')
-            .select('id, name, description, status, created_at, visual_config, is_draft')
+            .select('id, name, description, status, created_at, updated_at, visual_config, is_draft')
             .eq('organization_id', profile.organization_id)
             .order('created_at', { ascending: false });
 

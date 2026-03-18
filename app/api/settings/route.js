@@ -65,6 +65,29 @@ export async function GET(req) {
         }
 
         const connections = [...personalConnections, ...teamConnections];
+        
+        // 3c. Legacy integrations table (important for GitHub/Slack Team)
+        if (profile?.organization_id) {
+            const { data: iData } = await supabase
+                .from('integrations')
+                .select('provider, settings')
+                .eq('organization_id', profile.organization_id);
+            
+            if (iData) {
+                iData.forEach(item => {
+                    // Check if already in connections to avoid duplicates
+                    if (!connections.some(c => c.provider === item.provider && c.connection_type === 'team')) {
+                        connections.push({
+                            provider: item.provider,
+                            connection_type: 'team',
+                            metadata: item.settings,
+                            account_name: item.settings?.team_name || item.settings?.account_name || 'Team Integration'
+                        });
+                    }
+                });
+            }
+        }
+
         console.log('[API SETTINGS] Connections found:', connections.length);
 
         // 4. Fetch organization settings (for LLM providers)
@@ -139,12 +162,14 @@ export async function GET(req) {
 
         // 5a. LLM Providers (from organization_settings)
         const llmCatalog = (settings?.providers || []).map(p => ({
+            ...p,
             id: p.id,
             provider: p.id,
             connection_type: 'llm',
-            status: 'Connected',
-            account_name: 'Team Key'
-        }));
+            status: p.status || 'Connected',
+            account_name: 'Team Key',
+            tokenPreview: p.tokenPreview || '...'
+        })).map(({ encryptedToken, rawToken, ...rest }) => rest);
 
         // 5b. OAuth Connections (only from user_connections)
         const oauthCatalog = connections.map(c => ({
@@ -162,6 +187,7 @@ export async function GET(req) {
 
         return NextResponse.json({ 
             providers: finalProviders,
+            settings: settingsData,
             user: {
                 id: user.id,
                 email: user.email

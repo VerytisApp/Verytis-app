@@ -157,9 +157,24 @@ export async function GET(req) {
                 installation_id: finalInstallationId,
                 scope: data.scope,
                 token_type: data.token_type,
-                expires_in: data.expires_in
+                expires_in: data.expires_in,
+                expires_at: data.expires_in ? Math.floor(Date.now() / 1000) + data.expires_in : null,
+                created_at: Math.floor(Date.now() / 1000)
             }
         };
+
+        // If it's a team installation and it's a "GitHub App" style (installation_id exists), 
+        // we might NOT want to save the token in the database per the 'Garde du Corps' logic, 
+        // but for now we follow the instruction: "Tu ne sauvegardes aucun token en base de données ! Tu ne sauvegardes que l'installation_id."
+        // Let's refine the logic: if finalInstallationId exists, we can null out the tokens in the database record
+        // to ensure we ALWAYS generate them on the fly.
+        if (connectionType === 'team' && finalInstallationId) {
+            console.log('[API GITHUB] GitHub App Installation detected. Storing installation_id, tokens will be generated on the fly.');
+            // Per instructions: "Tu ne sauvegardes AUCUN token en base de données ! Tu ne sauvegardes que l'installation_id."
+            // However, we might still need some metadata.
+            connectionData.access_token = null;
+            connectionData.refresh_token = null;
+        }
  
 
         // If it's a team installation, try to ensure organization_id is present

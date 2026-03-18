@@ -19,21 +19,16 @@ import { useSWRConfig } from 'swr';
 import {
     Play,
     Save,
-    ChevronLeft,
     Sparkles,
     Loader2,
     Send,
-    Wand2,
     Eye,
     Code,
     Copy,
-    Plus,
     Terminal,
-    Bot,
-    Shield,
-    Zap
+    Shield
 } from 'lucide-react';
-import Link from 'next/link';
+
 import { useToast } from '@/components/ui/Toast';
 
 // Custom Nodes and Layouts
@@ -44,8 +39,9 @@ import PlaceholderNode from '@/components/flow/nodes/PlaceholderNode';
 import Sidebar from '@/components/flow/layout/Sidebar';
 import ConfigPanel from '@/components/flow/layout/ConfigPanel';
 import ToolNode from '@/components/flow/nodes/ToolNode';
-import IntegrationSidebar from '@/components/flow/layout/IntegrationSidebar';
-import { Modal, Button } from '@/components/ui';
+import KnowledgeNode from '@/components/flow/nodes/KnowledgeNode';
+
+import { Button } from '@/components/ui';
 import AgentPlaygroundSection from '@/components/pages/AgentPlaygroundSection';
 
 const nodeTypes = {
@@ -54,6 +50,7 @@ const nodeTypes = {
     guardrailNode: GuardrailNode,
     placeholderNode: PlaceholderNode,
     toolNode: ToolNode,
+    knowledgeNode: KnowledgeNode,
 };
 
 let id = 0;
@@ -80,8 +77,8 @@ export default function AgentBuilder() {
     const [showMagicBar, setShowMagicBar] = useState(false);
     const [isDeploying, setIsDeploying] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [deployedAgent, setDeployedAgent] = useState(null);
     const [connectedProviders, setConnectedProviders] = useState([]);
+    const [orgId, setOrgId] = useState(null);
     const [orgSettings, setOrgSettings] = useState(null);
 
     // Dynamic Code Generation
@@ -120,6 +117,7 @@ export default function AgentBuilder() {
                 if (res.ok && data.agent) {
                     setAgentId(data.agent.id);
                     setAgentName(data.agent.name);
+                    setOrgId(data.agent.organization_id);
                     if (data.agent.visual_config) {
                         setNodes(hydrateNodes(data.agent.visual_config.nodes || []));
                         setEdges(data.agent.visual_config.edges || []);
@@ -134,16 +132,15 @@ export default function AgentBuilder() {
             try {
                 const res = await fetch('/api/settings');
                 const data = await res.json();
-                if (res.ok && data.settings) {
-                    setOrgSettings(data.settings);
-                    if (data.settings.providers) {
-                        setConnectedProviders(data.settings.providers);
-                        // Propagate to nodes for real-time visual update
-                        setNodes(nds => nds.map(node => ({
-                            ...node,
-                            data: { ...node.data, connectedProviders: data.settings.providers }
-                        })));
-                    }
+                if (res.ok && data.providers) {
+                    setConnectedProviders(data.providers);
+                    if (data.settings) setOrgSettings(data.settings);
+                    if (data.user?.organization_id) setOrgId(data.user.organization_id);
+                    // Propagate to nodes for real-time visual update
+                    setNodes(nds => nds.map(node => ({
+                        ...node,
+                        data: { ...node.data, connectedProviders: data.providers }
+                    })));
                 }
             } catch (err) {
                 console.error("Failed to fetch settings", err);
@@ -174,6 +171,7 @@ export default function AgentBuilder() {
         try {
             const agentNode = nodes.find(n => n.type === 'llmNode' || n.type === 'placeholderNode');
             const guardrailNode = nodes.find(n => n.type === 'guardrailNode');
+            const knowledgeNode = nodes.find(n => n.type === 'knowledgeNode');
 
             const payload = {
                 id: agentId,
@@ -181,6 +179,7 @@ export default function AgentBuilder() {
                 description: agentNode?.data?.description || 'Agent créé via Visual Builder',
                 system_prompt: agentNode?.data?.system_prompt || '',
                 policies: guardrailNode?.data?.policies || {},
+                knowledge_configuration: knowledgeNode?.data?.knowledge_configuration || agentNode?.data?.knowledge_configuration || {},
                 visual_config: { nodes, edges },
                 is_draft: true
             };
@@ -238,9 +237,9 @@ export default function AgentBuilder() {
     }, [nodes, edges, agentName]);
 
     const calculateVerticalLayout = (nodes, edges = []) => {
-        const verticalSpacing = 450;
-        const horizontalSpacing = 700; // Aggressive spacing to prevent overlaps
-        const centerX = 600; // Move center to avoid left-side cramping
+        const verticalSpacing = 400; // Increased for clarity
+        const horizontalSpacing = 600;
+        const centerX = 400;
 
         // Group nodes by tier
         const triggers = nodes.filter(n => n.type === 'triggerNode');
@@ -467,7 +466,7 @@ export default function AgentBuilder() {
             data: { ...n.data, onChange: (key, val) => updateNodeData(n.id, { [key]: val }) }
         }));
 
-        const sanitizedEdges = newEdges.map(({ sourceHandle, targetHandle, ...rest }) => rest);
+        const sanitizedEdges = newEdges.map(({ sourceHandle, targetHandle, label, ...rest }) => rest);
         const finalNodes = newNodes.map(n => ({
             ...n,
             data: { ...n.data, connectedProviders } // Ensure all nodes have the latest list
@@ -532,14 +531,15 @@ export default function AgentBuilder() {
         try {
             const agentNode = nodes.find(n => n.type === 'llmNode' || n.type === 'placeholderNode');
             const guardrailNode = nodes.find(n => n.type === 'guardrailNode');
+            const knowledgeNode = nodes.find(n => n.type === 'knowledgeNode');
 
             // ─── MANDATORY GOVERNANCE VALIDATION ───
             if (orgSettings) {
                 const agentPolicies = guardrailNode?.data?.policies || {};
-                const missingKeywords = (orgSettings.banned_keywords || []).filter(k => 
+                const missingKeywords = (orgSettings.banned_keywords || []).filter(k =>
                     !(agentPolicies.forbidden_keywords || []).includes(k)
                 );
-                const missingActions = (orgSettings.blocked_actions || []).filter(a => 
+                const missingActions = (orgSettings.blocked_actions || []).filter(a =>
                     !(agentPolicies.blocked_actions || []).includes(a)
                 );
 
@@ -560,8 +560,10 @@ export default function AgentBuilder() {
                 description: agentNode?.data?.description || 'Agent créé via Visual Builder',
                 system_prompt: agentNode?.data?.system_prompt || '',
                 policies: guardrailNode?.data?.policies || {},
+                knowledge_configuration: knowledgeNode?.data?.knowledge_configuration || agentNode?.data?.knowledge_configuration || {},
                 visual_config: { nodes, edges },
-                is_draft: false
+                is_draft: false,  // ← Marque comme déployé
+                status: 'active'  // ← Met le statut à 'active' en BDD
             };
 
             const res = await fetch('/api/agents/create', {
@@ -573,15 +575,14 @@ export default function AgentBuilder() {
             const result = await res.json();
 
             if (res.ok) {
-                const dbAgentId = result.agent?.id || agentId;
-                const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:8080'}/api/run/${dbAgentId}`;
-                setDeployedAgent({ ...result, webhookUrl, dbAgentId });
                 mutate('/api/agents');
                 showToast({
-                    title: 'Agent Déployé !',
-                    message: `L'agent ${agentName} est maintenant disponible via son Webhook.`,
+                    title: '🚀 Agent Déployé !',
+                    message: `${agentName} est maintenant actif dans votre dashboard.`,
                     type: 'success'
                 });
+                // ─── ROUTING: Redirect to active agents dashboard ───
+                router.push('/agents');
             } else {
                 showToast({ title: 'Erreur', message: result.error, type: 'error' });
             }
@@ -712,19 +713,25 @@ export default function AgentBuilder() {
     return (
         <div className="h-screen w-full flex flex-col bg-slate-50 overflow-hidden">
 
-            {/* Top Navigation Bar */}
-            <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-20 shadow-sm relative">
-                <div className="flex items-center gap-4">
-                    <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-slate-900">{agentName}</span>
-                            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded leading-none uppercase">Draft</span>
+            {/* Top Navigation Bar - 3-column layout to prevent overlap */}
+            <header className="h-16 bg-white border-b border-slate-200 flex items-center px-6 shrink-0 z-20 shadow-sm relative">
+                
+                {/* LEFT: Agent Title – max 30% pour ne pas empiéter sur les onglets */}
+                <div className="flex items-center gap-4 min-w-0 max-w-[30%] flex-shrink">
+                    <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-bold text-slate-900 truncate min-w-0" title={agentName}>
+                                {agentName}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded leading-none uppercase shrink-0">
+                                Draft
+                            </span>
                         </div>
                     </div>
                 </div>
 
-                {/* Dual View Toggle */}
-                <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                {/* CENTER: View Toggle – parfaitement centré grâce au positionnement absolu */}
+                <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
                     <button
                         onClick={() => setViewMode('visual')}
                         className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'visual' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
@@ -748,7 +755,8 @@ export default function AgentBuilder() {
                     </button>
                 </div>
 
-                <div className="flex items-center gap-3">
+                {/* RIGHT: Actions – poussé à droite avec ml-auto */}
+                <div className="flex items-center gap-3 ml-auto">
                     <button
                         onClick={() => saveAgent(true)}
                         disabled={isSaving || nodes.length === 0}
@@ -805,7 +813,7 @@ export default function AgentBuilder() {
                                         </p>
 
                                         <form onSubmit={handleMagicBuild} className="relative group">
-                                            <div className="absolute -inset-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 rounded-3xl blur opacity-25 group-focus-within:opacity-40 transition duration-500"></div>
+                                            <div className="absolute -inset-1.5 bg-gradient-to-r from-blue-500 via-blue-400 to-cyan-500 rounded-3xl blur opacity-25 group-focus-within:opacity-40 transition duration-500"></div>
                                             <div className="relative flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-2xl p-2">
                                                 <textarea
                                                     placeholder="Décrivez l'agent idéal... (ex: Un recruteur Tech Lead IA qui analyse les PR GitHub et poste sur Slack)"
@@ -913,7 +921,7 @@ export default function AgentBuilder() {
                                 {showMagicBar && nodes.length > 0 && (
                                     <Panel position="top-center" className="w-[800px] mt-4 max-w-[90vw]">
                                         <form onSubmit={handleMagicBuild} className="relative group animate-in slide-in-from-top-4">
-                                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-3xl blur opacity-20"></div>
+                                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-blue-400 rounded-3xl blur opacity-20"></div>
                                             <div className="relative flex flex-col bg-white/95 backdrop-blur border border-blue-100 rounded-3xl shadow-2xl p-1.5 px-3">
                                                 <textarea
                                                     placeholder="Modifier cet agent par IA..."
@@ -942,6 +950,15 @@ export default function AgentBuilder() {
                                 )}
                             </ReactFlow>
                         </div>
+
+                        <ConfigPanel
+                            selectedNode={selectedNode}
+                            orgSettings={orgSettings}
+                            agentId={agentId}
+                            orgId={orgId}
+                            onUpdateNode={updateNodeData}
+                            onClose={() => setSelectedNode(null)}
+                        />
                     </ReactFlowProvider>
                 ) : viewMode === 'code' ? (
                     <div className="flex-1 bg-slate-900 overflow-hidden flex flex-col animate-in fade-in duration-300">
@@ -979,77 +996,7 @@ export default function AgentBuilder() {
                 )}
             </main>
 
-            {/* Deployment Success Modal */}
-            <Modal
-                isOpen={!!deployedAgent}
-                onClose={() => setDeployedAgent(null)}
-                title=""
-                maxWidth="max-w-lg"
-            >
-                <div className="space-y-5 text-center">
-                    {/* Hero */}
-                    <div className="flex flex-col items-center gap-3 pt-2">
-                        <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200">
-                            <Zap className="w-8 h-8 text-white" />
-                        </div>
-                        <h2 className="text-xl font-black text-slate-900 tracking-tight">
-                            🚀 Agent Déployé et Sécurisé !
-                        </h2>
-                        <p className="text-sm text-slate-500 max-w-sm">
-                            Votre agent <span className="font-bold text-slate-700">{agentName}</span> est en ligne. Toutes les clés API ont été chiffrées (AES-256) dans le Vault.
-                        </p>
-                    </div>
-
-                    {/* Webhook URL Block */}
-                    <div className="bg-slate-900 border border-slate-700 p-4 rounded-2xl shadow-inner text-left">
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex justify-between items-center">
-                            <span className="flex items-center gap-1.5">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)] animate-pulse"></div>
-                                Webhook URL (Endpoint)
-                            </span>
-                            <button
-                                onClick={() => {
-                                    navigator.clipboard.writeText(deployedAgent?.webhookUrl || '');
-                                    showToast({ title: 'Copié !', message: 'URL du Webhook copiée dans le presse-papier.', type: 'success' });
-                                }}
-                                className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors text-[10px] font-bold uppercase"
-                            >
-                                <Copy className="w-3 h-3" />
-                                Copier
-                            </button>
-                        </div>
-                        <code className="text-xs font-mono text-blue-400 break-all leading-relaxed block">
-                            {deployedAgent?.webhookUrl}
-                        </code>
-                    </div>
-
-                    {/* Agent Public ID */}
-                    {deployedAgent?.agentId && (
-                        <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-left">
-                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Agent Secret Key (affichée une seule fois)</div>
-                            <code className="text-[11px] font-mono text-slate-600 break-all">
-                                {deployedAgent.agentId}
-                            </code>
-                        </div>
-                    )}
-
-                    {/* CTA */}
-                    <div className="flex gap-3 pt-1">
-                        <Button
-                            onClick={() => setDeployedAgent(null)}
-                            className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-200 transition-colors"
-                        >
-                            Continuer
-                        </Button>
-                        <Button
-                            onClick={() => router.push('/agents')}
-                            className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold shadow-xl active:scale-95"
-                        >
-                            Gérer mes agents
-                        </Button>
-                    </div>
-                </div>
-            </Modal>
+            {/* Deployment Modal removed – redirection automatique vers /agents après déploiement */}
 
         </div>
     );

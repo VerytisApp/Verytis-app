@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users, Activity, Settings, Bot, ShieldAlert, Copy, Cpu, RefreshCw, Layers, CheckCircle2, Clock, Check, FileCode2, Sparkles, Loader2, ArrowRight } from 'lucide-react';
@@ -119,6 +120,7 @@ async function logAiAction() {
 };
 
 export default function AiAgents({ userRole }) {
+    const router = useRouter();
     const { showToast } = useToast();
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
     const [formData, setFormData] = useState({ name: '', description: '' });
@@ -207,6 +209,28 @@ export default function AiAgents({ userRole }) {
         window.location.href = `${baseUrl}${idParam}${promptParam}`;
     };
 
+    const getToolIcons = (visualConfig) => {
+        if (!visualConfig || !visualConfig.nodes) return [];
+        const toolNodes = visualConfig.nodes.filter(n => n.type === 'toolNode');
+        const icons = toolNodes.map(node => {
+            const label = (node.data?.label || '').toLowerCase();
+            const desc = (node.data?.description || '').toLowerCase();
+            const combined = (label + ' ' + desc);
+            const toolMapping = {
+                'slack': 'slack.com', 'github': 'github.com', 'trello': 'trello.com',
+                'hubspot': 'hubspot.com', 'linkedin': 'linkedin.com', 'notion': 'notion.so',
+                'lemlist': 'lemlist.com', 'airtable': 'airtable.com', 'salesforce': 'salesforce.com',
+                'openai': 'openai.com', 'google': 'google.com', 'sheets': 'google.com',
+                'postgres': 'postgresql.org', 'supabase': 'supabase.com', 'mongodb': 'mongodb.com'
+            };
+            for (const [key, domain] of Object.entries(toolMapping)) {
+                if (combined.includes(key)) return domain;
+            }
+            return node.data?.logoDomain || null;
+        }).filter(Boolean);
+        return [...new Set(icons)];
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in duration-300 p-6">
             <header className="flex justify-between items-end">
@@ -217,29 +241,7 @@ export default function AiAgents({ userRole }) {
                     </h1>
                     <p className="text-slate-500 mt-1 text-xs font-medium">Register autonomous agents and monitor their API costs and token consumption.</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Link href="/builder">
-                        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold rounded-lg shadow-md hover:shadow-lg transition-all active:scale-95">
-                            <Sparkles className="w-4 h-4" />
-                            Visual Builder
-                        </button>
-                    </Link>
-                    <div className="relative group">
-                        <Button
-                            variant="secondary"
-                            icon={Plus}
-                            onClick={() => setIsRegisterModalOpen(true)}
-                            disabled={userRole === 'Member'}
-                        >
-                            Direct Register
-                        </Button>
-                        {userRole === 'Member' && (
-                            <div className="absolute -top-8 right-0 hidden group-hover:block bg-slate-900 text-white text-[9px] p-2 rounded shadow-xl z-50 whitespace-nowrap font-bold">
-                                Admin Role Required
-                            </div>
-                        )}
-                    </div>
-                </div>
+
             </header>
 
             {isLoading ? (
@@ -268,108 +270,110 @@ export default function AiAgents({ userRole }) {
                                 {agent.name}
                             </div>
 
-                            {/* Main Card Container */}
-                            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 p-4 pt-8 flex flex-col items-center relative z-20 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
-                                
-                                {/* 1. VERYTIS SUPERVISOR BLOCK */}
-                                <div className="bg-gradient-to-b from-white to-blue-50/50 rounded-2xl border-2 border-blue-400/30 shadow-sm p-3 w-full flex flex-col items-center relative overflow-hidden mb-2">
-                                    <div className="absolute top-0 left-0 w-full h-1/2 bg-blue-400/10 blur-xl"></div>
-                                    <div className="flex items-center gap-2 mb-3 z-10 w-full justify-center">
-                                        <div className="w-8 h-8 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
-                                            {/* Logo or placeholder cube */}
-                                            <div className="bg-slate-50 w-full h-full flex items-center justify-center">
-                                                <Bot className="w-4 h-4 text-blue-500" strokeWidth={2.5} />
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="font-black text-[10px] text-blue-800 tracking-wider leading-none uppercase">VERYTIS</span>
-                                            <span className="text-[9px] text-slate-500 font-bold mt-0.5 uppercase tracking-tighter">AI Supervisor</span>
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Small Guardrail/Status Pills */}
-                                    <div className="w-full flex gap-1.5 justify-center z-10">
-                                        <div className="bg-white rounded-lg border border-blue-100 px-2 py-1 flex items-center justify-center gap-1 shadow-sm flex-1">
-                                            <ShieldAlert size={10} className="text-blue-500" />
-                                            <span className="text-[8px] font-black text-blue-700 uppercase tracking-tighter">SECURED</span>
-                                        </div>
-                                        <div className="bg-white rounded-lg border border-blue-100 px-2 py-1 flex items-center justify-center gap-1 shadow-sm flex-1">
-                                            <Activity size={10} className="text-blue-500" />
-                                            <span className="text-[8px] font-black text-blue-700 uppercase tracking-tighter">LIVE</span>
-                                        </div>
-                                    </div>
-                                </div>
+                             {/* Main Card Container */}
+                             <div 
+                                 onClick={() => router.push(`/agents/${agent.id}`)}
+                                 className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 p-4 pt-8 flex flex-col items-center relative z-20 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl cursor-pointer"
+                             >
+                                 
+                                 {/* 1. VERYTIS SUPERVISOR BLOCK */}
+                                 <div className="bg-gradient-to-b from-white to-blue-50/50 rounded-2xl border-2 border-blue-400/30 shadow-sm p-3 w-full flex flex-col items-center relative overflow-hidden mb-2">
+                                     <div className="absolute top-0 left-0 w-full h-1/2 bg-blue-400/10 blur-xl"></div>
+                                     <div className="flex items-center gap-2 mb-3 z-10 w-full justify-center">
+                                         <div className="w-8 h-8 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                             {/* Logo or placeholder cube */}
+                                             <div className="bg-slate-50 w-full h-full flex items-center justify-center">
+                                                 <Bot className="w-4 h-4 text-blue-500" strokeWidth={2.5} />
+                                             </div>
+                                         </div>
+                                         <div className="flex flex-col">
+                                             <span className="font-black text-[10px] text-blue-800 tracking-wider leading-none uppercase">VERYTIS</span>
+                                             <span className="text-[9px] text-slate-500 font-bold mt-0.5 uppercase tracking-tighter">AI Supervisor</span>
+                                         </div>
+                                     </div>
+                                     
+                                     {/* Small Guardrail/Status Pills */}
+                                     <div className="w-full flex gap-1.5 justify-center z-10">
+                                         <div className="bg-white rounded-lg border border-blue-100 px-2 py-1 flex items-center justify-center gap-1 shadow-sm flex-1">
+                                             <ShieldAlert size={10} className="text-blue-500" />
+                                             <span className="text-[8px] font-black text-blue-700 uppercase tracking-tighter">SECURED</span>
+                                         </div>
+                                         <div className="bg-white rounded-lg border border-blue-100 px-2 py-1 flex items-center justify-center gap-1 shadow-sm flex-1">
+                                             <Activity size={10} className="text-blue-500" />
+                                             <span className="text-[8px] font-black text-blue-700 uppercase tracking-tighter">LIVE</span>
+                                         </div>
+                                     </div>
+                                 </div>
 
-                                <ArrowRight size={16} className="text-slate-200 rotate-90 my-1 shrink-0" />
+                                 <ArrowRight size={16} className="text-slate-200 rotate-90 my-1 shrink-0" />
 
-                                {/* 2. DIGITAL BRAIN BLOCK */}
-                                <div className="flex items-center justify-center gap-3 bg-slate-900 text-white pl-3 pr-5 py-3 rounded-2xl shadow-lg w-full relative overflow-hidden mb-2 shrink-0">
-                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 blur-xl rounded-full"></div>
-                                    <div className="w-8 h-8 bg-white shadow-sm rounded-xl flex items-center justify-center relative z-10 shrink-0">
-                                        <img src={`https://www.google.com/s2/favicons?domain=openai.com&sz=64`} className="w-4 h-4" alt="LLM" />
-                                    </div>
-                                    <div className="flex flex-col relative z-10 text-left flex-1 min-w-0">
-                                        <span className="font-black text-[11px] leading-tight truncate uppercase tracking-tight">{agent.model || 'GPT-4o'}</span>
-                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Digital Brain</span>
-                                    </div>
-                                </div>
+                                 {/* 2. DIGITAL BRAIN BLOCK */}
+                                 <div className="flex items-center justify-center gap-3 bg-slate-900 text-white pl-3 pr-5 py-3 rounded-2xl shadow-lg w-full relative overflow-hidden mb-2 shrink-0">
+                                     <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 blur-xl rounded-full"></div>
+                                     <div className="w-8 h-8 bg-white shadow-sm rounded-xl flex items-center justify-center relative z-10 shrink-0">
+                                         <img src={`https://www.google.com/s2/favicons?domain=openai.com&sz=64`} className="w-4 h-4" alt="LLM" />
+                                     </div>
+                                     <div className="flex flex-col relative z-10 text-left flex-1 min-w-0">
+                                         <span className="font-black text-[11px] leading-tight truncate uppercase tracking-tight">{agent.model || 'GPT-4o'}</span>
+                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Digital Brain</span>
+                                     </div>
+                                 </div>
 
-                                <ArrowRight size={16} className="text-slate-200 rotate-90 my-1 shrink-0" />
+                                 <ArrowRight size={16} className="text-slate-200 rotate-90 my-1 shrink-0" />
 
-                                {/* 3. METRICS WORKSTATION */}
-                                <div className="flex flex-col gap-2 w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 shadow-inner relative mt-auto">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Telemetry</span>
-                                        <div className="flex items-center gap-1">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                                            <span className="text-[9px] font-bold text-slate-600">Active</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-between items-end">
-                                        <div className="flex flex-col">
-                                            <span className="text-[8px] font-bold text-slate-500 uppercase">Avg Spend</span>
-                                            <span className="text-lg font-black text-slate-900 leading-none">${agent.avg_cost || '0.00'}</span>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-[8px] font-bold text-slate-500 uppercase">Requests</span>
-                                            <span className="text-sm font-black text-slate-900 leading-none">1,240</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                 {/* 3. WORKSTATION BLOCK (Replaces Telemetry) */}
+                                 <div className="flex flex-col gap-2 w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 shadow-inner relative mt-auto min-h-[75px] justify-center">
+                                     <div className="absolute top-2.5 left-0 w-full flex justify-center">
+                                         <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.25em]">Workstation</span>
+                                     </div>
+                                     <div className="flex items-center justify-center gap-2.5 mt-2">
+                                         {getToolIcons(agent.visual_config).length > 0 ? (
+                                             getToolIcons(agent.visual_config).slice(0, 4).map((domain, idx) => (
+                                                 <div key={idx} className="w-8 h-8 rounded-xl bg-white shadow-md border border-slate-100 flex items-center justify-center p-1.5 transition-all hover:scale-110 hover:rotate-3">
+                                                     <img 
+                                                         src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`} 
+                                                         className="w-5 h-5 object-contain"
+                                                         alt={domain}
+                                                     />
+                                                 </div>
+                                             ))
+                                         ) : (
+                                             <div className="flex items-center gap-1.5 opacity-20 py-2">
+                                                 <Layers size={12} className="text-slate-400" />
+                                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Standalone</span>
+                                             </div>
+                                         )}
+                                     </div>
+                                 </div>
 
-                                {/* Actions Menu on Hover */}
-                                <div className="absolute inset-x-0 bottom-[-10px] flex justify-center gap-3 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 z-30">
-                                    <Link href={`/builder?id=${agent.id}`}>
-                                        <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-wider rounded-xl shadow-xl hover:bg-slate-50">
-                                            <Layers className="w-3.5 h-3.5" />
-                                            Builder
-                                        </button>
-                                    </Link>
-                                    <button 
-                                        onClick={() => {
-                                            setEditingAgent({ id: agent.id, name: agent.name });
-                                            setIsMagicModalOpen(true);
-                                        }}
-                                        className="p-2 bg-white border border-slate-200 text-purple-600 rounded-xl shadow-xl hover:bg-purple-50"
-                                        title="Modifier par IA (Magic Edit)"
-                                    >
-                                        <Sparkles className="w-4 h-4" />
-                                    </button>
-                                    <Link href={`/agents/${agent.id}`}>
-                                        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl shadow-xl hover:bg-blue-700">
-                                            Logs
-                                        </button>
-                                    </Link>
-                                    {userRole === 'Admin' && (
-                                        <button 
-                                            onClick={() => setDeleteTarget({ id: agent.id, name: agent.name })}
-                                            className="p-2 bg-white border border-slate-200 text-rose-500 rounded-xl shadow-xl hover:bg-rose-50"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
+                                 {/* Actions Menu on Hover */}
+                                 <div 
+                                     onClick={(e) => e.stopPropagation()}
+                                     className="absolute inset-x-0 bottom-[-10px] flex justify-center gap-3 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 z-30"
+                                 >
+                                     <Link href={`/agents/${agent.id}?tab=builder`} onClick={(e) => e.stopPropagation()}>
+                                         <button className="p-2 bg-white border border-slate-200 text-blue-600 rounded-xl shadow-xl hover:bg-blue-50" title="Visual Builder">
+                                             <Sparkles className="w-4 h-4" />
+                                         </button>
+                                     </Link>
+                                     <Link href={`/agents/${agent.id}`} onClick={(e) => e.stopPropagation()}>
+                                         <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl shadow-xl hover:bg-blue-700">
+                                             Logs
+                                         </button>
+                                     </Link>
+                                     {userRole === 'Admin' && (
+                                         <button 
+                                             onClick={(e) => {
+                                                 e.stopPropagation();
+                                                 setDeleteTarget({ id: agent.id, name: agent.name });
+                                             }}
+                                             className="p-2 bg-white border border-slate-200 text-rose-500 rounded-xl shadow-xl hover:bg-rose-50"
+                                         >
+                                             <Trash2 className="w-4 h-4" />
+                                         </button>
+                                     )}
+                                 </div>
+                             </div>
                         </div>
                     ))}
                 </div>
@@ -385,18 +389,18 @@ export default function AiAgents({ userRole }) {
                 }}
                 title={
                     <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-purple-100 rounded-lg">
-                            <Sparkles className="w-5 h-5 text-purple-600" />
+                        <div className="p-1.5 bg-blue-100 rounded-lg">
+                            <Sparkles className="w-5 h-5 text-blue-600" />
                         </div>
-                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600">
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400">
                             {editingAgent ? `Magic Edit: ${editingAgent.name}` : 'Magic Agent Builder'}
                         </span>
                     </div>
                 }
-                maxWidth="max-w-2xl"
+                maxWidth="max-w-3xl"
             >
                 <div className="space-y-4">
-                    <div className="p-4 bg-purple-50 border border-purple-100 rounded-xl text-sm text-purple-900">
+                    <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-900">
                         <p><strong>{editingAgent ? 'IA Modification' : 'Text-to-Agent'} :</strong> {editingAgent ? `Décrivez les modifications que vous souhaitez apporter à l'agent ${editingAgent.name}.` : "Décrivez l'agent autonome dont vous avez besoin. L'IA de Verytis va générer sa configuration, son prompt système et ses politiques de sécurité (Guardrails) de façon automatisée."}</p>
                     </div>
 
@@ -406,7 +410,7 @@ export default function AiAgents({ userRole }) {
                             placeholder={editingAgent ? `Ex: Ajoute un outil Slack pour notifier l'équipe, ou modifie le budget quotidien à 50$...` : "Ex: Je veux un agent pour lire les Pull Requests GitHub de mon équipe, détecter les failles de sécurité, avec un budget max de 50$ et l'interdiction de voir les mots de passe..."}
                             value={magicPrompt}
                             onChange={(e) => setMagicPrompt(e.target.value)}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all resize-none shadow-inner"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-none shadow-inner"
                         />
                     </div>
 
@@ -415,7 +419,7 @@ export default function AiAgents({ userRole }) {
                         <button
                             onClick={handleMagicBuild}
                             disabled={isGenerating || !magicPrompt.trim()}
-                            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-400 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isGenerating ? (
                                 <>
@@ -438,7 +442,7 @@ export default function AiAgents({ userRole }) {
                 isOpen={isRegisterModalOpen}
                 onClose={closeRegisterModal}
                 title="Register AI Agent"
-                maxWidth="max-w-2xl"
+                maxWidth="max-w-3xl"
             >
                 {newAgentResult ? (
                     <div className="space-y-4 animate-in fade-in duration-300">
@@ -517,7 +521,6 @@ export default function AiAgents({ userRole }) {
                 title="Delete Agent"
                 subtitle={deleteTarget?.name ? `"${deleteTarget.name}" will be permanently removed` : ''}
                 details={[
-                    'Retain aggregated cost and token usage history for billing',
                     'Remove the agent\'s API access keys immediately',
                     'Permanently remove the agent from active service',
                 ]}

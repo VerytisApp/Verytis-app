@@ -64,8 +64,18 @@ export default function IntegrationsSettings() {
 
     useEffect(() => {
         if (data?.providers) {
-            // Merge backend connected states into the visual providers list if necessary
-            // For now, we prefer keeping DEFAULT_PROVIDERS for visual structure
+            // Synchronisation de l'état local avec la réalité du serveur (LLM)
+            setProviders(prev => prev.map(p => {
+                const found = data.providers.find(bp => bp.id === p.id && bp.connection_type === 'llm');
+                if (found) {
+                    return { 
+                        ...p, 
+                        status: found.status || 'Connected', 
+                        tokenPreview: found.tokenPreview || '...'
+                    };
+                }
+                return p;
+            }));
         }
     }, [data]);
 
@@ -89,7 +99,7 @@ export default function IntegrationsSettings() {
                 // Update existing
                 updatedProviders = updatedProviders.map(p =>
                     p.id === activeProvider.id
-                        ? { ...p, status: 'Connected', tokenPreview: newPreview, rawToken: modalApiKey }
+                        ? { ...p, status: 'Connected', tokenPreview: newPreview, rawToken: modalApiKey, connection_type: 'llm' }
                         : p
                 );
             } else {
@@ -103,7 +113,8 @@ export default function IntegrationsSettings() {
                     domain: domain,
                     status: 'Connected',
                     tokenPreview: newPreview,
-                    rawToken: modalApiKey
+                    rawToken: modalApiKey,
+                    connection_type: 'llm'
                 });
             }
 
@@ -369,7 +380,7 @@ export default function IntegrationsSettings() {
                                                             const { data: { user } } = await supabase.auth.getUser();
                                                             const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
                                                             const authUrl = p.id === 'github' ? `/api/auth/github/install?organizationId=${profile?.organization_id}` :
-                                                                            p.id === 'trello' ? `/api/auth/trello/login?userId=${user.id}&organizationId=${profile?.organization_id}` :
+                                                                            p.id === 'trello' ? `/api/auth/trello/login?userId=${user.id}&organizationId=${profile?.organization_id}&type=integration` :
                                                                             `/api/slack/install?userId=${user.id}&type=integration&organizationId=${profile?.organization_id}`;
                                                             window.open(authUrl, `Connecter ${p.name} Team`, 'width=600,height=700');
                                                         } finally {

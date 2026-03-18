@@ -22,6 +22,7 @@ import LLMNodeV3 from '@/components/flow/nodes/LLMNodeV3';
 import GuardrailNode from '@/components/flow/nodes/GuardrailNode';
 import PlaceholderNode from '@/components/flow/nodes/PlaceholderNode';
 import ToolNode from '@/components/flow/nodes/ToolNode';
+import KnowledgeNode from '@/components/flow/nodes/KnowledgeNode';
 import Sidebar from '@/components/flow/layout/Sidebar';
 import ConfigPanel from '@/components/flow/layout/ConfigPanel';
 
@@ -31,6 +32,7 @@ const nodeTypes = {
     guardrailNode: GuardrailNode,
     placeholderNode: PlaceholderNode,
     toolNode: ToolNode,
+    knowledgeNode: KnowledgeNode,
 };
 
 let id = 0;
@@ -64,6 +66,17 @@ function BuilderInternal({ agent, onSave }) {
         );
         setSelectedNode((prev) => (prev && prev.id === nodeId ? { ...prev, data: { ...prev.data, ...newData } } : prev));
     }, [setNodes]);
+    
+    const hydrateEdges = useCallback((rawEdges) => {
+        return rawEdges.map(e => {
+            const { label, ...rest } = e;
+            return {
+                ...rest,
+                animated: true,
+                style: { strokeWidth: 2, stroke: '#3b82f6' }
+            };
+        });
+    }, []);
 
     // Hydrate nodes with callbacks
     const hydrateNodes = useCallback((rawNodes, providers) => {
@@ -85,7 +98,7 @@ function BuilderInternal({ agent, onSave }) {
                 setConnectedProviders(data.settings.providers);
                 if (agent?.visual_config) {
                     setNodes(hydrateNodes(agent.visual_config.nodes || [], data.settings.providers));
-                    setEdges(agent.visual_config.edges || []);
+                    setEdges(hydrateEdges(agent.visual_config.edges || []));
                     setTimeout(() => fitView({ padding: 0.3, duration: 800 }), 100);
                 }
             }
@@ -147,7 +160,7 @@ function BuilderInternal({ agent, onSave }) {
                 // Apply the new configuration
                 if (config.architecture && config.architecture.nodes) {
                     setNodes(hydrateNodes(config.architecture.nodes, connectedProviders));
-                    setEdges(config.architecture.edges || []);
+                    setEdges(hydrateEdges(config.architecture.edges || []));
                 }
                 showToast({
                     title: 'Agent Modifié !',
@@ -169,7 +182,7 @@ function BuilderInternal({ agent, onSave }) {
     };
 
     const onConnect = useCallback(
-        (params) => setEdges((eds) => addEdge({ ...params, animated: true, style: { strokeWidth: 2 } }, eds)),
+        (params) => setEdges((eds) => addEdge({ ...params, animated: true, style: { strokeWidth: 2, stroke: '#3b82f6' } }, eds)),
         [setEdges],
     );
 

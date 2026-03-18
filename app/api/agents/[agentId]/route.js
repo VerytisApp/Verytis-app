@@ -54,7 +54,7 @@ export async function PATCH(req, { params }) {
         const { agentId } = params;
         const supabase = createClient();
         const body = await req.json();
-        const { status, policies } = body;
+        const { status, policies, knowledge_configuration } = body;
 
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -89,6 +89,10 @@ export async function PATCH(req, { params }) {
                 .single();
 
             updatePayload.policies = { ...(existing?.policies || {}), ...policies };
+        }
+        
+        if (knowledge_configuration) {
+            updatePayload.knowledge_configuration = knowledge_configuration;
         }
 
         if (Object.keys(updatePayload).length === 0) {

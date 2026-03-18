@@ -77,14 +77,22 @@ const ToolNode = ({ data, isConnectable }) => {
     const domain = getDomain();
     const providerName = domain ? domain.split('.')[0] : 'tool';
     
-    const connectedProvider = data.connectedProviders?.find(p => {
-        const pDomain = p.domain?.toLowerCase();
+    const connectedOrg = data.connectedProviders?.find(p => {
+        const pDomain = (p.domain || p.id)?.toLowerCase();
         const targetDomain = domain?.toLowerCase();
-        return pDomain && targetDomain && pDomain.includes(targetDomain) && p.status === 'Connected';
+        return pDomain && targetDomain && (pDomain.includes(targetDomain) || targetDomain.includes(pDomain)) && 
+               p.status === 'Connected' && (p.connection_type === 'team' || (!p.is_perso && p.connection_type !== 'personal'));
     });
 
-    const isGlobalConnected = !!connectedProvider;
-    const isOrgLevel = connectedProvider?.is_oauth && !connectedProvider?.is_perso;
+    const connectedPerso = data.connectedProviders?.find(p => {
+        const pDomain = (p.domain || p.id)?.toLowerCase();
+        const targetDomain = domain?.toLowerCase();
+        return pDomain && targetDomain && (pDomain.includes(targetDomain) || targetDomain.includes(pDomain)) && 
+               p.status === 'Connected' && (p.connection_type === 'personal' || p.is_perso);
+    });
+
+    const isGlobalConnected = !!(connectedOrg || connectedPerso);
+    const isOrgLevel = !!connectedOrg;
 
     const isConnected = isGlobalConnected || isSynced || isInternalSkill;
 
@@ -214,13 +222,25 @@ const ToolNode = ({ data, isConnectable }) => {
                         <div className="flex items-center justify-between">
                             <div className="flex flex-wrap gap-1.5">
                                 {/* Org Status */}
-                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tighter ring-1 ${connectedOrg ? (data.config?.source === 'org' ? 'bg-blue-600 text-white ring-blue-600' : 'bg-blue-50 text-blue-600 ring-blue-100') : 'bg-slate-50 text-slate-300 ring-slate-100'}`}>
+                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tighter ring-1 ${connectedOrg ? (data.config?.source !== 'personal' ? 'bg-blue-600 text-white ring-blue-600' : 'bg-blue-50 text-blue-600 ring-blue-100') : 'bg-slate-50 text-slate-300 ring-slate-100'}`}>
                                     <Shield className="w-2 h-2" /> Org
+                                    {data.config?.source !== 'personal' && data.config?.targets?.length > 0 && (
+                                        <span className="ml-1 px-1 bg-white/20 rounded-full">{data.config.targets.length}</span>
+                                    )}
                                 </div>
                                 {/* Perso Status */}
-                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tighter ring-1 ${connectedPerso ? (data.config?.source === 'perso' ? 'bg-amber-600 text-white ring-amber-600' : 'bg-amber-50 text-amber-600 ring-amber-100') : 'bg-slate-50 text-slate-300 ring-slate-100'}`}>
+                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tighter ring-1 ${connectedPerso ? (data.config?.source === 'personal' ? 'bg-amber-600 text-white ring-amber-600' : 'bg-amber-50 text-amber-600 ring-amber-100') : 'bg-slate-50 text-slate-300 ring-slate-100'}`}>
                                     <Box className="w-2 h-2" /> Perso
+                                    {data.config?.source === 'personal' && data.config?.targets?.length > 0 && (
+                                        <span className="ml-1 px-1 bg-white/20 rounded-full">{data.config.targets.length}</span>
+                                    )}
                                 </div>
+                                {/* Slack Thread Mode */}
+                                {data.provider === 'slack' && data.config?.thread_mode && (
+                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tighter ring-1 bg-purple-600 text-white ring-purple-600">
+                                        Threads
+                                    </div>
+                                )}
                             </div>
 
                             {/* Action / Modifier */}

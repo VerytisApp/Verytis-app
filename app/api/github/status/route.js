@@ -20,44 +20,19 @@ export async function GET(req) {
 
     const targetOrgId = profile.organization_id;
 
-    const { data, error } = await supabase.from('integrations')
-        .select('id, settings, name')
+    const { data, error } = await supabase.from('user_connections')
+        .select('id, access_token, metadata, account_name')
         .eq('organization_id', targetOrgId)
         .eq('provider', 'github')
+        .eq('connection_type', 'team')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-    const isConnected = !!(data && (data.settings?.access_token || data.settings?.installation_id));
+    const isConnected = !!(data && (data.access_token || data.metadata?.installation_id));
 
-    // Fetch organization name from GitHub API
-    let orgName = data?.settings?.username || data?.name || null;
-
-    if (isConnected && data.settings?.installation_id) {
-        try {
-            const access_token = await getValidGitHubToken(data.id);
-            if (access_token) {
-                const res = await fetch(`https://api.github.com/user/installations/${data.settings.installation_id}/repositories?per_page=1`, {
-                    headers: {
-                        'Authorization': `Bearer ${access_token}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-
-                if (res.ok) {
-                    const repoData = await res.json();
-                    if (repoData.repositories && repoData.repositories.length > 0) {
-                        // Extract org name from first repo's full_name (e.g., "VerytisApp/Verytis" -> "VerytisApp")
-                        const fullName = repoData.repositories[0].full_name;
-                        orgName = fullName.split('/')[0];
-                    }
-                }
-            }
-        } catch (e) {
-            console.error('Failed to fetch GitHub org name:', e);
-            // Fall back to stored username
-        }
-    }
+    // Use the account_name settled during callback (resolves to Org or User login)
+    const orgName = data?.account_name || null;
 
     return NextResponse.json({
         connected: isConnected,
