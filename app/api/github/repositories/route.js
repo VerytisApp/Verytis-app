@@ -23,38 +23,6 @@ export async function GET(req) {
 
     const targetOrgId = profile.organization_id;
 
-    const fetchReposWithToken = async ({ accessToken, installationId }) => {
-        // Priority: Use installation if available (Team/Org)
-        let apiUrl = '';
-        if (installationId) {
-            apiUrl = `https://api.github.com/user/installations/${installationId}/repositories`;
-        } else {
-            // Fallback for Personal OAuth
-            apiUrl = `https://api.github.com/user/repos?per_page=100&sort=updated`;
-        }
-
-        console.log(`[API GITHUB REPOS] Fetching from: ${apiUrl}`);
-        return await fetch(apiUrl, {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'User-Agent': 'Verytis-AI-Ops'
-            }
-        });
-    };
-
-    const toRepoList = (data) => {
-        const rawRepos = data.repositories || (Array.isArray(data) ? data : []);
-        return rawRepos.map(repo => ({
-            id: repo.id,
-            name: repo.full_name,
-            private: repo.private,
-            url: repo.html_url,
-            description: repo.description,
-            updated_at: repo.updated_at
-        }));
-    };
-
     try {
         const { token: access_token, metadata, id: integration_id } = await getValidToken('github', type, {
             userId: user.id,
@@ -112,7 +80,7 @@ export async function GET(req) {
             if (res.ok) {
                 const data = await res.json();
                 console.log(`[API GITHUB REPOS] Success! Found ${data.total_count || data.length} items`);
-
+                
                 const rawRepos = data.repositories || (Array.isArray(data) ? data : []);
                 const repositories = rawRepos.map(repo => ({
                     id: repo.id,
@@ -126,17 +94,6 @@ export async function GET(req) {
             } else {
                 const errText = await res.text();
                 console.error(`[API GITHUB REPOS] API Error ${res.status}:`, errText);
-
-                if (res.status === 401) {
-                    return NextResponse.json(
-                        {
-                            error: 'GitHub authentication invalid. Please reconnect GitHub.',
-                            code: 'GITHUB_AUTH_INVALID',
-                            connection_type: type
-                        },
-                        { status: 401 }
-                    );
-                }
             }
         } catch (e) {
             console.error('[API GITHUB REPOS] Fetch Exception:', e);
