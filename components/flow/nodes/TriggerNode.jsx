@@ -86,8 +86,13 @@ const TriggerNode = ({ data, isConnectable }) => {
             try {
                 const res = await fetch('/api/settings');
                 const json = await res.json();
-                // user_connections from settings or providers list
-                const connections = json.user_connections || json.settings?.user_connections || [];
+                // Prefer explicit user_connections (compat), otherwise derive from providers catalog
+                const connections =
+                    json.user_connections ||
+                    json.settings?.user_connections ||
+                    (Array.isArray(json.providers)
+                        ? json.providers.filter(p => p?.connection_type === 'team' || p?.connection_type === 'personal')
+                        : []);
                 setOauthConnections(connections);
             } catch (err) {
                 console.error('[TriggerNode] Failed to fetch OAuth connections', err);

@@ -1,0 +1,16 @@
+t=2026-03-12T09:26:58+0100 lvl=info msg="no configuration paths supplied"
+t=2026-03-12T09:26:58+0100 lvl=info msg="using configuration at default config path" path="/Users/tychiqueesteve/Library/Application Support/ngrok/ngrok.yml"
+t=2026-03-12T09:26:58+0100 lvl=info msg="open config file" path="/Users/tychiqueesteve/Library/Application Support/ngrok/ngrok.yml" err=nil
+t=2026-03-12T09:26:58+0100 lvl=info msg="FIPS 140 mode" enabled=false
+t=2026-03-12T09:26:58+0100 lvl=info msg="starting web service" obj=web addr=127.0.0.1:4040 allow_hosts=[]
+t=2026-03-12T09:26:58+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-12T09:26:58+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-12T09:26:59+0100 lvl=info msg="started tunnel" obj=tunnels name=command_line addr=http://localhost:3000 url=https://aperiodically-preinventive-ella.ngrok-free.dev
+t=2026-03-12T09:26:59+0100 lvl=info msg="update available" obj=updater
+t=2026-03-12T09:27:01+0100 lvl=info msg=start pg=/api/tunnels id=cc70511dabad062d
+t=2026-03-12T09:27:01+0100 lvl=info msg=end pg=/api/tunnels id=cc70511dabad062d status=200 dur=174.667µs
+t=2026-03-12T09:29:35+0100 lvl=info msg=start pg=/api/tunnels id=244644496d80bc53
+t=2026-03-12T09:29:35+0100 lvl=info msg=end pg=/api/tunnels id=244644496d80bc53 status=200 dur=525.834µs
+t=2026-03-12T09:31:35+0100 lvl=info msg="received stop request" obj=app stopReq="{err:<nil> restart:false}"
+t=2026-03-12T09:31:35+0100 lvl=info msg="session closing" obj=tunnels.session err=nil
+t=2026-03-12T09:31:35+0100 lvl=info msg="accept failed" obj=tunnels.session obj=csess id=deff4f888cec err="reconnecting session closed"

@@ -94,10 +94,11 @@ function BuilderInternal({ agent, onSave }) {
         const fetchSettings = async () => {
             const res = await fetch('/api/settings');
             const data = await res.json();
-            if (res.ok && data.settings?.providers) {
-                setConnectedProviders(data.settings.providers);
+            const providers = data?.providers || data?.settings?.providers || [];
+            if (res.ok && Array.isArray(providers)) {
+                setConnectedProviders(providers);
                 if (agent?.visual_config) {
-                    setNodes(hydrateNodes(agent.visual_config.nodes || [], data.settings.providers));
+                    setNodes(hydrateNodes(agent.visual_config.nodes || [], providers));
                     setEdges(hydrateEdges(agent.visual_config.edges || []));
                     setTimeout(() => fitView({ padding: 0.3, duration: 800 }), 100);
                 }

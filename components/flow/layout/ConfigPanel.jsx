@@ -76,7 +76,7 @@ const DEFAULT_POLICIES = {
     rate_limit_per_min: 100,
 };
 
-export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId, onUpdateNode, onClose }) {
+export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId, onUpdateNode, onUpdate, onClose, onDelete }) {
     const [draftData, setDraftData] = useState({});
     const [policies, setPolicies] = useState(DEFAULT_POLICIES);
     const [policiesSaved, setPoliciesSaved] = useState(false);
@@ -152,8 +152,12 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
     const handleInstantChange = useCallback((field, value) => {
         if (!selectedNode) return;
         const newData = { ...selectedNode.data, [field]: value };
-        onUpdateNode(selectedNode.id, newData);
-    }, [selectedNode, onUpdateNode]);
+        if (onUpdateNode) {
+            onUpdateNode(selectedNode.id, newData);
+        } else if (onUpdate) {
+            onUpdate(newData);
+        }
+    }, [selectedNode, onUpdateNode, onUpdate]);
 
     // Auto-select model if empty or invalid
     useEffect(() => {
@@ -494,9 +498,87 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
                                             <span className="text-[10px] font-black uppercase tracking-[0.2em]">Chargement...</span>
                                         </div>
                                     ) : availableTargets.filter(t => (t.name || '').toLowerCase().includes(searchTarget.toLowerCase())).length === 0 ? (
-                                        <div className="py-12 text-center opacity-40 flex flex-col items-center gap-2">
+                                        <div className="py-10 text-center flex flex-col items-center gap-3">
                                             <Database className="w-8 h-8 text-slate-300" />
-                                            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Aucun résultat</span>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Aucun résultat</span>
+                                            {(detectedBrand === 'github' || detectedBrand === 'slack' || detectedBrand === 'trello') && (
+                                                <button
+                                                    onClick={async () => {
+                                                        const provider = detectedBrand;
+                                                        const connectionType = selectedNode?.data?.connection_type === 'personal' ? 'personal' : 'team';
+                                                        
+                                                        // Reproduire la logique de /settings pour lancer exactement le bon flow
+                                                        if (provider === 'github') {
+                                                            const width = 600;
+                                                            const height = 700;
+                                                            const left = (window.screen.width - width) / 2;
+                                                            const top = (window.screen.height - height) / 2;
+
+                                                            // Team vs Perso
+                                                            if (connectionType === 'team') {
+                                                                // Même URL que bouton TEAM CONNECTION
+                                                                window.open(
+                                                                    `/api/auth/github/install`,
+                                                                    'GitHubConnect',
+                                                                    `width=${width},height=${height},top=${top},left=${left}`
+                                                                );
+                                                            } else {
+                                                                // Même URL que PERSONAL ACCOUNT CONNECTION
+                                                                window.open(
+                                                                    `/api/auth/github/login?type=user_link`,
+                                                                    'GitHubConnectPersonal',
+                                                                    `width=${width},height=${height},top=${top},left=${left}`
+                                                                );
+                                                            }
+                                                        } else if (provider === 'slack') {
+                                                            const query = connectionType === 'team'
+                                                                ? ''
+                                                                : ''; // pour l’instant même flow que settings (install) pour perso
+                                                            window.location.href = `/api/slack/install${query}`;
+                                                        } else if (provider === 'trello') {
+                                                            const width = 600;
+                                                            const height = 700;
+                                                            const left = (window.screen.width - width) / 2;
+                                                            const top = (window.screen.height - height) / 2;
+                                                            const base = connectionType === 'team'
+                                                                ? '/api/auth/trello/login?type=integration'
+                                                                : '/api/auth/trello/login?type=user_link';
+                                                            window.open(
+                                                                base,
+                                                                'TrelloConnect',
+                                                                `width=${width},height=${height},top=${top},left=${left}`
+                                                            );
+                                                        }
+                                                    }}
+                                                    className="mt-1 px-4 py-2 rounded-2xl bg-slate-900 text-white text-[10px] font-bold tracking-wider uppercase hover:bg-slate-800 shadow-md flex items-center justify-center gap-2"
+                                                >
+                                                    {/* Logo aligné avec Settings */}
+                                                    {detectedBrand === 'github' && (
+                                                        <img
+                                                            src="https://www.google.com/s2/favicons?domain=github.com&sz=128"
+                                                            alt="GitHub"
+                                                            className="w-4 h-4 object-contain"
+                                                        />
+                                                    )}
+                                                    {detectedBrand === 'slack' && (
+                                                        <img
+                                                            src="https://www.google.com/s2/favicons?domain=slack.com&sz=128"
+                                                            alt="Slack"
+                                                            className="w-4 h-4 object-contain"
+                                                        />
+                                                    )}
+                                                    {detectedBrand === 'trello' && (
+                                                        <img
+                                                            src="https://www.google.com/s2/favicons?domain=trello.com&sz=128"
+                                                            alt="Trello"
+                                                            className="w-4 h-4 object-contain"
+                                                        />
+                                                    )}
+                                                    {selectedNode?.data?.connection_type === 'personal'
+                                                        ? 'PERSONAL ACCOUNT CONNECTION'
+                                                        : 'TEAM CONNECTION'}
+                                                </button>
+                                            )}
                                         </div>
                                     ) : (
                                         Object.entries(

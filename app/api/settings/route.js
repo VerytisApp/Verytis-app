@@ -187,6 +187,8 @@ export async function GET(req) {
 
         return NextResponse.json({ 
             providers: finalProviders,
+            // Compatibility: some UI components still expect `user_connections`
+            user_connections: connections,
             settings: settingsData,
             user: {
                 id: user.id,

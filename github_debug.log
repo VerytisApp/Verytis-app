@@ -1,0 +1,174 @@
+[2026-03-16T18:09:51.597Z] >>> API INCOMING Request [type=team]
+
+
+[2026-03-16T18:09:51.827Z] User session found
+{
+  "id": "e44a6a38-7ef9-44b6-ba01-10094e59a32f"
+}
+
+[2026-03-16T18:09:52.038Z] Request Type: team | User: e44a6a38-7ef9-44b6-ba01-10094e59a32f
+
+
+[2026-03-16T18:09:52.309Z] Resolved Integration
+{
+  "integration_id": "e3d4d280-5752-4bc6-9abf-b46fe9dcee0c",
+  "installation_id": "116738791",
+  "hasToken": true
+}
+
+[2026-03-16T18:09:52.309Z] Fetching Repo List
+{
+  "apiUrl": "https://api.github.com/user/installations/116738791/repositories"
+}
+
+[2026-03-16T18:09:52.460Z] GitHub API Error 401
+{
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+
+[2026-03-16T18:09:53.123Z] >>> API INCOMING Request [type=team]
+
+
+[2026-03-16T18:09:53.319Z] User session found
+{
+  "id": "e44a6a38-7ef9-44b6-ba01-10094e59a32f"
+}
+
+[2026-03-16T18:09:53.530Z] Request Type: team | User: e44a6a38-7ef9-44b6-ba01-10094e59a32f
+
+
+[2026-03-16T18:09:54.214Z] >>> API INCOMING Request [type=personal]
+
+
+[2026-03-16T18:09:54.276Z] Resolved Integration
+{
+  "integration_id": "e3d4d280-5752-4bc6-9abf-b46fe9dcee0c",
+  "installation_id": "116738791",
+  "hasToken": true
+}
+
+[2026-03-16T18:09:54.276Z] Fetching Repo List
+{
+  "apiUrl": "https://api.github.com/user/installations/116738791/repositories"
+}
+
+[2026-03-16T18:09:54.438Z] GitHub API Error 401
+{
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+
+[2026-03-16T18:09:54.442Z] User session found
+{
+  "id": "e44a6a38-7ef9-44b6-ba01-10094e59a32f"
+}
+
+[2026-03-16T18:09:54.649Z] Request Type: personal | User: e44a6a38-7ef9-44b6-ba01-10094e59a32f
+
+
+[2026-03-16T18:09:54.906Z] Resolved Integration
+{
+  "integration_id": "d85f1c87-0067-42ed-8285-6868e5a5fd6e",
+  "installation_id": null,
+  "hasToken": true
+}
+
+[2026-03-16T18:09:54.906Z] Fetching Repo List
+{
+  "apiUrl": "https://api.github.com/user/repos?per_page=100&sort=updated"
+}
+
+[2026-03-16T18:09:55.060Z] GitHub API Error 401
+{
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+
+[2026-03-16T18:11:26.504Z] >>> API INCOMING Request [type=personal]
+
+
+[2026-03-16T18:11:26.754Z] User session found
+{
+  "id": "e44a6a38-7ef9-44b6-ba01-10094e59a32f"
+}
+
+[2026-03-16T18:11:26.988Z] Request Type: personal | User: e44a6a38-7ef9-44b6-ba01-10094e59a32f
+
+
+[2026-03-16T18:11:27.239Z] Resolved Integration
+{
+  "integration_id": "d85f1c87-0067-42ed-8285-6868e5a5fd6e",
+  "installation_id": null,
+  "hasToken": true
+}
+
+[2026-03-16T18:11:27.239Z] Fetching Repo List
+{
+  "apiUrl": "https://api.github.com/user/repos?per_page=100&sort=updated"
+}
+
+[2026-03-16T18:11:27.413Z] GitHub API Error 401
+{
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+
+[2026-03-16T18:15:05.745Z] >>> API INCOMING Request [type=team]
+
+
+[2026-03-16T18:15:06.006Z] User session found
+{
+  "id": "e44a6a38-7ef9-44b6-ba01-10094e59a32f"
+}
+
+[2026-03-16T18:15:06.534Z] Request Type: team | User: e44a6a38-7ef9-44b6-ba01-10094e59a32f
+
+
+[AUTH-UTIL 2026-03-16T18:15:06.810Z] GitHub Refresh Check [e3d4d280-5752-4bc6-9abf-b46fe9dcee0c]
+{
+  "hasRefreshToken": false,
+  "expiresIn": 28800,
+  "now": 1773684906,
+  "expiresAt": 28800,
+  "forceRefresh": false
+}
+
+[2026-03-16T18:15:06.810Z] Resolved Integration
+{
+  "integration_id": "e3d4d280-5752-4bc6-9abf-b46fe9dcee0c",
+  "installation_id": "116738791",
+  "hasToken": true
+}
+
+[2026-03-16T18:15:06.811Z] Fetching Repo List
+{
+  "apiUrl": "https://api.github.com/user/installations/116738791/repositories"
+}
+
+[2026-03-16T18:15:06.971Z] 401 Detected - Forcing refresh and retrying
+
+
+[AUTH-UTIL 2026-03-16T18:15:07.193Z] GitHub Refresh Check [e3d4d280-5752-4bc6-9abf-b46fe9dcee0c]
+{
+  "hasRefreshToken": false,
+  "expiresIn": 28800,
+  "now": 1773684907,
+  "expiresAt": 28800,
+  "forceRefresh": true
+}
+
+[2026-03-16T18:15:07.193Z] Retrying with new token...
+
+
+[2026-03-16T18:15:07.348Z] GitHub API Final Error 401
+{
+  "message": "Bad credentials",
+  "documentation_url": "https://docs.github.com/rest",
+  "status": "401"
+}
+

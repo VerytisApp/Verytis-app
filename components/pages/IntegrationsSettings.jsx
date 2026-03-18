@@ -6,6 +6,7 @@ import { useToast } from '../ui/Toast';
 const GitHubRepositoriesView = ({ teamId }) => {
     const [repos, setRepos] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [authError, setAuthError] = useState(null);
 
     useEffect(() => {
         const fetchRepos = async () => {
@@ -13,6 +14,11 @@ const GitHubRepositoriesView = ({ teamId }) => {
                 const query = teamId ? `?teamId=${teamId}` : '';
                 const res = await fetch(`/api/github/repositories${query}`);
                 const data = await res.json();
+                if (res.status === 401 || data?.code === 'GITHUB_AUTH_INVALID') {
+                    setAuthError(data?.error || 'GitHub authentication invalid. Please reconnect.');
+                    setRepos([]);
+                    return;
+                }
                 if (data.repositories) setRepos(data.repositories);
             } catch (error) {
                 console.error("Failed to fetch repos", error);
@@ -40,10 +46,27 @@ const GitHubRepositoriesView = ({ teamId }) => {
                 <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <img src="https://www.google.com/s2/favicons?domain=github.com&sz=64" alt="GitHub" className="w-6 h-6 opacity-50" />
                 </div>
-                <h3 className="text-sm font-bold text-slate-900">No accessible repository</h3>
-                <p className="text-slate-500 text-xs mt-2 max-w-sm mx-auto">
-                    Ensure you have granted access to repositories during installation.
-                </p>
+                {authError ? (
+                    <>
+                        <h3 className="text-sm font-bold text-slate-900">GitHub: authentification requise</h3>
+                        <p className="text-slate-500 text-xs mt-2 max-w-sm mx-auto">
+                            {authError}
+                        </p>
+                        <a
+                            href="/settings?tab=integrations"
+                            className="inline-flex items-center justify-center mt-4 px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition"
+                        >
+                            Reconnecter GitHub
+                        </a>
+                    </>
+                ) : (
+                    <>
+                        <h3 className="text-sm font-bold text-slate-900">No accessible repository</h3>
+                        <p className="text-slate-500 text-xs mt-2 max-w-sm mx-auto">
+                            Ensure you have granted access to repositories during installation.
+                        </p>
+                    </>
+                )}
             </div>
         );
     }
@@ -205,30 +228,26 @@ const IntegrationsSettings = ({ teamId }) => {
             // GitHub Status
             const resGithub = await fetch(`/api/github/status${query}`);
             const dataGithub = await resGithub.json();
-            if (dataGithub.connected) {
-                setConnections(prev => ({
-                    ...prev,
-                    github: {
-                        connected: true,
-                        lastSync: 'Connected',
-                        workspaceName: dataGithub.username || null
-                    }
-                }));
-            }
+            setConnections(prev => ({
+                ...prev,
+                github: {
+                    connected: !!dataGithub.connected,
+                    lastSync: dataGithub.connected ? 'Connected' : null,
+                    workspaceName: dataGithub.username || null
+                }
+            }));
 
             // Trello Status
             const resTrello = await fetch(`/api/trello/status${query}`);
             const dataTrello = await resTrello.json();
-            if (dataTrello.connected) {
-                setConnections(prev => ({
-                    ...prev,
-                    trello: {
-                        connected: true,
-                        lastSync: 'Connected',
-                        workspaceName: dataTrello.name || null
-                    }
-                }));
-            }
+            setConnections(prev => ({
+                ...prev,
+                trello: {
+                    connected: !!dataTrello.connected,
+                    lastSync: dataTrello.connected ? 'Connected' : null,
+                    workspaceName: dataTrello.name || null
+                }
+            }));
         } catch (e) {
             console.error("Status check failed", e);
         }

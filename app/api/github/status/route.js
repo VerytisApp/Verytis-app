@@ -10,6 +10,10 @@ export async function GET(req) {
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const { searchParams } = new URL(req.url);
+    // Optional: allow UI to ask explicitly for team/personal
+    const requestedType = (searchParams.get('type') || 'team').toLowerCase();
+
     const { data: profile } = await supabase
         .from('profiles')
         .select('organization_id')
@@ -20,8 +24,10 @@ export async function GET(req) {
 
     const targetOrgId = profile.organization_id;
 
-    const { data, error } = await supabase.from('user_connections')
-        .select('id, access_token, metadata, account_name')
+    // Team connection (preferred source: user_connections)
+    const { data: teamConn } = await supabase
+        .from('user_connections')
+        .select('id, access_token, metadata, account_name, external_account_name, created_at')
         .eq('organization_id', targetOrgId)
         .eq('provider', 'github')
         .eq('connection_type', 'team')
@@ -29,14 +35,51 @@ export async function GET(req) {
         .limit(1)
         .maybeSingle();
 
-    const isConnected = !!(data && (data.access_token || data.metadata?.installation_id));
+    // Personal connection
+    const { data: personalConn } = await supabase
+        .from('user_connections')
+        .select('id, access_token, metadata, account_name, external_account_name, created_at')
+        .eq('user_id', user.id)
+        .eq('provider', 'github')
+        .eq('connection_type', 'personal')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    // Use the account_name settled during callback (resolves to Org or User login)
-    const orgName = data?.account_name || null;
+    // Legacy org integration fallback (some older installs store settings in integrations)
+    let legacyTeam = null;
+    if (!teamConn) {
+        const { data: legacy } = await supabase
+            .from('integrations')
+            .select('provider, settings')
+            .eq('organization_id', targetOrgId)
+            .eq('provider', 'github')
+            .maybeSingle();
+        legacyTeam = legacy || null;
+    }
+
+    const teamConnected = !!(teamConn && (teamConn.access_token || teamConn.metadata?.installation_id))
+        || !!(legacyTeam && (legacyTeam.settings?.access_token || legacyTeam.settings?.installation_id));
+    const personalConnected = !!(personalConn && (personalConn.access_token || personalConn.metadata?.installation_id));
+
+    const teamName =
+        teamConn?.account_name ||
+        teamConn?.external_account_name ||
+        legacyTeam?.settings?.team_name ||
+        legacyTeam?.settings?.account_name ||
+        null;
+    const personalName = personalConn?.account_name || personalConn?.external_account_name || null;
+
+    const selected =
+        requestedType === 'personal'
+            ? { connected: personalConnected, username: personalName, connection_type: 'personal' }
+            : { connected: teamConnected, username: teamName, connection_type: 'team' };
 
     return NextResponse.json({
-        connected: isConnected,
-        username: orgName,
-        lastSync: isConnected ? new Date().toISOString() : null
+        ...selected,
+        // Extra fields for newer UIs (non-breaking)
+        team: { connected: teamConnected, username: teamName },
+        personal: { connected: personalConnected, username: personalName },
+        lastSync: selected.connected ? new Date().toISOString() : null
     });
 }

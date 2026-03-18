@@ -1,0 +1,168 @@
+t=2026-03-12T09:37:06+0100 lvl=info msg="no configuration paths supplied"
+t=2026-03-12T09:37:06+0100 lvl=info msg="using configuration at default config path" path="/Users/tychiqueesteve/Library/Application Support/ngrok/ngrok.yml"
+t=2026-03-12T09:37:06+0100 lvl=info msg="open config file" path="/Users/tychiqueesteve/Library/Application Support/ngrok/ngrok.yml" err=nil
+t=2026-03-12T09:37:06+0100 lvl=info msg="FIPS 140 mode" enabled=false
+t=2026-03-12T09:37:06+0100 lvl=info msg="starting web service" obj=web addr=127.0.0.1:4040 allow_hosts=[]
+t=2026-03-12T09:37:06+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-12T09:37:06+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-12T09:37:07+0100 lvl=info msg="update available" obj=updater
+t=2026-03-12T09:37:07+0100 lvl=info msg="started tunnel" obj=tunnels name=command_line addr=http://localhost:3000 url=https://houndy-altha-clearstoried.ngrok-free.dev
+t=2026-03-12T09:37:13+0100 lvl=info msg=start pg=/api/tunnels id=def6833f23ebfcf8
+t=2026-03-12T09:37:13+0100 lvl=info msg=end pg=/api/tunnels id=def6833f23ebfcf8 status=200 dur=237.75µs
+t=2026-03-12T09:52:40+0100 lvl=info msg="join connections" obj=join id=074b7f9e1457 l=[::1]:3000 r=176.133.235.172:59829
+t=2026-03-12T09:52:41+0100 lvl=info msg="join connections" obj=join id=2e31a9ece5cf l=[::1]:3000 r=176.133.235.172:59829
+t=2026-03-12T09:52:41+0100 lvl=info msg="join connections" obj=join id=200b82fa6b2b l=[::1]:3000 r=176.133.235.172:59829
+t=2026-03-12T09:52:41+0100 lvl=info msg="join connections" obj=join id=d0cd3c999e59 l=[::1]:3000 r=176.133.235.172:59829
+t=2026-03-12T09:52:41+0100 lvl=info msg="join connections" obj=join id=6350f61b4949 l=[::1]:3000 r=176.133.235.172:59829
+t=2026-03-12T09:52:41+0100 lvl=info msg="join connections" obj=join id=cc0477cda72c l=[::1]:3000 r=176.133.235.172:59829
+t=2026-03-12T09:52:41+0100 lvl=info msg="join connections" obj=join id=c5675f6486da l=[::1]:3000 r=176.133.235.172:59829
+t=2026-03-12T09:52:49+0100 lvl=info msg="join connections" obj=join id=e6bc6ef12d25 l=[::1]:3000 r=176.133.235.172:59829
+t=2026-03-12T09:52:49+0100 lvl=info msg="join connections" obj=join id=143881665aba l=[::1]:3000 r=176.133.235.172:59829
+t=2026-03-12T09:52:49+0100 lvl=info msg="join connections" obj=join id=0a69c5ec960c l=[::1]:3000 r=176.133.235.172:59829
+t=2026-03-12T09:52:49+0100 lvl=info msg="join connections" obj=join id=9ba2f2a2430d l=[::1]:3000 r=176.133.235.172:59852
+t=2026-03-12T09:52:51+0100 lvl=info msg="join connections" obj=join id=fc87540742a2 l=[::1]:3000 r=176.133.235.172:59829
+t=2026-03-12T10:02:16+0100 lvl=info msg="join connections" obj=join id=85a50bb8fcb9 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:18+0100 lvl=info msg="join connections" obj=join id=af9567501140 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:18+0100 lvl=info msg="join connections" obj=join id=0b90e69b8a21 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:20+0100 lvl=info msg="join connections" obj=join id=60326e868ce1 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:20+0100 lvl=info msg="join connections" obj=join id=3e6ba5604fec l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:21+0100 lvl=info msg="join connections" obj=join id=87b8be941fec l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:32+0100 lvl=info msg="join connections" obj=join id=752a0bff8891 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:33+0100 lvl=info msg="join connections" obj=join id=79a39c8b92f6 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:33+0100 lvl=info msg="join connections" obj=join id=10eacf1b0c10 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:33+0100 lvl=info msg="join connections" obj=join id=96807c295ec0 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:33+0100 lvl=info msg="join connections" obj=join id=c5e2f2763943 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:33+0100 lvl=info msg="join connections" obj=join id=757656a287ce l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:33+0100 lvl=info msg="join connections" obj=join id=93df8f3ea0e9 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:34+0100 lvl=info msg="join connections" obj=join id=9159af122bf1 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:34+0100 lvl=info msg="join connections" obj=join id=253e0f78799a l=[::1]:3000 r=176.133.235.172:60243
+t=2026-03-12T10:02:35+0100 lvl=info msg="join connections" obj=join id=0b464f2307fe l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:40+0100 lvl=info msg="join connections" obj=join id=d19328c259fa l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:44+0100 lvl=info msg="join connections" obj=join id=4760a283e22f l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:53+0100 lvl=info msg="join connections" obj=join id=89a1fff6cd35 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:53+0100 lvl=info msg="join connections" obj=join id=c6c154ea480f l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:53+0100 lvl=info msg="join connections" obj=join id=c82681add007 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:53+0100 lvl=info msg="join connections" obj=join id=f826f22a7583 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:53+0100 lvl=info msg="join connections" obj=join id=786b80379b1a l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:53+0100 lvl=info msg="join connections" obj=join id=a9d0bafb5fa7 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:53+0100 lvl=info msg="join connections" obj=join id=60147a4efeee l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:55+0100 lvl=info msg="join connections" obj=join id=0b3bb4f88dfd l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:02:55+0100 lvl=info msg="join connections" obj=join id=88a692101b53 l=[::1]:3000 r=176.133.235.172:60287
+t=2026-03-12T10:02:56+0100 lvl=info msg="join connections" obj=join id=572c6e51a6ac l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:03:00+0100 lvl=info msg="join connections" obj=join id=6118fe5c1a61 l=[::1]:3000 r=176.133.235.172:60179
+t=2026-03-12T10:19:05+0100 lvl=info msg="join connections" obj=join id=7c3dcf3e1e85 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:06+0100 lvl=info msg="join connections" obj=join id=4dacde632f52 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:06+0100 lvl=info msg="join connections" obj=join id=ad51487db571 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:06+0100 lvl=info msg="join connections" obj=join id=0bff777127aa l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:06+0100 lvl=info msg="join connections" obj=join id=b906fee2f0af l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:06+0100 lvl=info msg="join connections" obj=join id=e0df8a366938 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:06+0100 lvl=info msg="join connections" obj=join id=3d100d44823a l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=0b5b48ed9111 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=bcbcbb34dc52 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=cf480696e361 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=cd0fb54329ca l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=3bab9bdce273 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=c527070e9a77 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=84c6739ca3c3 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=069da89e2fe9 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=f9b8377898f8 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=71f18b5218cc l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=e29c2f6359f6 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=e4c2118d9fb5 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=804dc5f7e2be l=[::1]:3000 r=176.133.235.172:61460
+t=2026-03-12T10:19:07+0100 lvl=info msg="join connections" obj=join id=a4d7dd47beb6 l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:22:21+0100 lvl=info msg="join connections" obj=join id=a9e810faa69a l=[::1]:3000 r=176.133.235.172:61438
+t=2026-03-12T10:46:58+0100 lvl=info msg="join connections" obj=join id=99be632d1e31 l=[::1]:3000 r=176.133.235.172:50591
+t=2026-03-12T13:30:19+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=bd80319cdec3 err="read tcp 192.168.0.100:59656->3.123.177.80:443: read: connection reset by peer"
+t=2026-03-12T13:30:20+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-12T13:30:20+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-12T13:30:34+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=297f32cd9f0e clientid=a294cef1be9199a8bb12dd25d9cd4e51
+t=2026-03-12T13:46:00+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=bd80319cdec3 err="read tcp 192.168.0.100:53528->3.122.29.226:443: read: connection reset by peer"
+t=2026-03-12T13:46:00+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-12T13:46:00+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-12T13:46:14+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=70c93946afea clientid=a294cef1be9199a8bb12dd25d9cd4e51
+t=2026-03-12T14:31:15+0100 lvl=info msg="join connections" obj=join id=46a043b1a815 l=[::1]:3000 r=176.133.235.172:64766
+t=2026-03-12T14:31:16+0100 lvl=info msg="join connections" obj=join id=2e43daf21bc4 l=[::1]:3000 r=176.133.235.172:64766
+t=2026-03-12T14:31:16+0100 lvl=info msg="join connections" obj=join id=1c2914a7e17e l=[::1]:3000 r=176.133.235.172:64766
+t=2026-03-12T14:31:16+0100 lvl=info msg="join connections" obj=join id=44509120d1a7 l=[::1]:3000 r=176.133.235.172:64766
+t=2026-03-12T14:31:16+0100 lvl=info msg="join connections" obj=join id=28f199fc8396 l=[::1]:3000 r=176.133.235.172:64766
+t=2026-03-12T14:31:16+0100 lvl=info msg="join connections" obj=join id=af35a60608bd l=[::1]:3000 r=176.133.235.172:64766
+t=2026-03-12T14:31:16+0100 lvl=info msg="join connections" obj=join id=4da8cdf31279 l=[::1]:3000 r=176.133.235.172:64766
+t=2026-03-12T14:31:19+0100 lvl=info msg="join connections" obj=join id=e059618bb0ac l=[::1]:3000 r=176.133.235.172:64766
+t=2026-03-12T14:31:19+0100 lvl=info msg="join connections" obj=join id=152ec7dc2155 l=[::1]:3000 r=176.133.235.172:64802
+t=2026-03-12T14:31:20+0100 lvl=info msg="join connections" obj=join id=9d87664f53a5 l=[::1]:3000 r=176.133.235.172:64766
+t=2026-03-12T15:06:04+0100 lvl=info msg="join connections" obj=join id=34a39d3f85f0 l=[::1]:3000 r=176.133.235.172:56935
+t=2026-03-12T15:06:05+0100 lvl=info msg="join connections" obj=join id=0f8900cea008 l=[::1]:3000 r=176.133.235.172:56935
+t=2026-03-12T15:06:05+0100 lvl=info msg="join connections" obj=join id=efe642f8c92d l=[::1]:3000 r=176.133.235.172:56935
+t=2026-03-12T15:06:05+0100 lvl=info msg="join connections" obj=join id=a371753006f7 l=[::1]:3000 r=176.133.235.172:56935
+t=2026-03-12T15:06:05+0100 lvl=info msg="join connections" obj=join id=b814f05c9b4f l=[::1]:3000 r=176.133.235.172:56935
+t=2026-03-12T15:06:05+0100 lvl=info msg="join connections" obj=join id=e06defc62559 l=[::1]:3000 r=176.133.235.172:56935
+t=2026-03-12T15:06:05+0100 lvl=info msg="join connections" obj=join id=2df83c8d20cf l=[::1]:3000 r=176.133.235.172:56935
+t=2026-03-12T15:06:05+0100 lvl=info msg="join connections" obj=join id=84746810e5a6 l=[::1]:3000 r=176.133.235.172:56935
+t=2026-03-12T15:06:08+0100 lvl=info msg="join connections" obj=join id=e172694408c5 l=[::1]:3000 r=176.133.235.172:56935
+t=2026-03-12T15:06:08+0100 lvl=info msg="join connections" obj=join id=542b1a399df2 l=[::1]:3000 r=176.133.235.172:56983
+t=2026-03-12T15:06:10+0100 lvl=info msg="join connections" obj=join id=3e3296db3dd4 l=[::1]:3000 r=176.133.235.172:56935
+t=2026-03-12T16:07:08+0100 lvl=info msg="update available" obj=updater
+t=2026-03-12T16:16:39+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=bd80319cdec3 err="read EOF from remote peer"
+t=2026-03-12T16:16:40+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-12T16:16:40+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-12T16:16:41+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=22d20b7e1cb6 clientid=a294cef1be9199a8bb12dd25d9cd4e51
+t=2026-03-12T16:27:08+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=cf2c8150310c clientid=a294cef1be9199a8bb12dd25d9cd4e51
+t=2026-03-12T16:27:08+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=bd80319cdec3 err="session closed"
+t=2026-03-12T16:27:09+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-12T16:27:09+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-12T17:00:38+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=bd80319cdec3 err="read tcp 192.168.0.100:57492->3.122.29.226:443: read: connection reset by peer"
+t=2026-03-12T17:00:38+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-12T17:00:38+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-12T17:10:16+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=bd80319cdec3 err="read tcp 192.168.0.100:57519->3.123.177.80:443: read: connection reset by peer"
+t=2026-03-12T17:10:16+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-12T17:10:16+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-12T17:28:01+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=d7f1c81b891d clientid=a294cef1be9199a8bb12dd25d9cd4e51
+t=2026-03-12T17:28:03+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=bd80319cdec3 err="read tcp 192.168.0.100:57538->3.125.234.140:443: read: connection reset by peer"
+t=2026-03-12T17:28:04+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-12T17:28:04+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-12T17:59:51+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=a970b7b96911 clientid=a294cef1be9199a8bb12dd25d9cd4e51
+t=2026-03-12T17:59:53+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=bd80319cdec3 err="read tcp 192.168.0.100:57557->3.123.177.80:443: read: connection reset by peer"
+t=2026-03-12T17:59:54+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-12T17:59:54+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-12T17:59:58+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=204973278b7f clientid=a294cef1be9199a8bb12dd25d9cd4e51
+t=2026-03-12T18:00:08+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=9b0d3cca6beb clientid=a294cef1be9199a8bb12dd25d9cd4e51
+t=2026-03-12T23:23:42+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=276f39711d19 clientid=a294cef1be9199a8bb12dd25d9cd4e51
+t=2026-03-12T23:23:42+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=bd80319cdec3 err="session closed"
+t=2026-03-12T23:23:43+0100 lvl=eror msg="failed to reconnect session" obj=tunnels.session err="failed to dial ngrok server with address \"connect.ngrok-agent.com:443\": dial tcp: lookup connect.ngrok-agent.com: no such host"
+t=2026-03-12T23:23:43+0100 lvl=eror msg="failed to reconnect session" obj=tunnels.session err="failed to dial ngrok server with address \"connect.ngrok-agent.com:443\": dial tcp: lookup connect.ngrok-agent.com: no such host"
+t=2026-03-12T23:23:44+0100 lvl=eror msg="failed to reconnect session" obj=tunnels.session err="failed to dial ngrok server with address \"connect.ngrok-agent.com:443\": dial tcp: lookup connect.ngrok-agent.com: no such host"
+t=2026-03-12T23:23:46+0100 lvl=eror msg="failed to reconnect session" obj=tunnels.session err="failed to dial ngrok server with address \"connect.ngrok-agent.com:443\": dial tcp: lookup connect.ngrok-agent.com: no such host"
+t=2026-03-12T23:23:51+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-12T23:23:51+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-13T01:40:25+0100 lvl=info msg="update available" obj=updater
+t=2026-03-13T07:40:25+0100 lvl=info msg="update available" obj=updater
+t=2026-03-13T12:04:30+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=bd80319cdec3 err="read tcp 192.168.0.100:59794->3.123.83.158:443: read: connection reset by peer"
+t=2026-03-13T12:04:31+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-13T12:04:31+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-13T12:21:47+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=a88c28486b51 clientid=a294cef1be9199a8bb12dd25d9cd4e51
+t=2026-03-13T12:21:53+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=bd80319cdec3 err="read tcp 192.168.0.100:62620->52.28.187.147:443: read: connection reset by peer"
+t=2026-03-13T12:21:54+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-13T12:21:54+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-13T12:37:15+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=bd80319cdec3 err="read tcp 192.168.0.100:62650->3.125.92.105:443: read: connection reset by peer"
+t=2026-03-13T12:37:17+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-13T12:37:17+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-13T12:37:20+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=c2e589d64757 clientid=a294cef1be9199a8bb12dd25d9cd4e51
+t=2026-03-13T12:37:36+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=3f3c86a884de clientid=a294cef1be9199a8bb12dd25d9cd4e51
+t=2026-03-13T12:48:17+0100 lvl=eror msg="session closed, starting reconnect loop" obj=tunnels.session obj=csess id=bd80319cdec3 err="read tcp 192.168.0.100:62661->3.123.83.158:443: read: connection reset by peer"
+t=2026-03-13T12:48:18+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-13T12:48:18+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-13T12:48:32+0100 lvl=eror msg="heartbeat timeout, terminating session" obj=tunnels.session obj=csess id=15738a714ab8 clientid=a294cef1be9199a8bb12dd25d9cd4e51
+t=2026-03-13T14:47:50+0100 lvl=info msg="update available" obj=updater
+t=2026-03-13T18:25:47+0100 lvl=info msg="join connections" obj=join id=5b7eae83218b l=[::1]:3000 r=176.133.235.172:62506
+t=2026-03-13T18:25:53+0100 lvl=info msg="join connections" obj=join id=9053eaef90ee l=[::1]:3000 r=176.133.235.172:62506
+t=2026-03-13T18:25:53+0100 lvl=info msg="join connections" obj=join id=52b36b94f409 l=[::1]:3000 r=176.133.235.172:62506
+t=2026-03-13T18:25:53+0100 lvl=info msg="join connections" obj=join id=1effa26684db l=[::1]:3000 r=176.133.235.172:62506
+t=2026-03-13T18:25:53+0100 lvl=info msg="join connections" obj=join id=0adfc1d7b017 l=[::1]:3000 r=176.133.235.172:62506
+t=2026-03-13T18:25:53+0100 lvl=info msg="join connections" obj=join id=7b26c286583f l=[::1]:3000 r=176.133.235.172:62506
+t=2026-03-13T18:25:53+0100 lvl=info msg="join connections" obj=join id=3b8d3a94eb6f l=[::1]:3000 r=176.133.235.172:62506
+t=2026-03-13T18:25:55+0100 lvl=info msg="join connections" obj=join id=50adfb2f0d57 l=[::1]:3000 r=176.133.235.172:62506
+t=2026-03-13T18:25:55+0100 lvl=info msg="join connections" obj=join id=7f8fbb33113f l=[::1]:3000 r=176.133.235.172:62528
+t=2026-03-13T18:25:56+0100 lvl=info msg="join connections" obj=join id=798729ebe938 l=[::1]:3000 r=176.133.235.172:62506
+t=2026-03-13T18:26:16+0100 lvl=info msg="received stop request" obj=app stopReq="{err:<nil> restart:false}"
+t=2026-03-13T18:26:16+0100 lvl=info msg="session closing" obj=tunnels.session err=nil

@@ -1,0 +1,25 @@
+t=2026-03-13T18:26:22+0100 lvl=info msg="no configuration paths supplied"
+t=2026-03-13T18:26:22+0100 lvl=info msg="using configuration at default config path" path="/Users/tychiqueesteve/Library/Application Support/ngrok/ngrok.yml"
+t=2026-03-13T18:26:22+0100 lvl=info msg="open config file" path="/Users/tychiqueesteve/Library/Application Support/ngrok/ngrok.yml" err=nil
+t=2026-03-13T18:26:22+0100 lvl=info msg="FIPS 140 mode" enabled=false
+t=2026-03-13T18:26:22+0100 lvl=info msg="starting web service" obj=web addr=127.0.0.1:4040 allow_hosts=[]
+t=2026-03-13T18:26:22+0100 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-13T18:26:22+0100 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-13T18:26:22+0100 lvl=eror msg="session closing" obj=tunnels.session err="failed to start tunnel: This domain is reserved for another account.\nFailed to create an endpoint with the domain 'aperiodically-preinventive-ella.ngrok-free.dev' for the account 'tychiqueesteve2005@gmail.com'.\n\nIf you have reserved this name, make sure that you are using an\nauthtoken credential for the appropriate account.\n\nReserve a name on your dashboard: https://dashboard.ngrok.com/domains/new\r\n\r\nERR_NGROK_320\r\n"
+t=2026-03-13T18:26:22+0100 lvl=info msg="accept failed" obj=tunnels.session obj=csess id=6f21f83a1954 err="reconnecting session closed"
+t=2026-03-13T18:26:22+0100 lvl=info msg="no more state changes" obj=tunnels.session
+t=2026-03-13T18:26:22+0100 lvl=info msg="received stop request" obj=app stopReq="{err:{Inner:{Inner:0x14000186e10}} restart:false}"
+t=2026-03-13T18:26:22+0100 lvl=eror msg="terminating with error" obj=app err="failed to start tunnel: This domain is reserved for another account.\nFailed to create an endpoint with the domain 'aperiodically-preinventive-ella.ngrok-free.dev' for the account 'tychiqueesteve2005@gmail.com'.\n\nIf you have reserved this name, make sure that you are using an\nauthtoken credential for the appropriate account.\n\nReserve a name on your dashboard: https://dashboard.ngrok.com/domains/new\r\n\r\nERR_NGROK_320\r\n"
+t=2026-03-13T18:26:22+0100 lvl=crit msg="command failed" err="failed to start tunnel: This domain is reserved for another account.\nFailed to create an endpoint with the domain 'aperiodically-preinventive-ella.ngrok-free.dev' for the account 'tychiqueesteve2005@gmail.com'.\n\nIf you have reserved this name, make sure that you are using an\nauthtoken credential for the appropriate account.\n\nReserve a name on your dashboard: https://dashboard.ngrok.com/domains/new\r\n\r\nERR_NGROK_320\r\n"
+ERROR:  failed to start tunnel: This domain is reserved for another account.
+ERROR:  Failed to create an endpoint with the domain 'aperiodically-preinventive-ella.ngrok-free.dev' for the account 'tychiqueesteve2005@gmail.com'.
+ERROR:  
+ERROR:  If you have reserved this name, make sure that you are using an
+ERROR:  authtoken credential for the appropriate account.
+ERROR:  
+ERROR:  Reserve a name on your dashboard: https://dashboard.ngrok.com/domains/new
+ERROR:  
+ERROR:  ERR_NGROK_320
+ERROR:  https://ngrok.com/docs/errors/err_ngrok_320
+t=2026-03-13T18:26:22+0100 lvl=warn msg="failed to check for update" obj=updater err="Post \"https://update.equinox.io/check\": context canceled"
+ERROR:  
