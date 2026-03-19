@@ -305,6 +305,7 @@ function BuilderInternal({ agent, onSave }) {
             {selectedNode && (
                 <ConfigPanel
                     selectedNode={selectedNode}
+                    agentId={agent?.id}
                     onUpdate={(data) => updateNodeData(selectedNode.id, data)}
                     onDelete={() => {
                         setNodes((nds) => nds.filter((n) => n.id !== selectedNode.id));

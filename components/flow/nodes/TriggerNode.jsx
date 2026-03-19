@@ -31,16 +31,12 @@ const TRIGGER_TYPES = [
 
 // Known OAuth providers and their display info
 const OAUTH_PROVIDERS = {
-    gmail:      { label: 'Gmail',        domain: 'gmail.com',      events: ['email_received', 'email_sent', 'label_applied'] },
-    slack:      { label: 'Slack',        domain: 'slack.com',      events: ['message_received', 'channel_post', 'reaction_added', 'mention'] },
-    github:     { label: 'GitHub',       domain: 'github.com',     events: ['push', 'pull_request', 'issue_opened', 'issue_closed', 'release'] },
-    stripe:     { label: 'Stripe',       domain: 'stripe.com',     events: ['payment_succeeded', 'payment_failed', 'subscription_created', 'invoice_paid'] },
-    trello:     { label: 'Trello',       domain: 'trello.com',     events: ['card_created', 'card_moved', 'card_updated', 'comment_added'] },
-    notion:     { label: 'Notion',       domain: 'notion.so',      events: ['page_created', 'page_updated', 'database_updated'] },
-    hubspot:    { label: 'HubSpot',      domain: 'hubspot.com',    events: ['contact_created', 'deal_updated', 'ticket_opened'] },
-    salesforce: { label: 'Salesforce',   domain: 'salesforce.com', events: ['opportunity_created', 'lead_converted', 'account_updated'] },
-    google:     { label: 'Google',       domain: 'google.com',     events: ['calendar_event', 'drive_file_created', 'forms_response'] },
-    linear:     { label: 'Linear',       domain: 'linear.app',     events: ['issue_created', 'issue_updated', 'project_updated'] },
+    // Only expose providers/events that are concretely supported
+    // by our current webhook handlers + scopes.
+    slack:  { label: 'Slack',  domain: 'slack.com',  events: ['message', 'app_mention', 'member_joined_channel', 'file_share'] },
+    github: { label: 'GitHub', domain: 'github.com', events: ['push', 'pull_request'] },
+    trello: { label: 'Trello', domain: 'trello.com', events: ['updateCard', 'addMemberToCard', 'addAttachmentToCard', 'updateCheckItemStateOnCard'] },
+    shopify: { label: 'Shopify', domain: 'shopify.com', events: ['orders/create'] },
 };
 
 const TriggerNode = ({ data, isConnectable }) => {
@@ -319,7 +315,7 @@ const TriggerNode = ({ data, isConnectable }) => {
                                         <option value="">-- Choisir une connexion --</option>
                                         {connectedProviderConnections.map(conn => (
                                             <option key={conn.id} value={conn.id}>
-                                                {conn.account_label || conn.metadata?.email || conn.provider}
+                                                {conn.account_label || conn.account_name || conn.metadata?.store_url || conn.metadata?.email || conn.provider}
                                             </option>
                                         ))}
                                     </select>

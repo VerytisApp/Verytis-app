@@ -19,9 +19,10 @@ const DEFAULT_PROVIDERS = [
     { id: 'github', name: 'GitHub', domain: 'github.com', status: 'Not Configured', tokenPreview: '' },
     { id: 'slack', name: 'Slack', domain: 'slack.com', status: 'Not Configured', tokenPreview: '' },
     { id: 'trello', name: 'Trello', domain: 'trello.com', status: 'Not Configured', tokenPreview: '' },
+    { id: 'shopify', name: 'Shopify', domain: 'shopify.com', status: 'Not Configured', tokenPreview: '' },
 ];
 
-const OAUTH_PROVIDERS = ['github', 'slack', 'trello'];
+const OAUTH_PROVIDERS = ['github', 'slack', 'trello', 'shopify'];
 
 export default function IntegrationsSettings() {
     const { currentUser } = useRole();
@@ -34,6 +35,10 @@ export default function IntegrationsSettings() {
     const [activeProvider, setActiveProvider] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
     const [processingIds, setProcessingIds] = useState([]); // Track individual button loading
+
+    // Shopify modal
+    const [isShopifyModalOpen, setIsShopifyModalOpen] = useState(false);
+    const [shopifyStoreUrl, setShopifyStoreUrl] = useState('');
 
     // Form fields for modal
     const [modalApiKey, setModalApiKey] = useState('');
@@ -54,6 +59,10 @@ export default function IntegrationsSettings() {
 
             if (['SLACK_CONNECTED', 'GITHUB_CONNECTED', 'TRELLO_CONNECTED', 'TRELLO_LINKED', 'GITHUB_LINKED'].includes(event.data?.type)) {
                 console.log("[SETTINGS] Connection SUCCESS detected, forcing re-fetch...", event.data.type);
+                mutate();
+            }
+
+            if (event.data?.type === 'SHOPIFY_CONNECTED') {
                 mutate();
             }
         };
@@ -198,6 +207,13 @@ export default function IntegrationsSettings() {
     };
 
     const isProcessing = (id, type) => processingIds.includes(`${id}-${type}`);
+    const openCenteredPopup = (url, title) => {
+        const width = 640;
+        const height = 760;
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+        window.open(url, title, `width=${width},height=${height},top=${top},left=${left}`);
+    };
 
     if (isLoading) return (
         <div className="space-y-6 animate-in fade-in duration-300">
@@ -379,10 +395,16 @@ export default function IntegrationsSettings() {
                                                             const supabase = createClient();
                                                             const { data: { user } } = await supabase.auth.getUser();
                                                             const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
+                                                            if (p.id === 'shopify') {
+                                                                setShopifyStoreUrl('');
+                                                                setIsShopifyModalOpen(true);
+                                                                return;
+                                                            }
+
                                                             const authUrl = p.id === 'github' ? `/api/auth/github/install?organizationId=${profile?.organization_id}` :
                                                                             p.id === 'trello' ? `/api/auth/trello/login?userId=${user.id}&organizationId=${profile?.organization_id}&type=integration` :
                                                                             `/api/slack/install?userId=${user.id}&type=integration&organizationId=${profile?.organization_id}`;
-                                                            window.open(authUrl, `Connecter ${p.name} Team`, 'width=600,height=700');
+                                                            openCenteredPopup(authUrl, `Connecter ${p.name} Team`);
                                                         } finally {
                                                             setTimeout(() => setProcessingIds(prev => prev.filter(k => k !== processKey)), 2000);
                                                         }
@@ -433,10 +455,16 @@ export default function IntegrationsSettings() {
                                                     const supabase = createClient();
                                                     const { data: { user } } = await supabase.auth.getUser();
                                                     const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
+                                                    if (p.id === 'shopify') {
+                                                        setShopifyStoreUrl('');
+                                                        setIsShopifyModalOpen(true);
+                                                        return;
+                                                    }
+
                                                     const authUrl = p.id === 'github' ? `/api/auth/github/login?userId=${user.id}&type=user_link` :
                                                                     p.id === 'trello' ? `/api/auth/trello/login?userId=${user.id}&type=user_link` :
                                                                     `/api/slack/install?userId=${user.id}&type=user_link&organizationId=${profile?.organization_id}`;
-                                                    window.open(authUrl, `Connecter ${p.name} Perso`, 'width=600,height=700');
+                                                    openCenteredPopup(authUrl, `Connecter ${p.name} Perso`);
                                                 } finally {
                                                     setTimeout(() => setProcessingIds(prev => prev.filter(k => k !== processKey)), 2000);
                                                 }
@@ -577,6 +605,74 @@ export default function IntegrationsSettings() {
                             <Button onClick={handleSave} disabled={isSaving}>
                                 {isSaving ? 'Encrypting & Saving...' : 'Save Configuration'}
                             </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Shopify Modal */}
+            {isShopifyModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
+                            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                                <img src="https://www.google.com/s2/favicons?domain=shopify.com&sz=128" className="w-5 h-5" />
+                                Connecter Shopify
+                            </h3>
+                            <button onClick={() => setIsShopifyModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">URL de votre boutique</label>
+                                <input
+                                    type="text"
+                                    value={shopifyStoreUrl}
+                                    onChange={e => setShopifyStoreUrl(e.target.value)}
+                                    placeholder="maboutique.myshopify.com"
+                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-mono"
+                                />
+                                <p className="text-[11px] text-slate-500 mt-2">
+                                    Exemple: <code className="font-mono">maboutique.myshopify.com</code>
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-3 pt-2">
+                                <button
+                                    className="w-full py-3 px-4 rounded-xl bg-slate-900 text-white font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={!shopifyStoreUrl.trim()}
+                                    onClick={() => {
+                                        const url = `/api/auth/shopify/login?store_url=${encodeURIComponent(shopifyStoreUrl.trim())}&scope=personal`;
+                                        openCenteredPopup(url, 'Shopify Personal Connect');
+                                        setIsShopifyModalOpen(false);
+                                    }}
+                                >
+                                    Connecter (Espace Personnel)
+                                </button>
+                                <button
+                                    className="w-full py-3 px-4 rounded-xl bg-blue-600 text-white font-black text-[11px] uppercase tracking-widest hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={!shopifyStoreUrl.trim() || !isPrivileged}
+                                    onClick={() => {
+                                        const url = `/api/auth/shopify/login?store_url=${encodeURIComponent(shopifyStoreUrl.trim())}&scope=team`;
+                                        openCenteredPopup(url, 'Shopify Team Connect');
+                                        setIsShopifyModalOpen(false);
+                                    }}
+                                    title={!isPrivileged ? 'Réservé Admin/Manager' : undefined}
+                                >
+                                    Connecter (Workspace Équipe)
+                                </button>
+                                {!isPrivileged && (
+                                    <p className="text-[11px] text-slate-400">
+                                        La connexion d’équipe est réservée aux rôles Admin/Manager.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                            <Button variant="secondary" onClick={() => setIsShopifyModalOpen(false)}>Fermer</Button>
                         </div>
                     </div>
                 </div>

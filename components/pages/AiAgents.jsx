@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users, Activity, Settings, Bot, ShieldAlert, Copy, Cpu, RefreshCw, Layers, CheckCircle2, Clock, Check, FileCode2, Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { Search, Filter, Plus, ChevronRight, X, MoreVertical, Trash2, Users, Activity, Settings, Bot, ShieldAlert, Copy, Cpu, RefreshCw, Layers, CheckCircle2, Clock, Check, FileCode2, Sparkles, Loader2, ArrowRight, Play, Pause } from 'lucide-react';
 import { Card, Button, StatusBadge, PlatformIcon, Modal, EmptyState, SkeletonAgentCard } from '../ui';
 import ArchiveConfirmModal from '../ui/ArchiveConfirmModal';
 import { useToast } from '../ui/Toast';
@@ -138,7 +138,32 @@ export default function AiAgents({ userRole }) {
 
     const { data, error, isLoading, mutate } = useSWR('/api/agents', fetcher);
     const allAgents = data?.agents || [];
-    const deployedAgents = allAgents.filter(a => !a.is_draft);
+    const deployedAgents = allAgents.filter(a => !a.is_draft && (a.status === 'active' || a.status === 'inactive'));
+
+    const toggleAgentStatus = async (agent) => {
+        const nextStatus = agent.status === 'active' ? 'inactive' : 'active';
+        try {
+            const res = await fetch(`/api/agents/${agent.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: nextStatus })
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed to update status');
+            showToast({
+                title: nextStatus === 'active' ? 'Agent Activé' : 'Agent Mis en pause',
+                message: `${agent.name} est maintenant ${nextStatus}.`,
+                type: 'success'
+            });
+            await mutate();
+        } catch (e) {
+            showToast({
+                title: 'Erreur',
+                message: e.message || 'Impossible de changer le statut.',
+                type: 'error'
+            });
+        }
+    };
 
     const handleDeleteAgent = async (agentId) => {
         console.log('🗑️ Deleting agent:', agentId);
@@ -273,8 +298,24 @@ export default function AiAgents({ userRole }) {
                              {/* Main Card Container */}
                              <div 
                                  onClick={() => router.push(`/agents/${agent.id}`)}
-                                 className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 p-4 pt-8 flex flex-col items-center relative z-20 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl cursor-pointer"
+                                 className={`bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 p-4 pt-8 flex flex-col items-center relative z-20 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl cursor-pointer ${
+                                     agent.status === 'active'
+                                         ? 'ring-2 ring-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.35)]'
+                                         : 'opacity-80'
+                                 }`}
                              >
+                                 {/* Play/Pause Toggle */}
+                                 <button
+                                     onClick={(e) => { e.stopPropagation(); toggleAgentStatus(agent); }}
+                                     className={`absolute top-4 right-4 z-40 p-2 rounded-xl border shadow-sm transition-colors ${
+                                         agent.status === 'active'
+                                             ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700'
+                                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                     }`}
+                                     title={agent.status === 'active' ? 'Mettre en pause' : 'Activer'}
+                                 >
+                                     {agent.status === 'active' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                                 </button>
                                  
                                  {/* 1. VERYTIS SUPERVISOR BLOCK */}
                                  <div className="bg-gradient-to-b from-white to-blue-50/50 rounded-2xl border-2 border-blue-400/30 shadow-sm p-3 w-full flex flex-col items-center relative overflow-hidden mb-2">
@@ -298,9 +339,13 @@ export default function AiAgents({ userRole }) {
                                              <ShieldAlert size={10} className="text-blue-500" />
                                              <span className="text-[8px] font-black text-blue-700 uppercase tracking-tighter">SECURED</span>
                                          </div>
-                                         <div className="bg-white rounded-lg border border-blue-100 px-2 py-1 flex items-center justify-center gap-1 shadow-sm flex-1">
+                                         <div className={`bg-white rounded-lg border border-blue-100 px-2 py-1 flex items-center justify-center gap-1 shadow-sm flex-1 ${
+                                             agent.status === 'active' ? '' : 'opacity-60'
+                                         }`}>
                                              <Activity size={10} className="text-blue-500" />
-                                             <span className="text-[8px] font-black text-blue-700 uppercase tracking-tighter">LIVE</span>
+                                             <span className="text-[8px] font-black text-blue-700 uppercase tracking-tighter">
+                                                 {agent.status === 'active' ? 'ACTIVE' : 'INACTIVE'}
+                                             </span>
                                          </div>
                                      </div>
                                  </div>

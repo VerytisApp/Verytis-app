@@ -81,7 +81,7 @@ export async function POST(req) {
 
         // 3. Parse Body
         const body = await req.json();
-        const { id, name, description, system_prompt, policies, visual_config, is_draft, knowledge_configuration } = body;
+        const { id, name, description, system_prompt, policies, visual_config, is_draft, knowledge_configuration, status: requestedStatus } = body;
 
         if (!name && !id) {
             return NextResponse.json({ error: 'Name or ID is required' }, { status: 400 });
@@ -142,7 +142,35 @@ export async function POST(req) {
             hashedKey = crypto.createHash('sha256').update(rawKey).digest('hex');
         }
 
-        // 5. DB Upsert logic — sanitize visual_config + enforce governance
+        // 5. Determine status / deployment transition
+        // Rule:
+        // - draft save => status: 'draft'
+        // - first deploy (draft -> deployed) => status: 'inactive'
+        // - subsequent saves keep existing status unless explicitly requested
+        let finalStatus = is_draft ? 'draft' : 'inactive';
+        if (id) {
+            const { data: existingAgent } = await supabase
+                .from('ai_agents')
+                .select('status, is_draft')
+                .eq('id', id)
+                .eq('organization_id', profile.organization_id)
+                .maybeSingle();
+
+            if (existingAgent) {
+                // If we are just saving edits to an already deployed agent, keep its status
+                const isDeployingNow = existingAgent.is_draft && !is_draft;
+                if (!isDeployingNow) {
+                    finalStatus = existingAgent.status || finalStatus;
+                } else {
+                    finalStatus = 'inactive';
+                }
+            }
+        }
+        if (requestedStatus && ['draft', 'inactive', 'active'].includes(requestedStatus)) {
+            finalStatus = requestedStatus;
+        }
+
+        // 6. DB Upsert logic — sanitize visual_config + enforce governance
         const agentData = {
             organization_id: profile.organization_id,
             name: name || 'Unnamed Agent',
@@ -152,7 +180,7 @@ export async function POST(req) {
             visual_config: sanitizeVisualConfig(visual_config),
             knowledge_configuration: knowledge_configuration || {},
             is_draft: is_draft || false,
-            status: is_draft ? 'draft' : 'active'
+            status: finalStatus
         };
 
         if (hashedKey) {

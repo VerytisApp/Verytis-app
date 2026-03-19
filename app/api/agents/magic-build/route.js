@@ -88,12 +88,15 @@ Conçois un nouvel agent de zéro.`}
      * JAMAIS de lien Trigger (t1) -> Savoir (k1). Le savoir n'est pas un point de passage, c'est une source de données pour le LLM.
      * Le Shield (s1) est l'unique point d'entrée sécurisé pour le cerveau (p1).
 4. TRIGGERS NATIFS VERYTIS (SCHEMA OBLIGATOIRE) : Le déclencheur DOIT être natif à Verytis. Jamais de Zapier/Make. Le trigger_type DOIT être l'une de ces valeurs : 'app', 'webhook', ou 'scheduled'.
-   - Si trigger_type est 'app' : inclure 'provider' (ex: 'gmail', 'slack', 'github', 'stripe', 'trello', 'hubspot', 'salesforce', 'notion', 'google', 'linear') ET 'event_name' (ex: 'email_received', 'push', 'payment_succeeded') dans les data du nœud.
+   - Si trigger_type est 'app' : inclure 'provider' (ex: 'gmail', 'slack', 'github', 'trello', 'shopify', 'hubspot', 'salesforce', 'notion', 'google', 'linear') ET 'event_name' (ex: 'email_received', 'push', 'pull_request', 'orders/create') dans les data du nœud.
    - Si trigger_type est 'webhook' : nomme le label "Verytis Webhook Inbound". Si restriction IP, ajoute requires_ip_whitelist: true dans security.
    - Si trigger_type est 'scheduled' : inclure 'cron_expression' (ex: '0 8 * * *') dans les data.
    - INTERDIT : Ne jamais mettre de 'api_key', 'token', 'credentials' dans le nœud Trigger. L'authentification passe par OAuth (connection_id).
    - Ajouter TOUJOURS 'governance_linked: true' et 'schema_linked: true' dans les data du triggerNode pour signifier que le flux passe par Verytis Gouvernance et Schéma.
    - SCHEMA JSON pour le trigger : { "id": "t1", "type": "triggerNode", "data": { "trigger_type": "app|webhook|scheduled", "provider": "gmail|slack|null", "event_name": "email_received|null", "governance_linked": true, "schema_linked": true } }
+   - ROUTAGE SÉMANTIQUE SHOPIFY (IMPORTANT) :
+     * Si l'utilisateur mentionne une vente, une commande Shopify, "quand je fais une vente", "nouvelle commande", tu DOIS configurer un trigger_type='app' avec provider='shopify' et event_name='orders/create'.
+     * Quand Shopify est utilisé, tu DOIS ajouter 'connection_id' dans les data du triggerNode (ID OAuth Shopify) pour permettre l'exécution autonome.
 5. FICHE DE POSTE MATRICIELLE : Tu DOIS rédiger un 'system_prompt' professionnel et exhaustif (min 20 lignes). C'est le cerveau de l'agent.
 6. CONNECTIVITÉ & DATA BRIDGES : 
    - Toutes les intégrations (Slack, HubSpot, LinkedIn, GitHub) se connectent via un TOKEN ou une CLÉ API (MVP No-OAuth).

@@ -4,7 +4,7 @@ import { encrypt } from '@/lib/encryption';
 
 export const dynamic = 'force-dynamic';
 
-const OAUTH_PROVIDERS = ['github', 'slack', 'trello'];
+const OAUTH_PROVIDERS = ['github', 'slack', 'trello', 'shopify'];
 
 export async function GET(req) {
     try {
@@ -64,7 +64,10 @@ export async function GET(req) {
             else teamConnections = tData || [];
         }
 
-        const connections = [...personalConnections, ...teamConnections];
+        // NOTE: `connections` includes legacy integrations for display purposes
+        // but `user_connections` should remain strict (only real rows with IDs).
+        const strictUserConnections = [...personalConnections, ...teamConnections];
+        const connections = [...strictUserConnections];
         
         // 3c. Legacy integrations table (important for GitHub/Slack Team)
         if (profile?.organization_id) {
@@ -107,6 +110,7 @@ export async function GET(req) {
             { id: 'github', name: 'GitHub', domain: 'github.com', status: 'Not Configured', tokenPreview: '' },
             { id: 'slack', name: 'Slack', domain: 'slack.com', status: 'Not Configured', tokenPreview: '' },
             { id: 'trello', name: 'Trello', domain: 'trello.com', status: 'Not Configured', tokenPreview: '' },
+            { id: 'shopify', name: 'Shopify', domain: 'shopify.com', status: 'Not Configured', tokenPreview: '' },
         ];
 
         const catalog = [];
@@ -188,7 +192,7 @@ export async function GET(req) {
         return NextResponse.json({ 
             providers: finalProviders,
             // Compatibility: some UI components still expect `user_connections`
-            user_connections: connections,
+            user_connections: strictUserConnections,
             settings: settingsData,
             user: {
                 id: user.id,

@@ -475,6 +475,41 @@ export async function POST(req) {
 
                     console.log(`💾 Logged: [${finalActionType}] - ${attachments.length} files - User: ${slackUserName || userId || 'Unknown'} (Org: ${organizationId})`);
 
+                    // ── Trigger active agents that subscribed to this channel ──
+                    try {
+                        const channelId = event.channel;
+                        if (channelId && organizationId) {
+                            const { data: subs } = await supabase
+                                .from('agent_resources')
+                                .select('agent_id')
+                                .eq('provider', 'slack')
+                                .eq('external_id', channelId);
+
+                            const agentIds = [...new Set((subs || []).map(s => s.agent_id))];
+                            if (agentIds.length > 0) {
+                                const { data: agents } = await supabase
+                                    .from('ai_agents')
+                                    .select('id, status')
+                                    .in('id', agentIds)
+                                    .eq('organization_id', organizationId)
+                                    .eq('status', 'active');
+
+                                await Promise.all((agents || []).map(a => fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/run/agt_live_${a.id}`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'x-cron-token': process.env.CRON_SECRET
+                                    },
+                                    body: JSON.stringify({
+                                        message: `[SLACK EVENT] ${finalActionType} in ${channelId}: ${summary}`
+                                    })
+                                })));
+                            }
+                        }
+                    } catch (e) {
+                        console.error('[SLACK WEBHOOK] Failed to trigger agents:', e.message);
+                    }
+
                     // React to confirm logging
                     if (isVerified) {
                         if (finalActionType === 'FILE_SHARED') {

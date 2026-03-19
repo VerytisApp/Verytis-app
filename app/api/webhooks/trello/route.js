@@ -243,6 +243,41 @@ export async function POST(req) {
             return NextResponse.json({ status: 'ignored' });
         }
 
+        // ── Trigger active agents subscribed to this board ──────────
+        try {
+            const boardId = board?.id;
+            if (boardId && eventOrgId) {
+                const { data: subs } = await supabase
+                    .from('agent_resources')
+                    .select('agent_id')
+                    .eq('provider', 'trello')
+                    .eq('external_id', boardId);
+
+                const agentIds = [...new Set((subs || []).map(s => s.agent_id))];
+                if (agentIds.length > 0) {
+                    const { data: agents } = await supabase
+                        .from('ai_agents')
+                        .select('id, status')
+                        .in('id', agentIds)
+                        .eq('organization_id', eventOrgId)
+                        .eq('status', 'active');
+
+                    await Promise.all((agents || []).map(a => fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/run/agt_live_${a.id}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-cron-token': process.env.CRON_SECRET
+                        },
+                        body: JSON.stringify({
+                            message: `[TRELLO EVENT] ${actionType} on board ${board?.name || boardId}: ${actorName}`
+                        })
+                    })));
+                }
+            }
+        } catch (e) {
+            console.error('[TRELLO WEBHOOK] Failed to trigger agents:', e.message);
+        }
+
         return NextResponse.json({ status: 'logged' });
 
     } catch (error) {

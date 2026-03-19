@@ -186,6 +186,7 @@ export async function POST(req, { params }) {
     try {
         const { agentId } = params;
         const authHeader = req.headers.get('Authorization');
+        const internalCronToken = req.headers.get('x-cron-token');
         
         let isSimulation = false;
         let providedKey = null;
@@ -206,7 +207,7 @@ export async function POST(req, { params }) {
             console.error('Session check failed (Silent):', e.message);
         }
 
-        if (!isSimulation) {
+        if (!isSimulation && !(internalCronToken && internalCronToken === process.env.CRON_SECRET)) {
             // No session, require API Key and Admin Client
             if (!authHeader || !authHeader.startsWith('Bearer ')) {
                 return NextResponse.json({ error: 'Missing or invalid Authorization header (No active session discovered)' }, { status: 401 });
@@ -220,6 +221,9 @@ export async function POST(req, { params }) {
                 console.error('Failed to initialize Admin Client:', authErr.message);
                 return NextResponse.json({ error: 'Server authentication configuration error' }, { status: 500 });
             }
+        } else if (!isSimulation && internalCronToken && internalCronToken === process.env.CRON_SECRET) {
+            // Internal call (cron/webhook processor)
+            supabase = createAdminClient();
         }
 
         // ─── 1. FIX IDOR: Resolve Agent FIRST (before org settings) ───
@@ -245,7 +249,7 @@ export async function POST(req, { params }) {
         resolvedOrgId = targetAgent.organization_id;
 
         if (targetAgent.status !== 'active') {
-            return NextResponse.json({ error: 'Agent is suspended' }, { status: 403 });
+            return NextResponse.json({ error: 'Agent is inactive or paused' }, { status: 403 });
         }
 
         // ─── 2. FIX IDOR: Cross-Tenant Ownership Validation ───

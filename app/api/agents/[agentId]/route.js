@@ -1,8 +1,77 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { scrubText, scrubObject } from '@/lib/security/scrubber';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
+
+async function registerShopifyWebhook({ shopDomain, accessToken, topic }) {
+    const apiVersion = process.env.SHOPIFY_API_VERSION || '2024-01';
+    const address = `${process.env.NEXT_PUBLIC_BASE_URL}/api/webhooks/shopify`;
+
+    const res = await fetch(`https://${shopDomain}/admin/api/${apiVersion}/webhooks.json`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Shopify-Access-Token': accessToken
+        },
+        body: JSON.stringify({
+            webhook: {
+                topic,
+                address,
+                format: 'json'
+            }
+        })
+    });
+
+    if (res.ok) return { ok: true };
+
+    // Shopify returns 422 if webhook exists / invalid params etc.
+    const json = await res.json().catch(() => ({}));
+    if (res.status === 422) {
+        return { ok: true, skipped: true, details: json };
+    }
+    return { ok: false, status: res.status, details: json };
+}
+
+async function ensureShopifyWebhooksForAgent({ agentId }) {
+    const supabase = createAdminClient();
+
+    const { data: agent } = await supabase
+        .from('ai_agents')
+        .select('id, status, visual_config')
+        .eq('id', agentId)
+        .maybeSingle();
+
+    if (!agent?.visual_config?.nodes) return;
+
+    const triggerNodes = agent.visual_config.nodes.filter(n =>
+        n?.type === 'triggerNode' &&
+        n?.data?.trigger_type === 'app' &&
+        (n?.data?.provider || '').toLowerCase() === 'shopify' &&
+        n?.data?.connection_id
+    );
+
+    if (triggerNodes.length === 0) return;
+
+    for (const node of triggerNodes) {
+        const connectionId = node.data.connection_id;
+        const event = (node.data.event_name || '').toLowerCase();
+        const topic = event || 'orders/create';
+
+        const { data: conn } = await supabase
+            .from('user_connections')
+            .select('access_token, metadata')
+            .eq('id', connectionId)
+            .maybeSingle();
+
+        const shopDomain = conn?.metadata?.store_url || conn?.metadata?.shop;
+        const accessToken = conn?.access_token;
+        if (!shopDomain || !accessToken) continue;
+
+        await registerShopifyWebhook({ shopDomain, accessToken, topic });
+    }
+}
 
 export async function GET(req, { params }) {
     try {
@@ -67,12 +136,20 @@ export async function PATCH(req, { params }) {
 
         if (!profile?.organization_id) return NextResponse.json({ error: 'Organization not found' }, { status: 400 });
 
+        // Fetch current status to detect transitions
+        const { data: beforeAgent } = await supabase
+            .from('ai_agents')
+            .select('status, name')
+            .eq('id', agentId)
+            .eq('organization_id', profile.organization_id)
+            .maybeSingle();
+
         // Build the update payload dynamically
         const updatePayload = {};
 
-        // Handle status change (Kill Switch)
+        // Handle status change (Active / Inactive)
         if (status) {
-            if (!['active', 'suspended'].includes(status)) {
+            if (!['active', 'inactive'].includes(status)) {
                 return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
             }
             updatePayload.status = status;
@@ -110,18 +187,25 @@ export async function PATCH(req, { params }) {
 
         if (updateError) return NextResponse.json({ error: 'Failed to update agent' }, { status: 500 });
 
+        // On activation, ensure Shopify webhooks exist (best-effort, non-blocking)
+        if (status === 'active' && beforeAgent?.status !== 'active') {
+            ensureShopifyWebhooksForAgent({ agentId }).catch(e => {
+                console.error('[SHOPIFY] Webhook registration failed:', e.message);
+            });
+        }
+
         // Log security-sensitive actions to the audit trail
         if (status) {
             const redactedSummary = scrubText(`${agent.name} status changed to ${status}`);
             const redactedMetadata = scrubObject({
                 agent_id: agentId,
-                previous_status: agent.status === status ? 'unknown' : (status === 'active' ? 'suspended' : 'active')
+                previous_status: beforeAgent?.status || 'unknown'
             });
 
             await supabase.from('activity_logs').insert({
                 organization_id: profile.organization_id,
                 actor_id: user.id,
-                action_type: status === 'suspended' ? 'AGENT_KILLED' : 'AGENT_REACTIVATED',
+                action_type: status === 'inactive' ? 'AGENT_PAUSED' : 'AGENT_REACTIVATED',
                 summary: redactedSummary,
                 metadata: redactedMetadata
             });

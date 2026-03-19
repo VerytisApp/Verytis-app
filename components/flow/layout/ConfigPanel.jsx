@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Settings2, X, Sparkles, AlertTriangle, AlertCircle, Database, Clock, Save, CheckCircle2, Shield, Box, ChevronRight, Hash, User, FileText, LayoutDashboard, ListTodo } from 'lucide-react';
+import { Settings2, X, Sparkles, AlertTriangle, AlertCircle, Database, Clock, Save, CheckCircle2, Shield, Box, ChevronRight, Hash, User, FileText, LayoutDashboard, ListTodo, Github } from 'lucide-react';
 import KnowledgeBaseSettings from './KnowledgeBaseSettings';
 
 // ────────────────────────────────────────────────────────────────
@@ -230,6 +230,29 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
             setIsLoadingTargets(false);
         }
     }, []);
+
+    const persistAgentResource = useCallback(async ({ provider, connectionType, externalId, name, resourceType, metadata, selected }) => {
+        if (!agentId) return;
+        try {
+            const method = selected ? 'POST' : 'DELETE';
+            await fetch(`/api/agents/${agentId}/resources`, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    provider,
+                    connection_type: connectionType,
+                    // optional: if nodes start carrying it later
+                    connection_id: selectedNode?.data?.connection_id || null,
+                    external_id: externalId,
+                    name,
+                    resource_type: resourceType,
+                    metadata
+                })
+            });
+        } catch (e) {
+            console.error('[ConfigPanel] Failed to persist agent resource', e);
+        }
+    }, [agentId, selectedNode?.data?.connection_id, selectedNode]);
 
     useEffect(() => {
         if (selectedNode?.type === 'toolNode') {
@@ -554,11 +577,7 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
                                                 >
                                                     {/* Logo aligné avec Settings */}
                                                     {detectedBrand === 'github' && (
-                                                        <img
-                                                            src="https://www.google.com/s2/favicons?domain=github.com&sz=128"
-                                                            alt="GitHub"
-                                                            className="w-4 h-4 object-contain"
-                                                        />
+                                                        <Github className="w-4 h-4" />
                                                     )}
                                                     {detectedBrand === 'slack' && (
                                                         <img
@@ -619,6 +638,22 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
                                                                     const current = selectedNode.data.config?.targets || [];
                                                                     const next = isSelected ? current.filter(t => t.id !== targetIdentifier) : [...current, { id: targetIdentifier, name: target.name, type: typeLabel.toLowerCase() }];
                                                                     handleInstantChange('config', { ...selectedNode.data.config, targets: next });
+
+                                                                    // Persist selection for APP triggers (Slack/GitHub/Trello)
+                                                                    const provider = detectedBrand;
+                                                                    const connectionType = selectedNode.data.config?.source || selectedNode.data.connection_type || 'team';
+                                                                    const externalId = detectedBrand === 'github'
+                                                                        ? target.name // full_name
+                                                                        : target.id;
+                                                                    persistAgentResource({
+                                                                        provider,
+                                                                        connectionType,
+                                                                        externalId,
+                                                                        name: target.name,
+                                                                        resourceType: typeLabel.toLowerCase(),
+                                                                        metadata: { targetIdentifier },
+                                                                        selected: !isSelected
+                                                                    });
                                                                 } else {
                                                                     setNavigationStack([...navigationStack, { id: target.id, name: target.name, type: detectedBrand === 'trello' ? (currentLevel?.type === 'board' ? 'list' : 'board') : 'repo' }]);
                                                                     setSearchTarget('');

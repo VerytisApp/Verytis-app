@@ -37,12 +37,13 @@ export async function GET(req) {
         }
 
         try {
-            // Priority: Use installation if available (Team/Org)
+            // Priority: Use correct endpoint depending on token type
             let apiUrl = '';
             if (installation_id) {
-                apiUrl = `https://api.github.com/user/installations/${installation_id}/repositories`;
+                // For GitHub App installation access tokens, use /installation/repositories
+                apiUrl = `https://api.github.com/installation/repositories`;
             } else {
-                // Fallback for Personal OAuth
+                // Fallback for Personal OAuth (user access token)
                 apiUrl = `https://api.github.com/user/repos?per_page=100&sort=updated`;
             }
 
