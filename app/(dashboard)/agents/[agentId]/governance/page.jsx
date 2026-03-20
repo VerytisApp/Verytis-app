@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -22,13 +23,14 @@ const mockComplianceRules = [
 ];
 
 export default function AgentGovernanceDeepDive({ params }) {
+    const { agentId } = React.use(params);
     const router = useRouter();
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 p-6 max-w-7xl mx-auto">
             {/* Back Button */}
             <button
-                onClick={() => router.push(`/agents/${params.agentId}`)}
+                onClick={() => router.push(`/agents/${agentId}`)}
                 className="flex items-center text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors"
             >
                 <ArrowLeft className="w-4 h-4 mr-1.5" />

@@ -62,7 +62,8 @@ const NumField = ({ label, value, onChange, placeholder, hint, step, min, max })
 );
 
 export default function AgentPoliciesPage({ params }) {
-    const { data, error, isLoading, mutate } = useSWR(`/api/agents/${params.agentId}`, fetcher);
+    const { agentId } = React.use(params);
+    const { data, error, isLoading, mutate } = useSWR(`/api/agents/${agentId}`, fetcher);
     const agent = data?.agent;
 
     const DEFAULT = {
@@ -100,7 +101,7 @@ export default function AgentPoliciesPage({ params }) {
     const save = async () => {
         setSaving(true);
         try {
-            await fetch(`/api/agents/${params.agentId}`, {
+            await fetch(`/api/agents/${agentId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ policies })
@@ -128,7 +129,7 @@ export default function AgentPoliciesPage({ params }) {
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3 font-mono">
                     <Link href="/agents" className="hover:text-blue-600 transition-colors">Agents</Link>
                     <ChevronRight className="w-3 h-3" />
-                    <Link href={`/agents/${params.agentId}`} className="hover:text-blue-600 transition-colors">{agent.name}</Link>
+                    <Link href={`/agents/${agentId}`} className="hover:text-blue-600 transition-colors">{agent.name}</Link>
                     <ChevronRight className="w-3 h-3" />
                     <span className="text-blue-600">Policies</span>
                 </div>
@@ -141,7 +142,7 @@ export default function AgentPoliciesPage({ params }) {
                         </h1>
                     </div>
                     <div className="flex items-center gap-3">
-                        <Link href={`/agents/${params.agentId}`}>
+                        <Link href={`/agents/${agentId}`}>
                             <Button variant="ghost" icon={ArrowLeft}>Back</Button>
                         </Link>
                         <button

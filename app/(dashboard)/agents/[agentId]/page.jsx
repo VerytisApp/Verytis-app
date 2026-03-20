@@ -41,6 +41,7 @@ export default function AgentGovernancePage(props) {
 }
 
 function AgentGovernanceContent({ params }) {
+    const { agentId } = React.use(params);
     const router = useRouter();
     const { showToast } = useToast();
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -61,7 +62,7 @@ function AgentGovernanceContent({ params }) {
     const [isRegenerating, setIsRegenerating] = useState(false);
 
     // Fetch Agent Data
-    const { data, error, isLoading, mutate } = useSWR(`/api/agents/${params.agentId}`, fetcher);
+    const { data, error, isLoading, mutate } = useSWR(`/api/agents/${agentId}`, fetcher);
     // Fetch Global Settings (for API Key)
     const { data: settingsData } = useSWR('/api/settings', fetcher);
 
@@ -124,7 +125,7 @@ function AgentGovernanceContent({ params }) {
                     </div>
 
                     <div className="flex gap-3">
-                        <Link href={`/agents/${params.agentId}/policies`}>
+                        <Link href={`/agents/${agentId}/policies`}>
                             <Button variant="secondary" icon={ShieldCheck}>
                                 Configure Policies
                             </Button>
@@ -325,7 +326,7 @@ function AgentGovernanceContent({ params }) {
                                             <React.Fragment key={log.id}>
                                                 <tr
                                                     className="hover:bg-slate-50 transition-colors cursor-pointer group"
-                                                    onClick={() => router.push(`/agents/${params.agentId}/trace/${log.metadata?.trace_id}`)}
+                                                    onClick={() => router.push(`/agents/${agentId}/trace/${log.metadata?.trace_id}`)}
                                                 >
                                                     <td className="px-6 py-4">
                                                         <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
@@ -421,7 +422,7 @@ function AgentGovernanceContent({ params }) {
                                     setChatInput('');
                                     setIsChatting(true);
                                     try {
-                                        const res = await fetch(`/api/run/${params.agentId}`, {
+                                        const res = await fetch(`/api/run/${agentId}`, {
                                             method: 'POST',
                                             headers: {
                                                 'Content-Type': 'application/json',

@@ -51,6 +51,7 @@ const extendedMockLedger = [
 ];
 
 export default function AgentLogsDeepDive({ params }) {
+    const { agentId } = React.use(params);
     const router = useRouter();
     const [expandedRow, setExpandedRow] = useState(null);
 
@@ -66,7 +67,7 @@ export default function AgentLogsDeepDive({ params }) {
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 p-6 max-w-7xl mx-auto">
             {/* Back Button */}
             <button
-                onClick={() => router.push(`/agents/${params.agentId}`)}
+                onClick={() => router.push(`/agents/${agentId}`)}
                 className="flex items-center text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors"
             >
                 <ArrowLeft className="w-4 h-4 mr-1.5" />

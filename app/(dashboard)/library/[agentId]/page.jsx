@@ -13,8 +13,8 @@ import { Card, Button, Modal } from '@/components/ui';
 import useSWR from 'swr';
 const fetcher = (url) => fetch(url).then(r => r.json());
 export default function AgentDetailsPage({ params }) {
+    const { agentId } = React.use(params);
     const router = useRouter();
-    const agentId = params.agentId;
     const agent = agents.find(a => a.id === agentId);
 
     // DB Agent fetching
