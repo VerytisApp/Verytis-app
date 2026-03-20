@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
     try {
-        const supabase = createClient();
+        const supabase = await createClient();
 
         // Optional auth check if we want to personalize results (e.g., liked status)
         const { data: { user } } = await supabase.auth.getUser();

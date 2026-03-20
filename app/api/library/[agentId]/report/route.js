@@ -12,7 +12,7 @@ export async function POST(req, { params }) {
             return NextResponse.json({ error: 'Message is required' }, { status: 400 });
         }
 
-        const supabase = createClient();
+        const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {

@@ -219,23 +219,23 @@ const ToolNode = ({ data, isConnectable }) => {
                     <>
                     <div className="flex flex-col gap-2">
                         {/* Status Row */}
+                        {/* Status Row */}
                         <div className="flex items-center justify-between">
                             <div className="flex flex-wrap gap-1.5">
-                                {/* Org Status */}
-                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tighter ring-1 ${connectedOrg ? (data.config?.source !== 'personal' ? 'bg-blue-600 text-white ring-blue-600' : 'bg-blue-50 text-blue-600 ring-blue-100') : 'bg-slate-50 text-slate-300 ring-slate-100'}`}>
-                                    <Shield className="w-2 h-2" /> Org
-                                    {data.config?.source !== 'personal' && data.config?.targets?.length > 0 && (
-                                        <span className="ml-1 px-1 bg-white/20 rounded-full">{data.config.targets.length}</span>
+                                {/* Single Status Badge */}
+                                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tight ring-1 ${isConnected ? 'bg-blue-600 text-white ring-blue-600 shadow-sm' : 'bg-slate-50 text-slate-300 ring-slate-100'}`}>
+                                    {isConnected ? (
+                                        <>
+                                            <Shield className="w-2.5 h-2.5" /> Workspace Linked
+                                        </>
+                                    ) : (
+                                        <>
+                                            <AlertCircle className="w-2.5 h-2.5" /> Disconnected
+                                        </>
                                     )}
                                 </div>
-                                {/* Perso Status */}
-                                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tighter ring-1 ${connectedPerso ? (data.config?.source === 'personal' ? 'bg-amber-600 text-white ring-amber-600' : 'bg-amber-50 text-amber-600 ring-amber-100') : 'bg-slate-50 text-slate-300 ring-slate-100'}`}>
-                                    <Box className="w-2 h-2" /> Perso
-                                    {data.config?.source === 'personal' && data.config?.targets?.length > 0 && (
-                                        <span className="ml-1 px-1 bg-white/20 rounded-full">{data.config.targets.length}</span>
-                                    )}
-                                </div>
-                                {/* Slack Thread Mode */}
+                                
+                                {/* Slack Thread Mode specific badge */}
                                 {data.provider === 'slack' && data.config?.thread_mode && (
                                     <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tighter ring-1 bg-purple-600 text-white ring-purple-600">
                                         Threads
@@ -243,26 +243,14 @@ const ToolNode = ({ data, isConnectable }) => {
                                 )}
                             </div>
 
-                            {/* Action / Modifier */}
-                            {isConnected && !isOrgLevel && (isPrivileged || !isInternalSkill) && (
+                            {/* Action / Modifier for API keys or custom config */}
+                            {isConnected && !isInternalSkill && (
                                 <button
                                     onClick={() => setShowInput(!showInput)}
                                     className="text-[9px] font-black uppercase text-blue-600 hover:text-blue-800 transition-colors"
                                 >
-                                    {showInput ? 'Annuler' : 'Modifier'}
+                                    {showInput ? 'Annuler' : 'Config'}
                                 </button>
-                            )}
-                            
-                            {/* Vault / Native Badges */}
-                            {isInternalSkill && (
-                                <div className="flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded text-[8px] font-black text-indigo-600 uppercase tracking-tighter ring-1 ring-indigo-100">
-                                    <Sparkles className="w-2.5 h-2.5" /> Native
-                                </div>
-                            )}
-                            {data.type === 'llmNode' && (
-                                <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded text-[8px] font-black text-blue-600 uppercase tracking-tighter ring-1 ring-blue-100">
-                                    <Shield className="w-2.5 h-2.5" /> Vault
-                                </div>
                             )}
                         </div>
                     </div>
@@ -307,11 +295,16 @@ const ToolNode = ({ data, isConnectable }) => {
                                                 const orgId = profile?.organization_id;
 
                                                 if (providerName === 'github') {
-                                                    authUrl = `/api/auth/github/login?userId=${user.id}&type=integration&organizationId=${orgId}`;
+                                                    authUrl = `/api/auth/github/login?organizationId=${orgId}`;
                                                 } else if (providerName === 'trello') {
-                                                    authUrl = `/api/auth/trello/login?userId=${user.id}&organizationId=${orgId}`;
+                                                    authUrl = `/api/auth/trello/login?organizationId=${orgId}`;
                                                 } else if (providerName === 'slack') {
-                                                    authUrl = '/api/slack/install';
+                                                    authUrl = `/api/slack/install?organizationId=${orgId}`;
+                                                } else if (providerName === 'shopify') {
+                                                    const storeUrl = prompt("Veuillez entrer l'URL de votre boutique Shopify (ex: mat-boutique.myshopify.com) :");
+                                                    if (storeUrl) {
+                                                        authUrl = `/api/auth/shopify/login?store_url=${storeUrl}&scope=team&organizationId=${orgId}`;
+                                                    }
                                                 }
 
                                                 if (authUrl) {

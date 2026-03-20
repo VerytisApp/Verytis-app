@@ -11,7 +11,7 @@ function generateContentHash(data) {
 // GET /api/archive — List archived items (with optional section/category filter)
 export async function GET(req) {
     try {
-        const supabase = createClient();
+        const supabase = await createClient();
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -78,7 +78,7 @@ export async function GET(req) {
 // POST /api/archive — Archive a new item
 export async function POST(req) {
     try {
-        const supabase = createClient();
+        const supabase = await createClient();
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

@@ -30,7 +30,7 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Invalid store_url' }, { status: 400 });
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -70,16 +70,20 @@ export async function GET(req) {
     authorizeUrl.searchParams.set('state', Buffer.from(JSON.stringify(state)).toString('base64url'));
 
     const res = NextResponse.redirect(authorizeUrl.toString());
+    
+    // Set securiy nonce in cookie (Essential for CSRF protection)
+    // Forced secure: true because we are using ngrok (HTTPS)
     res.cookies.set('shopify_oauth_nonce', nonce, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true, 
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 10,
     });
+    
     return res;
   } catch (e) {
+    console.error('[SHOPIFY_LOGIN_ERROR]', e);
     return NextResponse.json({ error: e.message || 'Internal error' }, { status: 500 });
   }
 }
-

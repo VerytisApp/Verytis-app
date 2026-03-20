@@ -7,7 +7,7 @@ import { agents } from '@/lib/data/agents';
 import {
     ArrowLeft, Shield, CheckCircle2, Copy, Check, Terminal, FileCode2,
     Zap, Key, Lock, AlertTriangle, Blocks, Play, PlusCircle, Link as LinkIcon,
-    DollarSign, Ban, Database, Cpu, Info, Heart
+    DollarSign, Ban, Database, Cpu, Info, Heart, Bot
 } from 'lucide-react';
 import { Card, Button, Modal } from '@/components/ui';
 import useSWR from 'swr';

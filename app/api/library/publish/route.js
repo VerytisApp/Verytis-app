@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
     try {
-        const supabase = createClient();
+        const supabase = await createClient();
         const body = await req.json();
 
         const { data: { user }, error: authError } = await supabase.auth.getUser();

@@ -10,11 +10,11 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req) {
     try {
-        const supabase = createClient();
-        const { appName, connectionType } = await req.json();
+        const supabase = await createClient();
+        const { appName } = await req.json();
 
-        if (!appName || !connectionType) {
-            return NextResponse.json({ error: 'Missing appName or connectionType' }, { status: 400 });
+        if (!appName) {
+            return NextResponse.json({ error: 'Missing appName' }, { status: 400 });
         }
 
         // 1. Verify user is logged in
@@ -23,9 +23,7 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        console.log(`[API DISCONNECT] App: ${appName}, Type: ${connectionType}, User: ${user.id}`);
-
-        // Security: Only Admins/Managers can delete 'team' connections
+        // Security: Only Admins/Managers can disconnect Workspace integrations
         const { data: userProfile } = await supabase
             .from('profiles')
             .select('role, organization_id')
@@ -33,100 +31,78 @@ export async function POST(req) {
             .single();
 
         const userRole = userProfile?.role?.toLowerCase();
-        if (connectionType.toLowerCase() === 'team' && userRole !== 'admin' && userRole !== 'manager') {
+        const isPrivileged = userRole === 'admin' || userRole === 'manager';
+
+        if (!isPrivileged) {
             return NextResponse.json({ 
-                error: 'Permission denied: Only Admins can disconnect Team integrations' 
+                error: 'Permission denied: Only Admins or Managers can disconnect Workspace integrations' 
             }, { status: 403 });
         }
 
-        // 2. Fetch connection details BEFORE deletion to revoke token if necessary
-        let connectionToRevoke = null;
+        console.log(`[API DISCONNECT] App: ${appName}, Workspace/Org: ${userProfile.organization_id}, User: ${user.id}`);
+
+        // 2. Revoke tokens if necessary (Slack specific)
         if (appName.toLowerCase() === 'slack') {
-            const fetchQuery = supabase.from('user_connections').select('access_token');
-            if (connectionType.toLowerCase() === 'team') {
-                fetchQuery.match({
-                    organization_id: userProfile.organization_id,
-                    provider: 'slack',
-                    connection_type: 'team'
-                });
-            } else {
-                fetchQuery.match({
-                    user_id: user.id,
-                    provider: 'slack',
-                    connection_type: 'personal'
-                });
-            }
-            const { data: connData } = await fetchQuery.single();
-            connectionToRevoke = connData;
-        }
+            const { data: conns } = await supabase
+                .from('user_connections')
+                .select('access_token')
+                .eq('organization_id', userProfile.organization_id)
+                .eq('provider', 'slack');
 
-        // Revoke Slack Token if found
-        if (connectionToRevoke?.access_token) {
-            try {
-                console.log(`[API DISCONNECT] Revoking Slack token for ${connectionType}...`);
-                const revokeRes = await fetch('https://slack.com/api/auth.revoke', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${connectionToRevoke.access_token}`,
-                        'Content-Type': 'application/x-www-form-urlencoded'
+            if (conns && conns.length > 0) {
+                for (const conn of conns) {
+                    if (conn.access_token) {
+                        try {
+                            console.log(`[API DISCONNECT] Revoking Slack token...`);
+                            await fetch('https://slack.com/api/auth.revoke', {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${conn.access_token}`,
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                }
+                            });
+                        } catch (revErr) { console.error('[API DISCONNECT] Slack Revocation Error:', revErr); }
                     }
-                });
-                const revokeData = await revokeRes.json();
-                console.log(`[API DISCONNECT] Slack Revocation Result:`, revokeData.ok ? 'SUCCESS' : `FAILED (${revokeData.error})`);
-            } catch (revErr) {
-                console.error('[API DISCONNECT] Slack Revocation Error:', revErr);
-                // We continue even if revocation fails to ensure local cleanup
+                }
             }
         }
 
-        // 3. Targeted deletion in the centralized table
-        const query = supabase.from('user_connections').delete();
-
-        if (connectionType.toLowerCase() === 'team') {
-            // Team disconnect removes it for the WHOLE organization
-            if (!userProfile?.organization_id) throw new Error('User has no organization');
-            
-            query.match({
+        // 3. Delete ALL connections for this provider in THIS organization
+        const { error: delError } = await supabase
+            .from('user_connections')
+            .delete()
+            .match({
                 organization_id: userProfile.organization_id,
-                provider: appName.toLowerCase(),
-                connection_type: 'team'
+                provider: appName.toLowerCase()
             });
-            console.log(`[API DISCONNECT] Org-wide removal for ${appName}`);
-        } else {
-            // Personal disconnect only for THIS user
-            query.match({ 
-                user_id: user.id,
-                provider: appName.toLowerCase(),
-                connection_type: 'personal'
-            });
-        }
-
-        const { error: delError } = await query;
         
         if (delError) {
             console.error('[API DISCONNECT] Table delete error:', delError.message);
             throw delError;
         }
 
-        // 3. Cleanup: Remove from organization_settings.providers (Ghosts)
-        const { data: orgSettings } = await supabase
-            .from('organization_settings')
-            .select('providers')
-            .eq('id', 'default')
-            .single();
+        // 4. Cleanup Ghost records in organization_settings
+        try {
+            const { data: orgSettings } = await supabase
+                .from('organization_settings')
+                .select('id, providers')
+                .eq('organization_id', userProfile.organization_id)
+                .maybeSingle();
 
-        if (orgSettings?.providers) {
-            const updatedProviders = orgSettings.providers.filter(p => p.id !== appName.toLowerCase());
-            if (updatedProviders.length !== orgSettings.providers.length) {
-                console.log(`[API DISCONNECT] Cleaning up ghost record for ${appName} in org_settings`);
-                await supabase
-                    .from('organization_settings')
-                    .update({ providers: updatedProviders })
-                    .eq('id', 'default');
+            if (orgSettings?.providers) {
+                const updatedProviders = orgSettings.providers.filter(p => (p.id || p.provider || '').toLowerCase() !== appName.toLowerCase());
+                if (updatedProviders.length !== orgSettings.providers.length) {
+                    await supabase
+                        .from('organization_settings')
+                        .update({ providers: updatedProviders })
+                        .eq('id', orgSettings.id);
+                }
             }
+        } catch (e) {
+             console.warn('[API DISCONNECT] Could not cleanup org_settings ghosts:', e.message);
         }
 
-        return NextResponse.json({ success: true, app: appName, type: connectionType });
+        return NextResponse.json({ success: true, app: appName });
 
     } catch (error) {
         console.error('Unexpected error in disconnect API:', error);

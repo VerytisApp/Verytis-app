@@ -14,7 +14,7 @@ export async function POST(req) {
         }
 
         const supabaseAdmin = createAdminClient();
-        const supabase = createClient(); // For profile update with RLS if session exists
+        const supabase = await createClient(); // For profile update with RLS if session exists
 
         // 1. Update password using admin API
         const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(

@@ -5,12 +5,13 @@ export const dynamic = 'force-dynamic';
 export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
-    const type = searchParams.get('type') || 'integration';
     const organizationId = searchParams.get('organizationId');
 
-    if (!userId) {
-        return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    if (!userId || !organizationId) {
+        return NextResponse.json({ error: 'Missing userId or organizationId' }, { status: 400 });
     }
+
+    const type = 'integration'; // Always workspace level now
 
     const apiKey = process.env.TRELLO_API_KEY;
     const appName = 'Verytis';

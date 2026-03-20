@@ -219,7 +219,6 @@ export default function AgentBuilder() {
         setAgentName('Nouveau Agent');
         setAgentId(null);
         setSelectedNode(null);
-        setDeployedAgent(null);
         setMagicPrompt('');
         setShowMagicBar(false);
         // Clean URL
@@ -313,6 +312,17 @@ export default function AgentBuilder() {
                         }
                     };
                 }
+
+                if (node.type === 'knowledgeNode') {
+                    return {
+                        ...baseNode,
+                        data: {
+                            ...baseNode.data,
+                            label: 'Base de Connaissance'
+                        }
+                    };
+                }
+
                 return baseNode;
             });
 

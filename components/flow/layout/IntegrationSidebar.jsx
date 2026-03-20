@@ -13,9 +13,9 @@ export default function IntegrationSidebar({ node, isOpen, onClose, onUpdate }) 
     const { currentUser } = useRole();
     const isPrivileged = currentUser?.role === 'Admin' || currentUser?.role === 'Manager';
     const isAdmin = currentUser?.role === 'Admin';
-    if (!isOpen || !node) return null;
 
-    const { data: nodeData } = node;
+    // Safely extract node data
+    const nodeData = node?.data || {};
     const provider = nodeData.label?.toLowerCase().includes('github') ? 'github' : 
                      nodeData.label?.toLowerCase().includes('slack') ? 'slack' : 
                      nodeData.type?.toLowerCase().includes('tool') ? 'tool' : null;
@@ -34,19 +34,22 @@ export default function IntegrationSidebar({ node, isOpen, onClose, onUpdate }) 
     });
 
     const isConnected = !!(connectedOrg || connectedPerso);
+    
+    // Hooks must be called unconditionally
     const [selectedSource, setSelectedSource] = useState(nodeData.config?.source || (connectedOrg ? 'org' : 'perso'));
-
-    console.log(`[SIDEBAR] Node: ${node.id}, Provider: ${provider}, Connected: ${isConnected}, Org: ${!!connectedOrg}, Perso: ${!!connectedPerso}`);
-
     const { items, subItems, loading, connectionInfo, fetchSubItems } = useIntegrationData(provider, isConnected);
-
-    // Local state for auto-save logic
     const [config, setConfig] = useState(nodeData.config || {});
 
     // Sync config with node data on open
     useEffect(() => {
-        setConfig(nodeData.config || {});
-    }, [node.id]);
+        if (node?.id) {
+            setConfig(nodeData.config || {});
+            setSelectedSource(nodeData.config?.source || (connectedOrg ? 'org' : 'perso'));
+        }
+    }, [node?.id, nodeData.config, connectedOrg, connectedPerso]);
+
+    // Late return after all hooks are declared
+    if (!isOpen || !node) return null;
 
     // Internal save logic
     const handleUpdate = (key, value) => {
@@ -107,77 +110,15 @@ export default function IntegrationSidebar({ node, isOpen, onClose, onUpdate }) 
                     </select>
                 )}
             </div>
-            {/* Dual Connection Zones */}
+            {/* Unified Connection Status */}
             <div className="space-y-4">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sources d'Intégration</h3>
-                
-                {/* Team Zone */}
-                <div className={`p-4 rounded-2xl border-2 transition-all ${selectedSource === 'org' ? 'border-blue-500 bg-blue-50/30' : 'border-slate-100 bg-white opacity-80'}`}>
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                            <Shield className={`w-4 h-4 ${connectedOrg ? 'text-blue-600' : 'text-slate-300'}`} />
-                            <span className="text-[11px] font-black text-slate-900 uppercase">Team</span>
-                        </div>
-                        {connectedOrg && (
-                            <button 
-                                onClick={() => {
-                                    setSelectedSource('org');
-                                    handleUpdate('source', 'org');
-                                }}
-                                className={`px-2 py-1 rounded text-[8px] font-bold uppercase ${selectedSource === 'org' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                            >
-                                {selectedSource === 'org' ? 'Sélectionné' : 'Choisir'}
-                            </button>
-                        )}
+                <div className="flex items-center gap-3 bg-blue-50/50 border border-blue-100 rounded-2xl px-4 py-4 shadow-sm">
+                    <div className="w-10 h-10 rounded-xl bg-white border border-blue-100 flex items-center justify-center shadow-sm">
+                        <Shield className="w-5 h-5 text-blue-600" />
                     </div>
-                    
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${connectedOrg ? 'bg-emerald-500 ring-4 ring-emerald-50' : 'bg-slate-200'}`} />
-                            <span className="text-[10px] font-bold text-slate-500">{connectedOrg ? 'Opérationnel' : 'Non connecté'}</span>
-                        </div>
-                        {isAdmin && (
-                            <button 
-                                onClick={handleReconnect}
-                                className="text-[9px] font-black text-blue-600 hover:underline uppercase"
-                            >
-                                {connectedOrg ? 'Modifier' : 'Connecter'}
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {/* Personnel Zone */}
-                <div className={`p-4 rounded-2xl border-2 transition-all ${selectedSource === 'perso' ? 'border-amber-500 bg-amber-50/30' : 'border-slate-100 bg-white opacity-80'}`}>
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                            <Box className={`w-4 h-4 ${connectedPerso ? 'text-amber-600' : 'text-slate-300'}`} />
-                            <span className="text-[11px] font-black text-slate-900 uppercase">Personnel</span>
-                        </div>
-                        {connectedPerso && (
-                            <button 
-                                onClick={() => {
-                                    setSelectedSource('perso');
-                                    handleUpdate('source', 'perso');
-                                }}
-                                className={`px-2 py-1 rounded text-[8px] font-bold uppercase ${selectedSource === 'perso' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                            >
-                                {selectedSource === 'perso' ? 'Sélectionné' : 'Choisir'}
-                            </button>
-                        )}
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${connectedPerso ? 'bg-emerald-500 ring-4 ring-emerald-50' : 'bg-slate-200'}`} />
-                            <span className="text-[10px] font-bold text-slate-500">{connectedPerso ? 'Opérationnel' : 'Non connecté'}</span>
-                        </div>
-                        <button 
-                            onClick={handleReconnect}
-                            className="text-[9px] font-black text-amber-600 hover:underline uppercase"
-                        >
-                            {connectedPerso ? 'Modifier' : 'Connecter'}
-                        </button>
+                    <div>
+                        <p className="text-[10px] font-black text-blue-900 uppercase tracking-widest">Workspace Linked</p>
+                        <p className="text-[9px] text-blue-600/70 font-medium">Contrôlé par la gouvernance Verytis</p>
                     </div>
                 </div>
             </div>

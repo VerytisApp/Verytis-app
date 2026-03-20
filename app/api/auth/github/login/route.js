@@ -7,12 +7,13 @@ import crypto from 'crypto';
 export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
-    const type = searchParams.get('type') || 'user_link';
     const organizationId = searchParams.get('organizationId');
 
-    if (!userId) {
-        return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+    if (!userId || !organizationId) {
+        return NextResponse.json({ error: 'Missing userId or organizationId' }, { status: 400 });
     }
+
+    const type = 'integration'; // Always workspace level now
 
     const clientId = process.env.GITHUB_CLIENT_ID;
     const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/github/callback`;

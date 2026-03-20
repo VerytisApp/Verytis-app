@@ -36,7 +36,7 @@ export async function GET(req) {
         }
 
         // Supabase Clients
-        const supabaseStandard = createClient();
+        const supabaseStandard = await createClient();
         const { data: { user: sessionUser } } = await supabaseStandard.auth.getUser();
 
         if (!sessionUser) {
@@ -54,57 +54,17 @@ export async function GET(req) {
         }
 
         const supabase = createAdminClient();
-        const isPersonal = state.type === 'user_link' || state.type === 'personal';
         
         let accountName = data.team?.name || 'Slack Workspace';
         let accessToken = data.access_token;
         let slackUserId = data.bot_user_id;
 
-        // "SIGN IN" / PERSONAL IDENTIFICATION LOGIC
-        if (isPersonal) {
-            // For OAuth v2 with identity scopes, data might contain authed_user or user
-            const targetUser = data.authed_user || data.user;
-            if (targetUser) {
-                accessToken = targetUser.access_token || accessToken;
-                slackUserId = targetUser.id;
-                
-                // Try to get email from the response first
-                let email = targetUser.email || (data.user && data.user.email);
-                
-                // If missing, try the OpenID UserInfo endpoint
-                if (!email && accessToken) {
-                    console.log('[API SLACK] Email missing in callback, fetching via userInfo endpoint...');
-                    try {
-                        const infoRes = await fetch('https://slack.com/api/openid.connect.userInfo', {
-                            headers: { 'Authorization': `Bearer ${accessToken}` }
-                        });
-                        if (infoRes.ok) {
-                            const info = await infoRes.json();
-                            if (info.ok !== false) {
-                                email = info.email;
-                                console.log('[API SLACK] User info fetch success:', email);
-                            }
-                        }
-                    } catch (e) {
-                        console.warn('[API SLACK] Failed to fetch UserInfo:', e.message);
-                    }
-                }
-
-                if (email) {
-                    accountName = email;
-                    console.log('[API SLACK] Personal connection resolved to Email:', email);
-                } else {
-                    accountName = `User: ${slackUserId} (${data.team?.name || 'Slack'})`;
-                    console.log('[API SLACK] Personal connection resolved to ID (Email missing):', slackUserId);
-                }
-            }
-        }
-
         const connectionData = {
             user_id: sessionUser.id,
             organization_id: state.organizationId || null,
             provider: 'slack',
-            connection_type: isPersonal ? 'personal' : 'team',
+            connection_type: 'team',
+            scope: 'team',
             account_name: accountName,
             access_token: accessToken,
             metadata: {
@@ -119,55 +79,60 @@ export async function GET(req) {
             }
         };
 
+        if (!connectionData.organization_id) {
+             console.error('❌ [API SLACK] Missing organizationId in state');
+             return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=missing_organization`);
+        }
+
         console.log('[API SLACK] Attempting upsert to user_connections:', {
             user_id: connectionData.user_id,
-            provider: 'slack',
-            type: connectionData.connection_type
+            organization_id: connectionData.organization_id,
+            provider: 'slack'
         });
 
-        const { error: upsertError } = await supabase.from('user_connections').upsert(connectionData, {
-            onConflict: 'user_id, provider, connection_type'
-        });
+        // Unify connection conflict: only one Slack per organization
+        // We use manual check-then-act to bypass missing unique constraint in DB
+        const { data: existing } = await supabase.from('user_connections')
+            .select('id')
+            .eq('organization_id', connectionData.organization_id)
+            .eq('provider', 'slack')
+            .maybeSingle();
+
+        let upsertError = null;
+        if (existing) {
+            console.log(`[API SLACK] Updating existing connection: ${existing.id}`);
+            const { error } = await supabase.from('user_connections')
+                .update(connectionData)
+                .eq('id', existing.id);
+            upsertError = error;
+        } else {
+            console.log('[API SLACK] Inserting new connection');
+            const { error } = await supabase.from('user_connections')
+                .insert(connectionData);
+            upsertError = error;
+        }
 
         if (upsertError) {
             console.error('❌ [API SLACK] Upsert error:', upsertError);
-            
-            // FALLBACK: If 'account_name' is missing, try 'external_account_name'
-            if (upsertError.message?.includes('account_name')) {
-                console.log('⚠️ [API SLACK] "account_name" missing, falling back to "external_account_name"');
-                const fallbackData = { ...connectionData };
-                fallbackData.external_account_name = fallbackData.account_name;
-                delete fallbackData.account_name;
-
-                const { error: fallbackError } = await supabase.from('user_connections').upsert(fallbackData, {
-                    onConflict: 'user_id, provider, connection_type'
-                });
-
-                if (fallbackError) {
-                    console.error('❌ [API SLACK] Fallback upsert also failed:', fallbackError);
-                    throw new Error(`Database upsert failed (both column attempts): ${fallbackError.message}`);
-                }
-                console.log('✅ [API SLACK] Connection saved successfully (fallback column)');
-            } else {
-                throw new Error(`Database upsert failed: ${upsertError.message}`);
-            }
-        } else {
-            console.log('✅ [API SLACK] Connection saved successfully');
+            throw new Error(`Database upsert failed: ${upsertError.message}`);
         }
 
         // Return HTML to close popup and notify parent
         const html = `
             <html>
-                <body>
-                    <script>
-                        if (window.opener) {
-                            window.opener.postMessage({ type: 'SLACK_CONNECTED' }, '*');
-                            window.close();
-                        } else {
-                            window.location.href = '/?connected=true&app=slack&type=${connectionData.connection_type}';
-                        }
-                    </script>
-                    <p>Slack ${isPersonal ? 'Account Linked' : 'Team Hub Connected'} successful. You can close this window.</p>
+                <body style="background: #f8fafc; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; color: #1e293b;">
+                    <div style="text-align: center; padding: 2rem; background: white; border-radius: 1rem; shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05); border: 1px solid #e2e8f0;">
+                        <h2 style="margin-bottom: 0.5rem; color: #0f172a;">Slack Connecté !</h2>
+                        <p style="font-size: 0.875rem; color: #64748b;">Votre workspace est maintenant lié à Verytis.</p>
+                        <script>
+                            if (window.opener) {
+                                window.opener.postMessage({ type: 'SLACK_CONNECTED' }, '*');
+                                window.close();
+                            } else {
+                                window.location.href = '/settings?tab=integrations&connected=true&app=slack';
+                            }
+                        </script>
+                    </div>
                 </body>
             </html>
         `;

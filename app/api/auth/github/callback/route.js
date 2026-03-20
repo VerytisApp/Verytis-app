@@ -94,58 +94,52 @@ export async function GET(req) {
         const responseHeaders = new Headers();
         // Note: In Next.js App Router, we usually handle this via the returned NextResponse object
 
-        const supabaseStandard = createClient();
+        const supabaseStandard = await createClient();
         const { data: { user: sessionUser }, error: sessionError } = await supabaseStandard.auth.getUser();
 
         if (sessionError) console.error('❌ [API GITHUB] Session retrieval error:', sessionError);
         console.log('[API GITHUB] Session User:', sessionUser?.id || 'NONE');
 
         const supabase = createAdminClient();
-        // CASE 1: Member Linking (Passport ID)
-        // MIGRATION: Centralized saving to user_connections
+        
+        const connectionType = 'team';
         let accountName = userData.login;
-        const connectionType = (state.type === 'user_link' && !installationId) ? 'personal' : 'team';
         let finalInstallationId = installationId;
 
-        // "HUNT" STRATEGY: Proactively look for organization installations if it's a team connection
-        if (connectionType === 'team') {
-            try {
-                console.log('[API GITHUB] Hunting for Organization Installations...');
-                const installationsRes = await fetch('https://api.github.com/user/installations', {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-                
-                if (installationsRes.ok) {
-                    const instData = await installationsRes.json();
-                    const installations = instData.installations || [];
-                    
-                    // SELECTION PRIORITY: 
-                    // 1. Direct match for the installationId passed in the URL (The user's specific choice)
-                    // 2. Any Organization-type account
-                    // 3. Fallback to first available
-                    const orgInst = installations.find(i => i.id.toString() === installationId?.toString()) ||
-                                   installations.find(i => i.account?.type === 'Organization') || 
-                                   installations[0];
-
-                    if (orgInst) {
-                        console.log('[API GITHUB] Hub Account Found:', orgInst.account.login, `(${orgInst.account.type})`);
-                        accountName = orgInst.account.login;
-                        finalInstallationId = orgInst.id.toString();
-                    }
+        // "HUNT" STRATEGY: Proactively look for organization installations
+        try {
+            console.log('[API GITHUB] Hunting for Organization Installations...');
+            const installationsRes = await fetch('https://api.github.com/user/installations', {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Accept': 'application/vnd.github.v3+json'
                 }
-            } catch (e) {
-                console.error('[API GITHUB] Hunt failed:', e);
+            });
+            
+            if (installationsRes.ok) {
+                const instData = await installationsRes.ok ? await installationsRes.json() : { installations: [] };
+                const installations = instData.installations || [];
+                
+                const orgInst = installations.find(i => i.id.toString() === installationId?.toString()) ||
+                                installations.find(i => i.account?.type === 'Organization') || 
+                                installations[0];
+
+                if (orgInst) {
+                    console.log('[API GITHUB] Hub Account Found:', orgInst.account.login, `(${orgInst.account.type})`);
+                    accountName = orgInst.account.login;
+                    finalInstallationId = orgInst.id.toString();
+                }
             }
+        } catch (e) {
+            console.error('[API GITHUB] Hunt failed:', e);
         }
 
         const connectionData = {
             user_id: state.userId || sessionUser?.id,
             organization_id: state.organizationId || null,
             provider: 'github',
-            connection_type: connectionType,
+            connection_type: 'team',
+            scope: 'team',
             account_name: accountName,
             access_token: accessToken,
             refresh_token: data.refresh_token,
@@ -163,81 +157,69 @@ export async function GET(req) {
             }
         };
 
-        // If it's a team installation and it's a "GitHub App" style (installation_id exists), 
-        // we might NOT want to save the token in the database per the 'Garde du Corps' logic, 
-        // but for now we follow the instruction: "Tu ne sauvegardes aucun token en base de données ! Tu ne sauvegardes que l'installation_id."
-        // Let's refine the logic: if finalInstallationId exists, we can null out the tokens in the database record
-        // to ensure we ALWAYS generate them on the fly.
-        if (connectionType === 'team' && finalInstallationId) {
+        // GitHub App logic: we might not save tokens if we generate them from installation_id
+        if (finalInstallationId) {
             console.log('[API GITHUB] GitHub App Installation detected. Storing installation_id, tokens will be generated on the fly.');
-            // Per instructions: "Tu ne sauvegardes AUCUN token en base de données ! Tu ne sauvegardes que l'installation_id."
-            // However, we might still need some metadata.
             connectionData.access_token = null;
             connectionData.refresh_token = null;
         }
- 
 
-        // If it's a team installation, try to ensure organization_id is present
-        if (connectionType === 'team' && !connectionData.organization_id && sessionUser) {
-            const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', sessionUser.id).single();
-            if (profile?.organization_id) {
-                connectionData.organization_id = profile.organization_id;
-            }
+        if (!connectionData.organization_id) {
+            console.error('❌ [API GITHUB] Missing organizationId in state');
+            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=missing_organization`);
         }
 
-        // If it's a team installation, we might not have a userId in state, 
-        // but we definitely have it if coming from the Settings page.
         if (!connectionData.user_id) {
             console.error('❌ [API GITHUB] No user_id found in state or session');
             return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=unauthorized`);
         }
 
-        const { error: upsertError } = await supabase.from('user_connections').upsert(connectionData, {
-            onConflict: 'user_id, provider, connection_type'
-        });
+        // Unify connection conflict: only one GitHub per organization
+        // Manual safe upsert to bypass missing unique constraint in DB
+        const { data: existing } = await supabase.from('user_connections')
+            .select('id')
+            .eq('organization_id', connectionData.organization_id)
+            .eq('provider', 'github')
+            .maybeSingle();
+
+        let upsertError = null;
+        if (existing) {
+            console.log(`[API GITHUB] Updating existing connection: ${existing.id}`);
+            const { error } = await supabase.from('user_connections')
+                .update(connectionData)
+                .eq('id', existing.id);
+            upsertError = error;
+        } else {
+            console.log('[API GITHUB] Inserting new connection');
+            const { error } = await supabase.from('user_connections')
+                .insert(connectionData);
+            upsertError = error;
+        }
 
         if (upsertError) {
             console.error('❌ [API GITHUB] Upsert error:', upsertError);
-            
-            // FALLBACK: If 'account_name' is missing, try 'external_account_name'
-            if (upsertError.message?.includes('account_name')) {
-                console.log('⚠️ [API GITHUB] "account_name" missing, falling back to "external_account_name"');
-                const fallbackData = { ...connectionData };
-                fallbackData.external_account_name = fallbackData.account_name;
-                delete fallbackData.account_name;
-
-                const { error: fallbackError } = await supabase.from('user_connections').upsert(fallbackData, {
-                    onConflict: 'user_id, provider, connection_type'
-                });
-
-                if (fallbackError) {
-                    console.error('❌ [API GITHUB] Fallback upsert also failed:', fallbackError);
-                    throw new Error(`Database upsert failed (both column attempts): ${fallbackError.message}`);
-                }
-                console.log('✅ [API GITHUB] Connection saved successfully (fallback column)');
-            } else {
-                throw new Error(`Database upsert failed: ${upsertError.message}`);
-            }
-        } else {
-            console.log('✅ [API GITHUB] Connection saved successfully');
+            throw new Error(`Database upsert failed: ${upsertError.message}`);
         }
 
         // Prepare response HTML
         const html = `
             <html>
-                <body>
-                    <script>
-                        if (window.opener) {
-                            window.opener.postMessage({ 
-                                type: '${connectionType === 'personal' ? 'GITHUB_LINKED' : 'GITHUB_CONNECTED'}', 
-                                user: ${JSON.stringify(accountName)} 
-                            }, '*');
-                            window.close();
-                        } else {
-                            window.location.href = '/?connected=true&app=github&type=${connectionType}';
-                        }
-                    </script>
-                    <p>GitHub ${connectionType === 'personal' ? 'Account Linked' : 'Team Hub Connected'}! You can close this window.</p>
+                <body style="background: #f8fafc; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; color: #1e293b;">
+                    <div style="text-align: center; padding: 2rem; background: white; border-radius: 1rem; shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05); border: 1px solid #e2e8f0;">
+                        <h2 style="margin-bottom: 0.5rem; color: #0f172a;">GitHub Connecté !</h2>
+                        <p style="font-size: 0.875rem; color: #64748b;">Le workspace est maintenant lié à l'organisation <strong>${accountName}</strong>.</p>
+                        <script>
+                            if (window.opener) {
+                                window.opener.postMessage({ 
+                                    type: 'GITHUB_CONNECTED', 
+                                    user: ${JSON.stringify(accountName)} 
+                                }, '*');
+                                window.close();
+                            } else {
+                                window.location.href = '/settings?tab=integrations&connected=true&app=github';
+                            }
+                        </script>
+                    </div>
                 </body>
             </html>
         `;

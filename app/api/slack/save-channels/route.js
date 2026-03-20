@@ -5,7 +5,7 @@ export async function POST(req) {
     try {
         const { channels } = await req.json(); // Expecting array of {id, name, is_private}
 
-        const supabase = createClient();
+        const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

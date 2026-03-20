@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,61 +19,23 @@ export async function GET(req) {
 
     const targetOrgId = profile.organization_id;
 
+    // 2. Check for unified connection in 'user_connections'
     const { data } = await supabase.from('user_connections')
         .select('id, access_token, account_name, metadata')
         .eq('organization_id', targetOrgId)
         .eq('provider', 'trello')
-        .eq('connection_type', 'team')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
     const isConnected = !!(data && data.access_token);
-
-    // Fetch workspace name from Trello API (organization name)
-    let workspaceName = data?.account_name || null;
-
-    if (isConnected && data.access_token) {
-        try {
-            const API_KEY = process.env.TRELLO_API_KEY;
-            const token = data.access_token;
-            const isTeam = data.connection_type === 'team';
-
-            if (isTeam) {
-                // For Team: Try to get organizations first
-                const orgRes = await fetch(`https://api.trello.com/1/members/me/organizations?key=${API_KEY}&token=${token}&fields=displayName,name`, {
-                    headers: { 'Accept': 'application/json' }
-                });
-
-                if (orgRes.ok) {
-                    const orgs = await orgRes.json();
-                    if (orgs && orgs.length > 0) {
-                        workspaceName = orgs[0].displayName || orgs[0].name;
-                    }
-                }
-                
-                // For Team, if still no name, use placeholder instead of member name
-                if (!workspaceName) {
-                    workspaceName = 'Trello Workspace';
-                }
-            } else {
-                // For Personal: get member name
-                const memberRes = await fetch(`https://api.trello.com/1/members/me?key=${API_KEY}&token=${token}&fields=fullName,username`, {
-                    headers: { 'Accept': 'application/json' }
-                });
-                if (memberRes.ok) {
-                    const member = await memberRes.json();
-                    workspaceName = member.fullName || member.username;
-                }
-            }
-        } catch (e) {
-            console.error('Failed to fetch Trello status name:', e);
-        }
-    }
+    let workspaceName = data?.account_name || 'Trello Workspace';
 
     return NextResponse.json({
         connected: isConnected,
-        name: workspaceName,
+        username: workspaceName,
+        account_name: workspaceName,
+        connection_type: 'team',
         lastSync: isConnected ? new Date().toISOString() : null
     });
 }

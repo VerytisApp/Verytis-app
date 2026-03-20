@@ -76,7 +76,7 @@ async function ensureShopifyWebhooksForAgent({ agentId }) {
 export async function GET(req, { params }) {
     try {
         const { agentId } = params;
-        const supabase = createClient();
+        const supabase = await createClient();
 
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -121,7 +121,7 @@ export async function GET(req, { params }) {
 export async function PATCH(req, { params }) {
     try {
         const { agentId } = params;
-        const supabase = createClient();
+        const supabase = await createClient();
         const body = await req.json();
         const { status, policies, knowledge_configuration } = body;
 
@@ -232,7 +232,7 @@ export async function PATCH(req, { params }) {
 export async function DELETE(req, { params }) {
     try {
         const { agentId } = params;
-        const supabase = createClient();
+        const supabase = await createClient();
 
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

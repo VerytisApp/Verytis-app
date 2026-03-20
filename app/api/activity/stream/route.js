@@ -8,7 +8,7 @@ export async function GET(req) {
     const channelId = searchParams.get('channelId');
     const encoder = new TextEncoder();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

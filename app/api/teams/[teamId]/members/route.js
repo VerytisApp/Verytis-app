@@ -9,7 +9,7 @@ export async function POST(req, { params }) {
         return NextResponse.json({ error: 'Team ID and User ID are required' }, { status: 400 });
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -50,7 +50,7 @@ export async function DELETE(req, { params }) {
         return NextResponse.json({ error: 'Team ID and User ID are required' }, { status: 400 });
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -79,7 +79,7 @@ export async function PATCH(req, { params }) {
         return NextResponse.json({ error: 'Team ID, User ID, and Role are required' }, { status: 400 });
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

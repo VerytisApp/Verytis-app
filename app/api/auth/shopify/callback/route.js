@@ -78,14 +78,13 @@ export async function GET(req) {
 
   // 4) Persist to user_connections (admin client to avoid RLS surprises)
   const supabaseAdmin = createAdminClient();
-  const connectionType = (state.scope || 'personal').toLowerCase() === 'team' ? 'team' : 'personal';
 
   const connectionData = {
     user_id: state.userId,
-    organization_id: connectionType === 'team' ? state.organizationId : null,
+    organization_id: state.organizationId || null,
     provider: 'shopify',
-    connection_type: connectionType,
-    scope: connectionType, // explicit column (mirrors connection_type)
+    connection_type: 'team',
+    scope: 'team', 
     account_name: state.shop,
     access_token: accessToken,
     refresh_token: null,
@@ -98,36 +97,41 @@ export async function GET(req) {
     },
   };
 
-  const { error: upsertError } = await supabaseAdmin
-    .from('user_connections')
-    .upsert(connectionData, { onConflict: 'user_id,provider,connection_type' });
-
-  if (upsertError) {
-    return NextResponse.json({ error: upsertError.message }, { status: 500 });
+  if (!connectionData.organization_id) {
+    console.error('❌ [API SHOPIFY] Missing organizationId in state');
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/settings?tab=integrations&error=missing_organization`);
   }
 
+  // Unify connection conflict: only one Shopify per organization
+  const { error: upsertError } = await supabaseAdmin.from('user_connections').upsert(connectionData, {
+    onConflict: 'organization_id, provider',
+  });
+
+  if (upsertError) {
+    console.error('❌ [API SHOPIFY] Upsert error:', upsertError);
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/settings?tab=integrations&error=db_save_failed`);
+  }
+
+  // 5) Respond with HTML for popup closure or redirect
   const html = `
     <html>
-      <body>
-        <script>
-          if (window.opener) {
-            window.opener.postMessage({
-              type: 'SHOPIFY_CONNECTED',
-              scope: ${JSON.stringify(connectionType)},
-              shop: ${JSON.stringify(state.shop)}
-            }, '*');
-            window.close();
-          } else {
-            window.location.href = '/settings?tab=integrations&connected=true&app=shopify&type=${connectionType}';
-          }
-        </script>
-        <p>Shopify connected! You can close this window.</p>
+      <body style="background: #f8fafc; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; color: #1e293b;">
+          <div style="text-align: center; padding: 2rem; background: white; border-radius: 1rem; shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05); border: 1px solid #e2e8f0;">
+              <h2 style="margin-bottom: 0.5rem; color: #0f172a;">Shopify Connecté !</h2>
+              <p style="font-size: 0.875rem; color: #64748b;">La boutique <strong>${state.shop}</strong> est liée au workspace.</p>
+              <script>
+                if (window.opener) {
+                  window.opener.postMessage({ type: 'SHOPIFY_CONNECTED', shop: '${state.shop}' }, '*');
+                  window.close();
+                } else {
+                  window.location.href = '/settings?tab=integrations&connected=true&app=shopify';
+                }
+              </script>
+          </div>
       </body>
     </html>
   `;
-
   const res = new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
   res.cookies.delete('shopify_oauth_nonce');
   return res;
 }
-

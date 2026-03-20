@@ -10,7 +10,7 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Provider and API Key are required' }, { status: 400 });
         }
 
-        const supabase = createClient();
+        const supabase = await createClient();
 
         // 1. Fetch current settings
         const { data: settings, error: fetchError } = await supabase

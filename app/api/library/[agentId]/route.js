@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req, { params }) {
     try {
         const { agentId } = params;
-        const supabase = createClient();
+        const supabase = await createClient();
 
         // Check if agentId is a UUID
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

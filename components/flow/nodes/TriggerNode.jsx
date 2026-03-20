@@ -31,12 +31,22 @@ const TRIGGER_TYPES = [
 
 // Known OAuth providers and their display info
 const OAUTH_PROVIDERS = {
-    // Only expose providers/events that are concretely supported
-    // by our current webhook handlers + scopes.
-    slack:  { label: 'Slack',  domain: 'slack.com',  events: ['message', 'app_mention', 'member_joined_channel', 'file_share'] },
-    github: { label: 'GitHub', domain: 'github.com', events: ['push', 'pull_request'] },
-    trello: { label: 'Trello', domain: 'trello.com', events: ['updateCard', 'addMemberToCard', 'addAttachmentToCard', 'updateCheckItemStateOnCard'] },
-    shopify: { label: 'Shopify', domain: 'shopify.com', events: ['orders/create'] },
+    // Only expose providers/events that are concretely supported by our current webhook handlers + scopes.
+    slack:   { label: 'Slack',   domain: 'slack.com',  events: ['message', 'app_mention', 'member_joined_channel', 'file_share'] },
+    github:  { label: 'GitHub',  domain: 'github.com', events: ['push', 'pull_request'] },
+    trello:  { label: 'Trello',  domain: 'trello.com', events: ['updateCard', 'addMemberToCard', 'addAttachmentToCard', 'updateCheckItemStateOnCard'] },
+    shopify: { 
+        label: 'Shopify', 
+        domain: 'shopify.com', 
+        events: [
+            { value: 'orders/create', label: 'Nouvelle commande (non payée)' },
+            { value: 'orders/paid', label: 'Nouvelle commande payée' },
+            { value: 'checkouts/update', label: 'Panier abandonné' },
+            { value: 'inventory_levels/update', label: 'Rupture de stock' },
+            { value: 'orders/cancelled', label: 'Commande annulée' },
+            { value: 'customers/create', label: 'Nouveau client' }
+        ] 
+    },
 };
 
 const TriggerNode = ({ data, isConnectable }) => {
@@ -167,7 +177,9 @@ const TriggerNode = ({ data, isConnectable }) => {
             return (
                 <div className="w-16 h-16 bg-white shadow-md border border-slate-100 rounded-2xl flex items-center justify-center overflow-hidden">
                     <img
-                        src={`https://www.google.com/s2/favicons?domain=${faviconDomain}&sz=128`}
+                        src={['shopify', 'github', 'slack', 'trello'].includes(selectedProvider?.toLowerCase()) 
+                            ? `/logos/${selectedProvider.toLowerCase()}.svg` 
+                            : `https://www.google.com/s2/favicons?domain=${faviconDomain}&sz=128`}
                         alt={selectedProvider}
                         className="w-10 h-10 object-contain"
                     />
@@ -257,9 +269,13 @@ const TriggerNode = ({ data, isConnectable }) => {
                                     className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 nodrag"
                                 >
                                     <option value="">-- Choisir un événement --</option>
-                                    {availableEvents.map(evt => (
-                                        <option key={evt} value={evt}>{evt.replace(/_/g, ' ')}</option>
-                                    ))}
+                                    {availableEvents.map(evt => {
+                                        const val = typeof evt === 'string' ? evt : evt.value;
+                                        const label = typeof evt === 'string' ? evt.replace(/_/g, ' ') : evt.label;
+                                        return (
+                                            <option key={val} value={val}>{label}</option>
+                                        );
+                                    })}
                                 </select>
                             </div>
                         )}

@@ -8,7 +8,7 @@ const OAUTH_PROVIDERS = ['github', 'slack', 'trello', 'shopify'];
 
 export async function GET(req) {
     try {
-        const supabase = createClient();
+        const supabase = await createClient();
         console.log('[API SETTINGS] GET request initiated');
 
         // 1. Verify user is logged in
@@ -39,37 +39,19 @@ export async function GET(req) {
         }
         console.log('[API SETTINGS] Org Context:', { orgId: profile?.organization_id, orgName });
 
-        // 3. Fetch connections (Self Personal + Org Team)
-        let personalConnections = [];
-        let teamConnections = [];
-
-        // 3a. Personal connections
-        const { data: pData, error: pError } = await supabase
-            .from('user_connections')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('connection_type', 'personal');
-        
-        if (pError) console.error('[API SETTINGS] Error fetching personal connections:', pError.message);
-        else personalConnections = pData || [];
-
-        // 3b. Team connections (Query by org_id if exists)
+        // 3. Fetch Unified Connections (Org-wide)
+        let connections = [];
         if (profile?.organization_id) {
-            const { data: tData, error: tError } = await supabase
+            const { data: cData, error: cError } = await supabase
                 .from('user_connections')
                 .select('*')
-                .eq('organization_id', profile.organization_id)
-                .eq('connection_type', 'team');
-            if (tError) console.error('[API SETTINGS] Error fetching team connections:', tError.message);
-            else teamConnections = tData || [];
+                .eq('organization_id', profile.organization_id);
+            
+            if (cError) console.error('[API SETTINGS] Error fetching connections:', cError.message);
+            else connections = cData || [];
         }
 
-        // NOTE: `connections` includes legacy integrations for display purposes
-        // but `user_connections` should remain strict (only real rows with IDs).
-        const strictUserConnections = [...personalConnections, ...teamConnections];
-        const connections = [...strictUserConnections];
-        
-        // 3c. Legacy integrations table (important for GitHub/Slack Team)
+        // 3c. Legacy integrations fallback (GitHub/Slack Team)
         if (profile?.organization_id) {
             const { data: iData } = await supabase
                 .from('integrations')
@@ -78,13 +60,12 @@ export async function GET(req) {
             
             if (iData) {
                 iData.forEach(item => {
-                    // Check if already in connections to avoid duplicates
-                    if (!connections.some(c => c.provider === item.provider && c.connection_type === 'team')) {
+                    if (!connections.some(c => c.provider === item.provider)) {
                         connections.push({
                             provider: item.provider,
                             connection_type: 'team',
                             metadata: item.settings,
-                            account_name: item.settings?.team_name || item.settings?.account_name || 'Team Integration'
+                            account_name: item.settings?.team_name || item.settings?.account_name || 'Workflow Integration'
                         });
                     }
                 });
@@ -100,7 +81,6 @@ export async function GET(req) {
             .eq('id', 'default')
             .maybeSingle();
         
-        if (settingsError) console.error('[API SETTINGS] Settings fetch error:', settingsError);
         const settings = settingsData || {};
 
         const DEFAULT_PROVIDERS = [
@@ -115,88 +95,51 @@ export async function GET(req) {
 
         const catalog = [];
 
-        // 5a. Add LLM Providers (from settings.providers)
+        // 5a. LLM Providers (from settings.providers)
         (settings?.providers || []).forEach(p => {
             const { encryptedToken, ...rest } = p;
             const meta = DEFAULT_PROVIDERS.find(d => d.id === p.id) || {};
+            const isConfigured = !!encryptedToken;
             catalog.push({ 
                 ...meta, 
                 ...rest, 
-                status: 'Connected', 
+                status: isConfigured ? 'Connected' : 'Not Configured', 
                 connection_type: 'llm' 
             });
         });
 
-        // 5b. Add OAuth Connections (from user_connections)
+        // 5b. OAuth Connections (unified)
         connections.forEach(c => {
             const meta = DEFAULT_PROVIDERS.find(d => d.id === c.provider) || {};
-            catalog.push({
-                ...meta,
-                id: c.provider,
-                account_name: c.account_name || c.external_account_name,
-                connection_type: c.connection_type,
-                status: 'Connected',
-                is_oauth: true
-            });
+            // Avoid duplicate if already added via LLM (unlikely for OAuth)
+            if (!catalog.some(cat => cat.id === c.provider && cat.connection_type === 'team')) {
+                catalog.push({
+                    ...meta,
+                    id: c.provider,
+                    account_name: c.account_name || c.external_account_name || 'Workspace Connected',
+                    connection_type: 'team', // Force 'team' display label logic in UI
+                    status: 'Connected',
+                    is_oauth: true,
+                    metadata: c.metadata
+                });
+            }
         });
 
-        // 5c. Add Default Providers (Placeholders for not-configured apps)
+        // 5c. Fill gaps with placeholders
         DEFAULT_PROVIDERS.forEach(dp => {
-            // Only add if not already present in some form
             if (!catalog.some(c => c.id === dp.id)) {
                 catalog.push({ ...dp, status: 'Not Configured' });
             }
         });
 
-        console.log('[API SETTINGS] Unified catalog size:', catalog.length);
-
-        const orgIntegrations = (teamConnections || []).map(c => ({
-            id: c.provider,
-            account_name: c.account_name || c.external_account_name || orgName,
-            is_oauth: true,
-            is_perso: false
-        }));
-
-        const personalIntegrations = (personalConnections || []).map(c => ({
-            id: c.provider,
-            account_name: c.account_name || c.external_account_name || user.email,
-            is_oauth: true,
-            is_perso: true
-        }));
-
-        // 5a. LLM Providers (from organization_settings)
-        const llmCatalog = (settings?.providers || []).map(p => ({
-            ...p,
-            id: p.id,
-            provider: p.id,
-            connection_type: 'llm',
-            status: p.status || 'Connected',
-            account_name: 'Team Key',
-            tokenPreview: p.tokenPreview || '...'
-        })).map(({ encryptedToken, rawToken, ...rest }) => rest);
-
-        // 5b. OAuth Connections (only from user_connections)
-        const oauthCatalog = connections.map(c => ({
-            id: c.provider,
-            provider: c.provider,
-            connection_type: c.connection_type,
-            status: 'Connected',
-            account_name: c.account_name,
-            metadata: c.metadata // Expose metadata for specific tool links
-        }));
-
-        const finalProviders = [...llmCatalog, ...oauthCatalog];
-
-        console.log('[API SETTINGS] Final Providers count:', finalProviders.length);
-
         return NextResponse.json({ 
-            providers: finalProviders,
-            // Compatibility: some UI components still expect `user_connections`
-            user_connections: strictUserConnections,
+            providers: catalog,
+            user_connections: connections,
             settings: settingsData,
             user: {
                 id: user.id,
-                email: user.email
+                email: user.email,
+                orgName
             }
         });
 
@@ -208,7 +151,7 @@ export async function GET(req) {
 
 export async function PUT(req) {
     try {
-        const supabase = createClient();
+        const supabase = await createClient();
         const body = await req.json();
 
         // 1. Verify user is logged in
@@ -261,7 +204,7 @@ export async function PUT(req) {
 
 export async function DELETE(req) {
     try {
-        const supabase = createClient();
+        const supabase = await createClient();
         
         // Support both query params and body for maximum compatibility
         const { searchParams } = new URL(req.url);

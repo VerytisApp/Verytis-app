@@ -6,7 +6,7 @@ export const revalidate = 10; // Cache for 10 seconds
 
 export async function GET(req) {
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

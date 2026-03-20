@@ -9,7 +9,7 @@ export async function GET(req) {
         return NextResponse.json({ error: 'SLACK_CLIENT_ID is not defined in environment variables' }, { status: 500 });
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -21,17 +21,20 @@ export async function GET(req) {
         .single();
 
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
-    const type = searchParams.get('type') || 'integration';
+    const userId = searchParams.get('userId') || user.id;
     const organizationId = profile?.organization_id;
 
-    const isPersonal = type === 'user_link' || type === 'personal';
+    if (!organizationId) {
+        return NextResponse.json({ error: 'Organization context required' }, { status: 400 });
+    }
+
+    const type = 'integration';
     
-    // For Team connections: full bot rights
-    // For Personal: no bot rights, only identity
-    const botScopes = isPersonal ? '' : [
-        'chat:write', 'channels:read', 'groups:read', 
-        'reactions:write', 'users:read'
+    // Always full bot rights for workspace connection
+    const botScopes = [
+        'chat:write', 'channels:read', 'groups:read', 'im:read', 'mpim:read',
+        'reactions:write', 'users:read', 'im:history', 'mpim:history',
+        'channels:history', 'groups:history'
     ].join(',');
 
     const state = JSON.stringify({
@@ -43,12 +46,6 @@ export async function GET(req) {
     // Base URL with bot scopes
     let installUrl = `https://slack.com/oauth/v2/authorize?client_id=${process.env.SLACK_CLIENT_ID}&scope=${botScopes}&redirect_uri=${process.env.NEXT_PUBLIC_BASE_URL}/api/slack/callback&state=${encodeURIComponent(state)}`;
 
-    if (isPersonal) {
-        // Request ONLY user identity for personal connections (OpenID Connect style)
-        // This makes the Slack screen much simpler ("Verytis wants to know who you are")
-        // prompt=consent forces Slack to show the authorization screen again
-        installUrl += `&user_scope=openid,profile,email&prompt=consent`;
-    }
 
     return NextResponse.redirect(installUrl);
 }

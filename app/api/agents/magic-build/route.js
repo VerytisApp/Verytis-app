@@ -12,7 +12,7 @@ export async function POST(req) {
     const isModification = !!current_architecture && (current_architecture.nodes?.length > 0);
 
     // ─── FETCH MANDATORY ORG SETTINGS ───
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     // Fetch global governance from organization_settings
@@ -95,7 +95,8 @@ Conçois un nouvel agent de zéro.`}
    - Ajouter TOUJOURS 'governance_linked: true' et 'schema_linked: true' dans les data du triggerNode pour signifier que le flux passe par Verytis Gouvernance et Schéma.
    - SCHEMA JSON pour le trigger : { "id": "t1", "type": "triggerNode", "data": { "trigger_type": "app|webhook|scheduled", "provider": "gmail|slack|null", "event_name": "email_received|null", "governance_linked": true, "schema_linked": true } }
    - ROUTAGE SÉMANTIQUE SHOPIFY (IMPORTANT) :
-     * Si l'utilisateur mentionne une vente, une commande Shopify, "quand je fais une vente", "nouvelle commande", tu DOIS configurer un trigger_type='app' avec provider='shopify' et event_name='orders/create'.
+     * Si l'utilisateur mentionne une vente, une commande Shopify, "quand je fais une vente", "nouvelle commande", tu DOIS configurer un trigger_type='app' avec provider='shopify' et event_name='orders/paid' (Ventes payées) ou 'orders/create' (Nouvelle commande).
+      * Si l'utilisateur mentionne un abandon de panier, une rupture de stock, une annulation ou un nouveau client, tu DOIS mapper sur 'checkouts/update', 'inventory_levels/update', 'orders/cancelled' ou 'customers/create'.
      * Quand Shopify est utilisé, tu DOIS ajouter 'connection_id' dans les data du triggerNode (ID OAuth Shopify) pour permettre l'exécution autonome.
 5. FICHE DE POSTE MATRICIELLE : Tu DOIS rédiger un 'system_prompt' professionnel et exhaustif (min 20 lignes). C'est le cerveau de l'agent.
 6. CONNECTIVITÉ & DATA BRIDGES : 
@@ -149,7 +150,7 @@ ${mandatoryGovernance}
 Pour CHAQUE nœud sans exception (Trigger, Shield, LLM, Tool), tu DOIS fournir une \`description\` concrète et métier expliquant son utilité.
 - Interdit : "Description par défaut", "Nœud d'outil", "Agent Verytis".
 - Obligatoire : Explique ce que fait l'application précisément dans CE flux.
-  - Ex (Slack) : "Notifie automatiquement le canal #dev avec le rapport de faille de sécurité détecté."
+  - Ex (Slack) : "Envoie un rapport via Slack API au canal #dev."
   - Ex (Trigger) : "Webhook entrant qui reçoit les métriques de performance du serveur toutes les heures."
   - Ex (Shield) : "Applique une politique de sécurité stricte interdisant l'accès aux données de facturation.";`
 

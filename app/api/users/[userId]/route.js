@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export async function GET(req, { params }) {
     const { userId } = await params;
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
 
     if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -51,7 +51,7 @@ export async function PATCH(req, { params }) {
     const { userId } = await params;
     const body = await req.json();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
 
     if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -136,7 +136,7 @@ export async function PATCH(req, { params }) {
 export async function DELETE(req, { params }) {
     const { userId } = await params;
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
 
     if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 export async function POST(req, { params }) {
     try {
         const { agentId } = params;
-        const supabase = createClient();
+        const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {

@@ -8,7 +8,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get('type') || 'team';
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -22,12 +22,14 @@ export async function GET(req) {
     if (!profile?.organization_id) return NextResponse.json({ error: 'No organization' }, { status: 400 });
 
     const targetOrgId = profile.organization_id;
+    let integration_id = null;
 
     try {
-        const { token: access_token, metadata, id: integration_id } = await getValidToken('github', type, {
+        const { token: access_token, metadata, id } = await getValidToken('github', type, {
             userId: user.id,
             organizationId: targetOrgId
         });
+        integration_id = id;
 
         const installation_id = metadata?.installation_id;
 

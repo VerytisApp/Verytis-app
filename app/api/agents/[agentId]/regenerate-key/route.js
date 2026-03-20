@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req, { params }) {
     try {
         const { agentId } = params;
-        const supabase = createClient();
+        const supabase = await createClient();
 
         // 1. Auth check
         const { data: { user }, error: authError } = await supabase.auth.getUser();

@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import useSWR from 'swr';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+
 import { Shield, FileText, Bot, Users, CheckCircle, XCircle, UserCheck, Download, Table, FileSpreadsheet, X, Calendar, Search, Filter, Lock, ChevronDown, Check, Zap, DollarSign, Activity, TrendingUp, Clock, AlertTriangle } from 'lucide-react';
 import { Card, Button, PlatformIcon, Modal, EmptyState } from '../ui';
 import AuditLogo from '../image/LOGO.PNG-ICARE.svg';
@@ -501,6 +500,8 @@ const AuditDocumentation = ({ userRole, currentUser: propUser }) => {
     };
 
     const generatePDF = async (events, stats) => {
+        const { default: jsPDF } = await import('jspdf');
+        const { default: autoTable } = await import('jspdf-autotable');
         const doc = new jsPDF();
 
         // --- 1. Header Section ---

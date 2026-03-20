@@ -30,7 +30,7 @@ const KnowledgeNode = ({ data, isConnectable }) => {
                         VERYTIS KNOWLEDGE
                     </div>
                     <div className={`text-[13px] font-black line-clamp-1 px-4 tracking-tight ${hasKnowledge ? 'text-slate-900' : 'text-slate-400 italic'}`}>
-                        {data.label || 'Base de Connaissance'}
+                        Base de Connaissance
                     </div>
                 </div>
             </div>

@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -114,7 +114,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-    const supabase = createClient();
+    const supabase = await createClient();
     try {
         const body = await req.json();
         const { name, description, type, organization_id, members, channels, scopes } = body;

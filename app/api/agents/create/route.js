@@ -61,7 +61,7 @@ function sanitizeVisualConfig(config) {
 export async function POST(req) {
     try {
         // 1. Init SSR Client for Authed User
-        const supabase = createClient();
+        const supabase = await createClient();
 
         // 2. Ensure User is Auth'd & Get Org Id
         const { data: { user }, error: authError } = await supabase.auth.getUser();

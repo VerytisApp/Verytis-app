@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // POST /api/archive/trash — Restore or permanently purge
 export async function POST(req) {
     try {
-        const supabase = createClient();
+        const supabase = await createClient();
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

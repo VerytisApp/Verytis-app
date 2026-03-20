@@ -8,7 +8,7 @@ export async function GET(req, { params }) {
 
     if (!teamId) return NextResponse.json({ error: 'Team ID required' }, { status: 400 });
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -223,7 +223,7 @@ export async function PATCH(req, { params }) {
     const { teamId } = await params;
     const body = await req.json();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -254,7 +254,7 @@ export async function PATCH(req, { params }) {
 export async function DELETE(req, { params }) {
     const { teamId } = await params;
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

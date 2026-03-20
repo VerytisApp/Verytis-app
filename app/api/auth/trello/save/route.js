@@ -11,59 +11,51 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req) {
     try {
-        const { token, userId, type, organizationId, selectedOrgId, selectedOrgName } = await req.json();
+        const { token, userId, organizationId, selectedOrgId } = await req.json();
 
-        if (!token || !userId) {
-            return NextResponse.json({ error: 'Missing token or userId' }, { status: 400 });
+        if (!token || !userId || !organizationId) {
+            return NextResponse.json({ error: 'Missing token, userId or organizationId' }, { status: 400 });
         }
 
         const supabase = createAdminClient();
 
         // Fetch Trello member info for IDs and basic data
         let member = {};
-        let displayName = 'Trello User';
+        let displayName = 'Trello Workspace';
         
         try {
             const memberRes = await fetch(`https://api.trello.com/1/members/me?key=${process.env.TRELLO_API_KEY}&token=${token}`);
             if (memberRes.ok) {
                 member = await memberRes.json();
-                displayName = member.fullName || member.username;
             }
 
-            // FOR TEAM CONNECTIONS: MUST USE WORKSPACE NAME
-            if (type !== 'user_link') {
-                const orgRes = await fetch(`https://api.trello.com/1/members/me/organizations?key=${process.env.TRELLO_API_KEY}&token=${token}&fields=displayName,name`);
-                if (orgRes.ok) {
-                    const orgs = await orgRes.json();
-                    if (orgs && orgs.length > 0) {
-                        // Use the selected one or the first available
-                        const targetOrg = selectedOrgId ? orgs.find(o => o.id === selectedOrgId) : orgs[0];
-                        displayName = targetOrg?.displayName || targetOrg?.name || orgs[0].displayName || orgs[0].name;
-                    } else {
-                        // If no org found but it's a team link, mark it as Workspace
-                        displayName = 'Trello Workspace';
-                    }
+            // ALWAYS USE WORKSPACE NAME FOR UNIFIED CONNECTION
+            const orgRes = await fetch(`https://api.trello.com/1/members/me/organizations?key=${process.env.TRELLO_API_KEY}&token=${token}&fields=displayName,name`);
+            if (orgRes.ok) {
+                const orgs = await orgRes.json();
+                if (orgs && orgs.length > 0) {
+                    const targetOrg = selectedOrgId ? orgs.find(o => o.id === selectedOrgId) : orgs[0];
+                    displayName = targetOrg?.displayName || targetOrg?.name || orgs[0].displayName || orgs[0].name;
                 }
             }
         } catch (err) {
             console.warn(`⚠️ Trello data lookup error:`, err.message);
         }
 
-        // MIGRATION: Centralized saving to user_connections
-        const isPersonal = type === 'user_link';
         const connectionData = {
             user_id: userId,
-            organization_id: organizationId || null,
+            organization_id: organizationId,
             provider: 'trello',
-            connection_type: isPersonal ? 'personal' : 'team',
-            account_name: displayName, // Strictly the Workspace name for Team, or User name for Perso
+            connection_type: 'team',
+            scope: 'team',
+            account_name: displayName,
             access_token: token,
             metadata: {
                 trello_id: member.id,
                 username: member.username,
                 full_name: member.fullName,
                 selected_org_id: selectedOrgId || null,
-                is_workspace: !isPersonal,
+                is_workspace: true,
                 avatar_url: member.avatarUrl ? `https://trello-members.s3.amazonaws.com/${member.id}/${member.avatarHash}/170.png` : null,
                 connected_at: new Date().toISOString()
             }
@@ -71,38 +63,35 @@ export async function POST(req) {
 
         console.log('[API TRELLO] Attempting upsert to user_connections:', {
             user_id: userId,
-            provider: 'trello',
-            type: connectionData.connection_type
+            organization_id: organizationId,
+            provider: 'trello'
         });
 
-        const { error: upsertError } = await supabase.from('user_connections').upsert(connectionData, {
-            onConflict: 'user_id, provider, connection_type'
-        });
+        // Unify connection conflict: only one Trello per organization
+        // Manual safe upsert to bypass missing unique constraint in DB
+        const { data: existing } = await supabase.from('user_connections')
+            .select('id')
+            .eq('organization_id', organizationId)
+            .eq('provider', 'trello')
+            .maybeSingle();
+
+        let upsertError = null;
+        if (existing) {
+            console.log(`[API TRELLO] Updating existing connection: ${existing.id}`);
+            const { error } = await supabase.from('user_connections')
+                .update(connectionData)
+                .eq('id', existing.id);
+            upsertError = error;
+        } else {
+            console.log('[API TRELLO] Inserting new connection');
+            const { error } = await supabase.from('user_connections')
+                .insert(connectionData);
+            upsertError = error;
+        }
 
         if (upsertError) {
             console.error('❌ [API TRELLO] Upsert error:', upsertError);
-            
-            // FALLBACK: If 'account_name' is missing, try 'external_account_name'
-            if (upsertError.message?.includes('account_name')) {
-                console.log('⚠️ [API TRELLO] "account_name" missing, falling back to "external_account_name"');
-                const fallbackData = { ...connectionData };
-                fallbackData.external_account_name = fallbackData.account_name;
-                delete fallbackData.account_name;
-
-                const { error: fallbackError } = await supabase.from('user_connections').upsert(fallbackData, {
-                    onConflict: 'user_id, provider, connection_type'
-                });
-
-                if (fallbackError) {
-                    console.error('❌ [API TRELLO] Fallback upsert also failed:', fallbackError);
-                    throw new Error(`Database upsert failed (both column attempts): ${fallbackError.message}`);
-                }
-                console.log('✅ [API TRELLO] Connection saved successfully (fallback column)');
-            } else {
-                throw new Error(`Database upsert failed: ${upsertError.message}`);
-            }
-        } else {
-            console.log('✅ [API TRELLO] Connection saved successfully');
+            throw new Error(`Database upsert failed: ${upsertError.message}`);
         }
 
         return NextResponse.json({ success: true, username: member.username || 'Trello User' });

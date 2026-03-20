@@ -10,7 +10,7 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Verification code is required' }, { status: 400 });
         }
 
-        const supabase = createClient();
+        const supabase = await createClient();
         const { data: { user }, error: userError } = await supabase.auth.getUser();
 
         if (userError || !user) {
