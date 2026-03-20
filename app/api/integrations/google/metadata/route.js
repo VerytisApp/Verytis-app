@@ -40,7 +40,7 @@ export async function GET(req) {
             }));
 
             const folders = (foldersData.files || []).map(f => ({ 
-                label: f.driveId ? `[Équipe] ${f.name}` : `[Perso] ${f.name}`, 
+                label: f.driveId ? `[Équipe] ${f.name}` : f.name, 
                 value: f.id 
             }));
 
