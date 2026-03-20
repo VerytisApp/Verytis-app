@@ -35,12 +35,12 @@ export async function GET(req) {
             const drivesData = await drivesRes.json();
 
             const drives = (drivesData.drives || []).map(d => ({
-                label: `🏢 [DRIVE ÉQUIPE] ${d.name}`,
+                label: `[DRIVE ÉQUIPE] ${d.name}`,
                 value: d.id
             }));
 
             const folders = (foldersData.files || []).map(f => ({ 
-                label: f.driveId ? `📁 [Équipe] ${f.name}` : `📁 [Perso] ${f.name}`, 
+                label: f.driveId ? `[Équipe] ${f.name}` : `[Perso] ${f.name}`, 
                 value: f.id 
             }));
 
