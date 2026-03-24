@@ -8,14 +8,14 @@ const TrelloConfig = ({ node, theme, metadata, isLoadingMetadata, targets, isLoa
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between p-3 bg-blue-600 rounded-2xl shadow-lg shadow-blue-200">
+            <div className={`flex items-center justify-between p-3 ${theme?.bg || 'bg-slate-600'} rounded-2xl shadow-lg`}>
                 <div className="flex items-center gap-2.5">
-                    <div className="p-2 bg-white/20 rounded-xl">
+                    <div className="p-2 bg-white/20 rounded-xl shadow-inner">
                         <Sparkles className="w-4 h-4 text-white" />
                     </div>
                     <div className="flex flex-col">
                         <span className="text-[10px] font-black text-white uppercase tracking-wider">Mode Automatique</span>
-                        <span className="text-[9px] text-blue-100 font-bold italic opacity-80">L'Agent choisit la cible</span>
+                        <span className="text-[9px] text-white/70 font-bold italic opacity-80">L'Agent choisit la cible</span>
                     </div>
                 </div>
                 <button
@@ -24,9 +24,9 @@ const TrelloConfig = ({ node, theme, metadata, isLoadingMetadata, targets, isLoa
                         const nextList = isAuto ? '' : 'auto';
                         onUpdate('config', { ...config, board_id: nextBoard, list_id: nextList });
                     }}
-                    className={`w-10 h-5 rounded-full transition-all duration-300 relative border-2 ${isAuto ? 'bg-white border-white' : 'bg-blue-700 border-blue-500'}`}
+                    className={`w-10 h-5 rounded-full transition-all duration-300 relative border-2 ${isAuto ? 'bg-white border-white' : 'bg-black/20 border-black/10 hover:bg-black/30'}`}
                 >
-                    <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-transform duration-300 shadow-sm ${isAuto ? 'translate-x-5 bg-blue-600' : 'translate-x-0.5 bg-blue-200'}`} />
+                    <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-transform duration-300 shadow-sm ${isAuto ? `translate-x-5 ${theme?.bg || 'bg-slate-600'}` : 'translate-x-0.5 bg-white/70'}`} />
                 </button>
             </div>
 

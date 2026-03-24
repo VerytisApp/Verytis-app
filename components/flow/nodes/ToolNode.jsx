@@ -21,7 +21,7 @@ const ToolNode = ({ data, isConnectable }) => {
     React.useEffect(() => {
         const handleRefresh = (event) => {
             if (event.origin !== window.location.origin) return;
-            if (['SLACK_CONNECTED', 'GITHUB_CONNECTED', 'TRELLO_CONNECTED', 'TRELLO_LINKED', 'GITHUB_LINKED', 'GOOGLE_WORKSPACE_CONNECTED'].includes(event.data?.type)) {
+            if (['SLACK_CONNECTED', 'GITHUB_CONNECTED', 'TRELLO_CONNECTED', 'STRIPE_CONNECTED', 'GOOGLE_CONNECTED', 'GOOGLE_WORKSPACE_CONNECTED', 'SHOPIFY_CONNECTED', 'TRELLO_LINKED', 'GITHUB_LINKED', 'YOUTUBE_CONNECTED'].includes(event.data?.type)) {
                 // If the builder parent already refreshes, this might be redundant but safer
                 mutate('/api/settings');
             }
@@ -37,11 +37,6 @@ const ToolNode = ({ data, isConnectable }) => {
         label: 'Clé API / Token',
         placeholder: 'Collez Token / Clé API...'
     };
-
-    // ─── Internal Skill Detection ──────────────────────────────
-    // If auth_requirement.type is 'none', this is a built-in AI skill
-    // that requires no external API key.
-    const isInternalSkill = authRecord.type === 'none';
 
     // Dynamic Branding Logic
     const toolMapping = {
@@ -67,6 +62,8 @@ const ToolNode = ({ data, isConnectable }) => {
         'gmail': 'google.com',
         'drive': 'google.com',
         'calendar': 'google.com',
+        'trello': 'trello.com',
+        'youtube': 'youtube.com',
     };
 
     const getDomain = () => {
@@ -79,6 +76,11 @@ const ToolNode = ({ data, isConnectable }) => {
     };
 
     const domain = getDomain();
+
+    // If auth_requirement.type is 'none', this is a built-in AI skill
+    // that requires no external API key. 
+    // IMPORTANT: If a domain/app is detected, it takes precedence over the "none" status
+    const isInternalSkill = authRecord.type === 'none' && !domain;
     const providerName = domain ? domain.split('.')[0] : 'tool';
     
     const connectedOrg = data.connectedProviders?.find(p => {
@@ -158,9 +160,9 @@ const ToolNode = ({ data, isConnectable }) => {
     // External Pending: red theme
     // Default: slate/blue
     const getContainerClass = () => {
+        if (isConnected && domain) return 'border-blue-500 bg-blue-50/10';
         if (isInternalSkill) return 'border-indigo-400 bg-indigo-50/20';
         if (!isConnected && domain) return 'border-red-500 bg-red-50/30';
-        if (isConnected) return 'border-blue-500 bg-blue-50/10';
         return 'border-slate-200 hover:border-blue-400';
     };
 
@@ -199,7 +201,7 @@ const ToolNode = ({ data, isConnectable }) => {
                         <Brain className="w-8 h-8 text-indigo-600" />
                     ) : domain ? (
                         <img
-                            src={domain === 'trello.com' ? '/icon-trello.png' : `https://www.google.com/s2/favicons?domain=${domain}&sz=128`}
+                            src={`https://www.google.com/s2/favicons?domain=${domain}&sz=128`}
                             alt={label}
                             className={`w-10 h-10 object-contain`}
                         />
@@ -284,7 +286,7 @@ const ToolNode = ({ data, isConnectable }) => {
                                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center gap-3 text-center transition-all group-hover:border-blue-200 group-hover:bg-blue-50/30">
                                     <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100">
                                         <img 
-                                            src={domain === 'trello.com' ? '/icon-trello.png' : `https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+                                            src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
                                             className="w-5 h-5 grayscale group-hover:grayscale-0 transition-all"
                                             alt=""
                                         />
@@ -323,6 +325,10 @@ const ToolNode = ({ data, isConnectable }) => {
                                                     authUrl = `/api/auth/trello/login?organizationId=${orgId}`;
                                                 } else if (providerName === 'slack') {
                                                     authUrl = `/api/slack/install?organizationId=${orgId}`;
+                                                } else if (providerName === 'youtube') {
+                                                    const supabaseUser = await createClient();
+                                                    const { data: { user: currentUser } } = await supabaseUser.auth.getUser();
+                                                    authUrl = `/api/auth/youtube/login?userId=${currentUser?.id}&organizationId=${orgId}`;
                                                 } else if (providerName === 'shopify') {
                                                     const storeUrl = prompt("Veuillez entrer l'URL de votre boutique Shopify (ex: mat-boutique.myshopify.com) :");
                                                     if (storeUrl) {
@@ -378,7 +384,7 @@ const ToolNode = ({ data, isConnectable }) => {
                                             <>
                                                 <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center p-1 shadow-sm">
                                                     <img 
-                                                        src={domain === 'trello.com' ? '/icon-trello.png' : `https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+                                                        src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
                                                         className="w-4 h-4 object-contain"
                                                         alt=""
                                                     />

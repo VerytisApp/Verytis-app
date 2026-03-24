@@ -35,11 +35,29 @@ export async function GET(req) {
             return NextResponse.json({ error: tokenData.error_description || 'Token exchange failed' }, { status: 400 });
         }
 
-        // Save to user_connections
+        // Exchange code for account details
+        // ... (existing token exchange)
+
+        // Get actual Account Name from Stripe API
+        let accountName = tokenData.stripe_user_id || 'Stripe Account';
+        try {
+            const accResponse = await fetch('https://api.stripe.com/v1/account', {
+                headers: {
+                    'Authorization': `Bearer ${tokenData.access_token}`
+                }
+            });
+            if (accResponse.ok) {
+                const accData = await accResponse.json();
+                accountName = accData.settings?.dashboard?.display_name || 
+                              accData.business_profile?.name || 
+                              accData.email || 
+                              tokenData.stripe_user_id;
+            }
+        } catch (e) {
+            console.warn('[STRIPE CALLBACK] Could not fetch account name:', e);
+        }
+
         const supabase = createAdminClient();
-        
-        // Stripe Connect returns stripe_user_id (the connected account ID)
-        const accountName = tokenData.stripe_user_id || 'Stripe Account';
 
         const { data: existing } = await supabase
             .from('user_connections')
@@ -59,6 +77,7 @@ export async function GET(req) {
             scope: 'read_write',
             metadata: {
                  stripe_user_id: tokenData.stripe_user_id,
+                 stripe_account_id: tokenData.stripe_user_id, // Added for webhook matching
                  stripe_publishable_key: tokenData.stripe_publishable_key,
                  livemode: tokenData.livemode,
                  updated_at: Math.floor(Date.now() / 1000)

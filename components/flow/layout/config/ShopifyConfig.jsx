@@ -1,55 +1,67 @@
 import React from 'react';
-import { Globe, ChevronRight } from 'lucide-react';
+import { Sparkles, ShoppingBag, ExternalLink } from 'lucide-react';
 
-const ShopifyConfig = ({ node }) => {
+const ShopifyConfig = ({ node, theme }) => {
+    // Collect specific shopify provider info
+    const shopifyConnection = node.data.connectedProviders?.find(p => (p.provider === 'shopify' || p.id === 'shopify') && p.status === 'Connected');
+    const shopUrl = shopifyConnection?.metadata?.store_url || '';
+    const displayName = shopifyConnection?.account_name || shopUrl || 'BOUTIQUE SHOPIFY';
+    const adminUrl = shopUrl ? `https://${shopUrl}/admin` : '#';
+
     return (
-        <div className="space-y-4 p-5 bg-emerald-50/30 rounded-3xl border border-emerald-100 shadow-sm transition-all animate-in fade-in slide-in-from-top-2 duration-300">
-            <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-2 mb-1">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-                    <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Boutique Connectée</label>
-                </div>
-                
-                {node.data.connectedProviders?.filter(p => (p.provider === 'shopify' || p.id === 'shopify') && p.status === 'Connected').map((conn, idx) => {
-                    const shopUrl = conn.metadata?.store_url || '';
-                    const adminUrl = shopUrl ? `https://${shopUrl}/admin` : '';
-                    const displayName = conn.account_name || shopUrl || 'Boutique Shopify';
-                    
-                    return (
-                        <a 
-                            key={idx}
-                            href={adminUrl}
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="group relative flex items-center justify-between p-4 bg-white border border-emerald-100 rounded-2xl hover:border-emerald-400 hover:shadow-md transition-all duration-300"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-                                    <img 
-                                        src="/logos/shopify.svg" 
-                                        alt="Shopify"
-                                        className="w-6 h-6 object-contain"
-                                        onError={(e) => { e.currentTarget.src = `https://www.google.com/s2/favicons?domain=shopify.com&sz=64`; }}
-                                    />
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-xs font-bold text-slate-900 leading-none mb-1">{displayName}</span>
-                                    <span className="text-[9px] font-medium text-slate-400 truncate max-w-[140px] italic">{shopUrl}</span>
-                                </div>
-                            </div>
-                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                                <ChevronRight className="w-4 h-4" />
-                            </div>
-                        </a>
-                    );
-                })}
-
-                {!node.data.connectedProviders?.some(p => (p.provider === 'shopify' || p.id === 'shopify') && p.status === 'Connected') && (
-                    <div className="p-4 text-center border-2 border-dashed border-emerald-100 rounded-2xl">
-                        <p className="text-[10px] font-bold text-emerald-700 opacity-60 uppercase tracking-tighter">Boutique non liée</p>
+        <div className="space-y-6">
+            <div className={`flex items-center justify-between p-3 ${theme?.bg || 'bg-emerald-600'} rounded-2xl shadow-lg`}>
+                <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-white/20 shadow-inner rounded-xl">
+                        <Sparkles className="w-4 h-4 text-white" />
                     </div>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-white uppercase tracking-wider">Mode Automatique</span>
+                        <span className="text-[9px] text-white/70 font-bold italic opacity-80">L'Agent choisit la cible</span>
+                    </div>
+                </div>
+                {/* Forced and blocked for Shopify automation */}
+                <div className="w-10 h-5 rounded-full transition-all duration-300 relative border-2 bg-white border-white opacity-80 cursor-not-allowed">
+                    <div className={`absolute top-0.5 right-0.5 w-3 h-3 rounded-full ${theme?.bg || 'bg-emerald-600'} shadow-sm`} />
+                </div>
+            </div>
+
+            {/* Organization Info Block */}
+            <div className="flex items-center justify-between px-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-50 rounded-xl border border-emerald-100/50">
+                        <ShoppingBag className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] leading-none mb-1">
+                            {shopifyConnection ? 'Connexion Active' : 'Aucune Connexion'}
+                        </span>
+                        <span className="text-[11px] font-black text-slate-800 tracking-tight uppercase max-w-[140px] truncate">{displayName}</span>
+                    </div>
+                </div>
+                {shopUrl && (
+                    <a 
+                        href={adminUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-emerald-500 hover:text-white transition-all group lg:min-w-fit"
+                    >
+                        <ExternalLink className="w-4 h-4" />
+                    </a>
                 )}
             </div>
+
+            {/* Descriptive Block */}
+            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-2.5 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Ciblage Intelligent</span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                    Par défaut, comme le mode <b>Auto</b> est activé, l'Agent utilisera ses outils de recherche pour identifier dynamiquement la destination la plus pertinente (Commandes, Clients, Produits) en fonction du contexte de la requête Shopify.
+                </p>
+            </div>
+            
         </div>
     );
 };

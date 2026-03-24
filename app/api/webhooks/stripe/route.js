@@ -64,7 +64,9 @@ export async function POST(req) {
     const matchingConnectionIds = (connections || [])
         .filter(c => {
             if (stripeAccountId) {
-                return (c.metadata?.stripe_account_id === stripeAccountId);
+                // Check both potential keys for maximum resilience
+                return (c.metadata?.stripe_account_id === stripeAccountId ||
+                        c.metadata?.stripe_user_id === stripeAccountId);
             }
             // If No account ID, we might match by some metadata field linked to the org
             return true; // Fallback to all Stripe connections if not distinguished (usually one per org)

@@ -9,7 +9,9 @@ import SlackConfig from './config/SlackConfig';
 import TrelloConfig from './config/TrelloConfig';
 import GitHubConfig from './config/GitHubConfig';
 import ShopifyConfig from './config/ShopifyConfig';
+import StripeConfig from './config/StripeConfig';
 import GoogleWorkspaceConfig from './config/GoogleWorkspaceConfig';
+import YouTubeConfig from './config/YouTubeConfig';
 import GovernanceConfig from './config/GovernanceConfig';
 import TargetingList from './config/TargetingList';
 import { PanelTagInput, PanelNumField } from './config/ConfigUtils';
@@ -115,6 +117,7 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
             else if (rawLabel_low.includes('openai')) brand = 'openai';
             else if (rawLabel_low.includes('anthropic')) brand = 'anthropic';
             else if (rawLabel_low.includes('stripe')) brand = 'stripe';
+            else if (rawLabel_low.includes('youtube')) brand = 'youtube';
             else if (rawLabel_low.includes('google') || 
                      rawLabel_low.includes('workspace') || 
                      rawLabel_low.includes('drive') || 
@@ -178,6 +181,10 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
                         const data = await res.json();
                         if (res.ok) setMetadata(prev => ({ ...prev, google_items: data || [] }));
                     }
+                } else if (detectedBrand === 'youtube') {
+                    const res = await fetch('/api/integrations/youtube/metadata');
+                    const data = await res.json();
+                    if (res.ok) setMetadata(prev => ({ ...prev, channels: data.items || [] }));
                 }
             } catch (err) {
                 console.error('Failed to load tool metadata:', err);
@@ -401,6 +408,8 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
         google: { name: 'GOOGLE WORKSPACE', color: 'text-[#4285F4]', bg: 'bg-[#4285F4]', lightBg: 'bg-[#4285F4]/5', border: 'border-[#4285F4]/20', domain: 'gemini.google.com' },
         google_workspace: { name: 'GOOGLE WORKSPACE', color: 'text-[#4285F4]', bg: 'bg-[#4285F4]', lightBg: 'bg-[#4285F4]/5', border: 'border-[#4285F4]/20', logo: '/logos/google.svg', domain: 'workspace.google.com', targets: 'Dossiers/Agendas' },
         shopify: { name: 'SHOPIFY', color: 'text-[#008060]', bg: 'bg-[#008060]', lightBg: 'bg-[#008060]/5', border: 'border-[#008060]/20', domain: 'shopify.com', targets: 'Boutiques' },
+        stripe: { name: 'STRIPE', color: 'text-[#635BFF]', bg: 'bg-[#635BFF]', lightBg: 'bg-[#635BFF]/5', border: 'border-[#635BFF]/20', domain: 'stripe.com', targets: 'Séquences IA' },
+        youtube: { name: 'YOUTUBE', color: 'text-[#FF0000]', bg: 'bg-[#FF0000]', lightBg: 'bg-[#FF0000]/5', border: 'border-[#FF0000]/20', domain: 'youtube.com', logo: '/logos/youtube.svg', targets: 'Chaînes' },
         knowledge: { name: 'KNOWLEDGE', color: 'text-blue-600', bg: 'bg-blue-600', lightBg: 'bg-blue-50', border: 'border-blue-100', domain: 'database.verytis.com', targets: 'Sources' },
     };
 
@@ -564,8 +573,32 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
                                 />
                             )}
 
+                            {detectedBrand === 'stripe' && (
+                                <StripeConfig 
+                                    node={selectedNode}
+                                    theme={activeTheme}
+                                    onUpdate={handleInstantChange}
+                                />
+                            )}
+
+                            {detectedBrand === 'shopify' && (
+                                <ShopifyConfig 
+                                    node={selectedNode}
+                                    theme={activeTheme}
+                                />
+                            )}
+
+                            {detectedBrand === 'youtube' && (
+                                <YouTubeConfig 
+                                    node={selectedNode}
+                                    theme={activeTheme}
+                                    metadata={metadata}
+                                    onUpdate={handleInstantChange}
+                                />
+                            )}
+
                             {/* Fallback for other tools (e.g. Notion) */}
-                            {!['slack', 'trello', 'github', 'shopify', 'google_workspace'].includes(detectedBrand) && (
+                            {!['slack', 'trello', 'github', 'shopify', 'google_workspace', 'stripe', 'youtube'].includes(detectedBrand) && (
                                 <TargetingList 
                                     targets={filteredTargets}
                                     isLoading={isLoadingTargets}
@@ -588,7 +621,7 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
                     )}
 
                     {/* Hybrid Mode Description at the bottom of targeting */}
-                    {isTool && detectedBrand !== 'shopify' && (
+                    {isTool && !['shopify', 'stripe'].includes(detectedBrand) && (
                         <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-2">
                             <div className="flex items-center gap-2">
                                 <Sparkles className="w-3.5 h-3.5 text-blue-500" />

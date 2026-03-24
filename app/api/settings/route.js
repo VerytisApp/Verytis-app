@@ -4,7 +4,7 @@ import { encrypt } from '@/lib/encryption';
 
 export const dynamic = 'force-dynamic';
 
-const OAUTH_PROVIDERS = ['github', 'slack', 'trello', 'shopify', 'google_workspace'];
+const OAUTH_PROVIDERS = ['github', 'slack', 'trello', 'shopify', 'google_workspace', 'youtube'];
 
 export async function GET(req) {
     try {
@@ -91,7 +91,9 @@ export async function GET(req) {
             { id: 'slack', name: 'Slack', domain: 'slack.com', status: 'Not Configured', tokenPreview: '' },
             { id: 'trello', name: 'Trello', domain: 'trello.com', status: 'Not Configured', tokenPreview: '' },
             { id: 'shopify', name: 'Shopify', domain: 'shopify.com', status: 'Not Configured', tokenPreview: '' },
+            { id: 'stripe', name: 'Stripe', domain: 'stripe.com', status: 'Not Configured', tokenPreview: '', logo: '/logos/stripe.svg' },
             { id: 'google_workspace', name: 'Google Workspace', domain: 'workspace.google.com', status: 'Not Configured', logo: '/logos/google.svg' },
+            { id: 'youtube', name: 'YouTube', domain: 'youtube.com', status: 'Not Configured', logo: '/logos/youtube.svg' },
         ];
 
         const catalog = [];

@@ -291,7 +291,7 @@ export default function AiAgents({ userRole }) {
                     {deployedAgents.map(agent => (
                         <div key={agent.id} className="relative group pt-4">
                             {/* Floating Header Pill - EXACT Register Page Look */}
-                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.15em] px-5 py-2 rounded-full shadow-lg whitespace-nowrap z-30 group-hover:bg-blue-600 transition-colors duration-300">
+                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] font-black uppercase tracking-[0.1em] px-4 py-2 rounded-full shadow-lg z-30 group-hover:bg-blue-600 transition-colors duration-300 max-w-[95%] text-center truncate">
                                 {agent.name}
                             </div>
 

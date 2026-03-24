@@ -3,6 +3,7 @@ import { Sparkles, Folder, Calendar } from 'lucide-react';
 
 const GoogleWorkspaceConfig = ({ node, theme, metadata, isLoadingMetadata, onUpdate }) => {
     const config = node.data.config || {};
+    const label = (node.data.label || '').toLowerCase();
     const isGmail = label.includes('gmail') || label.includes('mail') || label.includes('email');
     const isDrive = (label.includes('drive') || label.includes('fichier') || label.includes('stockage') || label.includes('dossier')) && !isGmail;
     const isCalendar = label.includes('calendar') || label.includes('agenda') || label.includes('calendrier');
@@ -15,14 +16,14 @@ const GoogleWorkspaceConfig = ({ node, theme, metadata, isLoadingMetadata, onUpd
     return (
         <div className="space-y-6">
             {!isGmail && (
-                <div className={`flex items-center justify-between p-3 ${theme.bg} rounded-2xl shadow-xl shadow-blue-100`}>
+                <div className={`flex items-center justify-between p-3 ${theme?.bg || 'bg-slate-600'} rounded-2xl shadow-lg`}>
                     <div className="flex items-center gap-2.5">
-                        <div className="p-2 bg-white/20 rounded-xl">
+                        <div className="p-2 bg-white/20 rounded-xl shadow-inner">
                             <Sparkles className="w-4 h-4 text-white" />
                         </div>
                         <div className="flex flex-col">
                             <span className="text-[10px] font-black text-white uppercase tracking-wider">Mode Automatique</span>
-                            <span className="text-[9px] text-blue-100 font-bold italic opacity-80">
+                            <span className="text-[9px] text-white/70 font-bold italic opacity-80">
                                 {isAuto ? `L'Agent choisit ${isDrive ? 'le Drive' : (isCalendar ? "l'agenda" : "la cible")}` : `${isDrive ? 'Drive' : (isCalendar ? 'Agenda' : 'Cible')} fixe configurée`}
                             </span>
                         </div>
@@ -32,9 +33,9 @@ const GoogleWorkspaceConfig = ({ node, theme, metadata, isLoadingMetadata, onUpd
                             const nextId = isAuto ? '' : 'auto';
                             onUpdate('config', { ...config, target_id: nextId });
                         }}
-                        className={`w-10 h-5 rounded-full transition-all duration-300 relative border-2 ${isAuto ? 'bg-white border-white' : 'bg-blue-700 border-blue-500'}`}
+                        className={`w-10 h-5 rounded-full transition-all duration-300 relative border-2 ${isAuto ? 'bg-white border-white' : 'bg-black/20 border-black/10 hover:bg-black/30'}`}
                     >
-                        <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-transform duration-300 shadow-sm ${isAuto ? 'translate-x-5 bg-blue-600' : 'translate-x-0.5 bg-blue-200'}`} />
+                        <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-transform duration-300 shadow-sm ${isAuto ? `translate-x-5 ${theme?.bg || 'bg-slate-600'}` : 'translate-x-0.5 bg-white/70'}`} />
                     </button>
                 </div>
             )}

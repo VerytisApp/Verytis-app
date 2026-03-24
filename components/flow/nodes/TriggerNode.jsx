@@ -51,23 +51,34 @@ const OAUTH_PROVIDERS = {
         label: 'Google Workspace', 
         domain: 'workspace.google.com', 
         events: [
-            { value: 'gmail_new_message', label: '📧 Gmail : Nouvel email reçu' },
-            { value: 'drive_new_file', label: '🗂️ Drive : Nouveau fichier ajouté' },
-            { value: 'calendar_new_event', label: '📅 Calendar : Nouvel événement créé' }
+            { value: 'gmail_new_message', label: 'Gmail : Nouvel email reçu' },
+            { value: 'drive_new_file', label: 'Drive : Nouveau fichier ajouté' },
+            { value: 'calendar_new_event', label: 'Calendar : Nouvel événement créé' }
         ] 
     },
     stripe: {
         label: 'Stripe',
         domain: 'stripe.com',
         events: [
-            { value: 'checkout.session.completed', label: '💰 Vente : Session terminée', description: 'Récupère les détails du client et du produit vendu.' },
-            { value: 'checkout.session.expired', label: '⏳ Abandon : Panier expiré', description: 'Déclenche une relance automatique pour panier abandonné.' },
-            { value: 'invoice.paid', label: '🧾 Facturation : Facture payée', description: 'Idéal pour déclencher une livraison sur Shopify.' },
-            { value: 'charge.refunded', label: '🔄 Retour : Remboursement effectué', description: 'Pour ajuster les stocks ou révoquer des accès.' },
-            { value: 'customer.subscription.deleted', label: '📉 Churn : Abonnement annulé', description: 'Déclenche une procédure de rétention client.' },
-            { value: 'customer.subscription.updated', label: '🔄 Abonnement : Changement de plan', description: 'Pour synchroniser les accès ou CRM.' },
-            { value: 'dispute.opened', label: '🚨 Alerte : Litige ouvert', description: 'Déclenchement immédiat pour défense automatique.' },
-            { value: 'payout.failed', label: '⚠️ Erreur : Virement échoué', description: 'Alerte immédiate pour le suivi financier.' }
+            { value: 'checkout.session.completed', label: 'Vente : Session terminée', description: 'Récupère les détails du client et du produit vendu.' },
+            { value: 'checkout.session.expired', label: 'Abandon : Panier expiré', description: 'Déclenche une relance automatique pour panier abandonné.' },
+            { value: 'invoice.paid', label: 'Facturation : Facture payée', description: 'Idéal pour déclencher une livraison sur Shopify.' },
+            { value: 'charge.refunded', label: 'Retour : Remboursement effectué', description: 'Pour ajuster les stocks ou révoquer des accès.' },
+            { value: 'customer.subscription.deleted', label: 'Churn : Abonnement annulé', description: 'Déclenche une procédure de rétention client.' },
+            { value: 'customer.subscription.updated', label: 'Abonnement : Changement de plan', description: 'Pour synchroniser les accès ou CRM.' },
+            { value: 'dispute.opened', label: 'Alerte : Litige ouvert', description: 'Déclenchement immédiat pour défense automatique.' },
+            { value: 'payout.failed', label: 'Erreur : Virement échoué', description: 'Alerte immédiate pour le suivi financier.' }
+        ]
+    },
+    youtube: {
+        label: 'YouTube',
+        domain: 'youtube.com',
+        events: [
+            { value: 'video.clips_extraction', label: 'Changement de Statut : Live Terminé', description: 'Déclenché quand un live se termine. Analyse le stream pour générer et publier des Shorts viraux.' },
+            { value: 'video.virality_spike', label: 'Alerte : Pic de Viralité Détecté', description: 'Déclenché dès qu\'une vidéo décolle. Permet de booster l\'engagement en temps réel.' },
+            { value: 'video.retention_drop', label: 'Alerte : Baisse de Rétention Critique', description: 'Déclenché à l\'instant précis où l\'audience décroche pour optimiser les prochains montages.' },
+            { value: 'revenue.report_ready', label: 'Disponibilité : Rapport de Revenus Prêt', description: 'Déclenché quand le rapport quotidien AdSense, Super Chats et abonnements est disponible.' },
+            { value: 'comment.ai_reply', label: 'Événement : Nouveau Commentaire (Réponse IA)', description: 'Déclenché par un nouveau commentaire nécessitant une réponse automatisée via votre base de connaissance.' }
         ]
     }
 };
@@ -251,8 +262,7 @@ const TriggerNode = ({ data, isConnectable }) => {
             return (
                 <div className="w-16 h-16 bg-white shadow-md border border-slate-100 rounded-2xl flex items-center justify-center overflow-hidden">
                     <img
-                        src={selectedProvider?.toLowerCase() === 'trello' ? '/icon-trello.png' :
-                             ['shopify', 'github', 'slack', 'google_workspace'].includes(selectedProvider?.toLowerCase()) 
+                        src={['shopify', 'github', 'slack', 'google_workspace'].includes(selectedProvider?.toLowerCase()) 
                                 ? `/logos/${selectedProvider.toLowerCase() === 'google_workspace' ? 'google' : selectedProvider.toLowerCase()}.svg` 
                                 : `https://www.google.com/s2/favicons?domain=${faviconDomain}&sz=128`}
                         alt={selectedProvider}

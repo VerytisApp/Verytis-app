@@ -88,7 +88,7 @@ Conçois un nouvel agent de zéro.`}
      * JAMAIS de lien Trigger (t1) -> Savoir (k1). Le savoir n'est pas un point de passage, c'est une source de données pour le LLM.
      * Le Shield (s1) est l'unique point d'entrée sécurisé pour le cerveau (p1).
 4. TRIGGERS NATIFS VERYTIS (SCHEMA OBLIGATOIRE) : Le déclencheur DOIT être natif à Verytis. Jamais de Zapier/Make. Le trigger_type DOIT être l'une de ces valeurs : 'app', 'webhook', ou 'scheduled'.
-   - Si trigger_type est 'app' : inclure 'provider' (ex: 'gmail', 'slack', 'github', 'trello', 'shopify', 'hubspot', 'salesforce', 'notion', 'google', 'linear') ET 'event_name' (ex: 'email_received', 'push', 'pull_request', 'orders/create') dans les data du nœud.
+   - Si trigger_type est 'app' : inclure 'provider' (ex: 'gmail', 'slack', 'github', 'trello', 'shopify', 'hubspot', 'salesforce', 'notion', 'google', 'linear', 'youtube') ET 'event_name' (ex: 'email_received', 'push', 'pull_request', 'orders/create', 'video.clips_extraction', 'video.virality_spike', 'revenue.report_ready') dans les data du nœud.
    - Si trigger_type est 'webhook' : nomme le label "Verytis Webhook Inbound". Si restriction IP, ajoute requires_ip_whitelist: true dans security.
    - Si trigger_type est 'scheduled' : inclure 'cron_expression' (ex: '0 8 * * *') dans les data.
    - INTERDIT : Ne jamais mettre de 'api_key', 'token', 'credentials' dans le nœud Trigger. L'authentification passe par OAuth (connection_id).
@@ -102,7 +102,8 @@ Conçois un nouvel agent de zéro.`}
 6. CONNECTIVITÉ & DATA BRIDGES : 
    - Toutes les intégrations (Slack, HubSpot, LinkedIn, GitHub) se connectent via un TOKEN ou une CLÉ API (MVP No-OAuth).
    - MÉDATA D'AUTH : Chaque \`toolNode\` DOIT inclure un objet \`auth_requirement\`. Pour les outils EXTERNES (API, DB), utilise : \`type\` (bearer_token, api_key, connection_string, webhook_url), \`label\` et \`placeholder\`.
-   - COMPÉTENCES IA INTERNES : Si l'outil est purement analytique ou textuel (ex: Analyse de sentiment, Calculateur, Traducteur, Résumé, Classificateur) et ne requiert AUCUNE API externe, utilise \`auth_requirement: { "type": "none" }\`. Cela affichera le nœud avec un design violet "Compétence IA" distinct.
+   - COMPÉTENCES IA INTERNES : Si l'outil est purement analytique ou textuel (ex: Analyse de sentiment, Calculateur, Traducteur, Résumé, Classificateur) et ne requiert AUCUNE APPS ou API externe, utilise \`auth_requirement: { "type": "none" }\`. Cela affichera le nœud avec un design violet "Compétence IA" distinct.
+   - INTÉGRATION APPS (CRITIQUE) : Si l'outil utilise une application tierce (Gmail, Slack, Trello, Stripe, etc.), il DOIT impérativement avoir un \`auth_requirement.type\` différent de 'none' (ex: 'oauth2', 'api_key', 'bearer_token') même si la clé est gérée globalement. Ne JAMAIS utiliser 'none' pour une action liée à une application.
    - DÉCOUVERTE PROACTIVE : Si l'utilisateur mentionne la lecture ou l'analyse de données (ex: "Mes ventes", "Ma DB clients"), tu DOIS créer un nœud \`toolNode\` de type "Passerelle de Données" (ex: PostgreSQL, Google Sheets) avec le \`logoDomain\` approprié.
 7. RÔLES ET DESCRIPTIONS DÉTAILLÉES : Chaque nœud (Trigger, Shield, Agent, Tool) DOIT avoir une \`description\` précise expliquant son rôle EXACT dans le processus.
 8. NOMMAGE PROFESSIONNEL : Donne des noms explicites aux nœuds (ex: "Gouvernance Budget LinkedIn"). Par défaut, utilise "Verytis Governance" pour le Shield.
