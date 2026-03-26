@@ -94,6 +94,8 @@ export async function GET(req) {
             { id: 'stripe', name: 'Stripe', domain: 'stripe.com', status: 'Not Configured', tokenPreview: '', logo: '/logos/stripe.svg' },
             { id: 'google_workspace', name: 'Google Workspace', domain: 'workspace.google.com', status: 'Not Configured', logo: '/logos/google.svg' },
             { id: 'youtube', name: 'YouTube', domain: 'youtube.com', status: 'Not Configured', logo: '/logos/youtube.svg' },
+            { id: 'streamlabs', name: 'Streamlabs', domain: 'streamlabs.com', status: 'Not Configured', logo: '/logos/streamlabs.svg' },
+            { id: 'tiktok', name: 'TikTok', domain: 'tiktok.com', status: 'Not Configured', logo: 'https://www.google.com/s2/favicons?domain=tiktok.com&sz=128' },
         ];
 
         const catalog = [];

@@ -8,9 +8,23 @@ const LLMNodeV3 = ({ data, isConnectable }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [tempKey, setTempKey] = useState('');
     const [isSynced, setIsSynced] = useState(false);
-    const [selectedProvider, setSelectedProvider] = useState(data.provider || null);
+    const [selectedProvider, setSelectedProvider] = useState(data.provider === 'custom' || data.provider === 'llama3' ? 'ollama' : (data.provider || null));
 
     const providerConfig = {
+        verytis: {
+            name: 'VerytisAI',
+            domain: 'openai.com',
+            logo: '/verytis-governance-logo.png',
+            baseColor: 'blue',
+            text: 'text-blue-600',
+            bg: 'bg-blue-100',
+            border: 'border-blue-200',
+            accent: 'bg-blue-600',
+            hover: 'hover:bg-blue-700',
+            light: 'bg-blue-50/30',
+            shadowRgb: '59, 130, 246',
+            defaultModel: 'gpt-4o'
+        },
         openai: {
             name: 'OpenAI',
             domain: 'openai.com',
@@ -50,31 +64,38 @@ const LLMNodeV3 = ({ data, isConnectable }) => {
             shadowRgb: '59, 130, 246',
             defaultModel: 'gemini-1.5-pro'
         },
-        custom: {
-            name: 'Custom LLM',
-            domain: 'api.openai.com',
-            baseColor: 'purple',
-            text: 'text-purple-600',
-            bg: 'bg-purple-100',
-            border: 'border-purple-200',
-            accent: 'bg-purple-600',
-            hover: 'hover:bg-purple-700',
-            light: 'bg-purple-50/30',
-            shadowRgb: '147, 51, 234',
-            defaultModel: 'custom-model'
+        ollama: {
+            name: 'Ollama',
+            domain: 'ollama.com',
+            baseColor: 'slate',
+            text: 'text-slate-600',
+            bg: 'bg-slate-100',
+            border: 'border-slate-200',
+            accent: 'bg-slate-600',
+            hover: 'hover:bg-slate-700',
+            light: 'bg-slate-50/30',
+            shadowRgb: '71, 85, 105',
+            defaultModel: 'llama3.1'
         }
     };
 
     // Sync state when data prop changes (from sidebar or other sources)
     useEffect(() => {
-        if (data.provider) setSelectedProvider(data.provider);
+        if (data.provider === 'custom' || data.provider === 'llama3') {
+            setSelectedProvider('ollama');
+        } else if (data.provider) {
+            setSelectedProvider(data.provider);
+        }
     }, [data.provider]);
 
     const config = providerConfig[selectedProvider] || null;
     const model = data.model || (config ? config.defaultModel : null);
     const label = data.label || (config ? config.name + ' Agent' : 'Agent IA');
 
-    const isGloballyConnected = selectedProvider && data.connectedProviders?.some(p => p.id === selectedProvider && p.status === 'Connected');
+    const isVerytis = selectedProvider === 'verytis';
+    const effectiveProviderForAuth = isVerytis ? 'openai' : selectedProvider;
+    
+    const isGloballyConnected = selectedProvider && data.connectedProviders?.some(p => p.id === effectiveProviderForAuth && p.status === 'Connected');
     const hasApiKey = (!!data.apiKey || isSynced || isGloballyConnected) && !!selectedProvider;
 
     const handleSyncKey = async () => {
@@ -122,19 +143,20 @@ const LLMNodeV3 = ({ data, isConnectable }) => {
     };
 
     const getContainerClass = () => {
-        if (!selectedProvider) return 'border-dashed border-slate-300';
+        if (!selectedProvider || !config) return 'border-dashed border-slate-300';
+        if (selectedProvider === 'ollama') return 'border-slate-200 bg-slate-50/10';
         if (!hasApiKey) return 'border-red-500 bg-red-50/30';
         return `border-${config.baseColor}-200 shadow-sm hover:border-${config.baseColor}-400`;
     };
 
     const getHeaderClass = () => {
-        if (!selectedProvider) return 'bg-slate-50/50';
+        if (!selectedProvider || !config) return 'bg-slate-50/50';
         if (!hasApiKey) return 'bg-red-50';
         return config.light;
     };
 
     const getLogoContainerClass = () => {
-        if (!selectedProvider) return 'bg-white border-dashed border-2 border-slate-200';
+        if (!selectedProvider || !config) return 'bg-white border-dashed border-2 border-slate-200';
         if (!hasApiKey) return 'bg-white shadow-sm border-2 border-red-200';
         return `bg-${config.baseColor}-50 shadow-md border border-${config.baseColor}-100`;
     };
@@ -144,9 +166,9 @@ const LLMNodeV3 = ({ data, isConnectable }) => {
             {/* Logo Zone */}
             <div className={`p-4 flex flex-col items-center gap-3 border-b border-slate-100/50 ${getHeaderClass()}`}>
                 <div className={`w-16 h-16 rounded-2xl transition-all group-hover:scale-110 duration-500 flex items-center justify-center overflow-hidden relative ${getLogoContainerClass()}`}>
-                    {selectedProvider ? (
+                    {selectedProvider && config ? (
                         <img
-                            src={selectedProvider === 'custom' ? 'https://www.google.com/s2/favicons?domain=openai.com&sz=128' : `https://www.google.com/s2/favicons?domain=${config.domain}&sz=128`}
+                            src={config.logo || `https://www.google.com/s2/favicons?domain=${config.domain}&sz=128`}
                             alt={config.name}
                             className={`w-10 h-10 object-contain ${!hasApiKey ? 'grayscale-[0.5]' : ''}`}
                         />
@@ -157,15 +179,16 @@ const LLMNodeV3 = ({ data, isConnectable }) => {
                 <div className="text-center w-full">
                     <div className="relative inline-block mb-1" onClick={(e) => e.stopPropagation()}>
                         <select
-                            value={selectedProvider || ''}
+                            value={selectedProvider || 'verytis'}
                             onChange={handleProviderChange}
-                            className={`text-[9px] font-black uppercase tracking-widest bg-transparent border-none appearance-none outline-none cursor-pointer text-center underline decoration-dotted underline-offset-2 transition-colors ${!selectedProvider ? 'text-slate-400' : !hasApiKey ? 'text-red-500' : config.text} hover:text-blue-600`}
+                            className={`text-[9px] font-black uppercase tracking-widest bg-transparent border-none appearance-none outline-none cursor-pointer text-center underline decoration-dotted underline-offset-2 transition-colors ${!selectedProvider || !config ? 'text-slate-400' : !hasApiKey ? 'text-red-500' : config.text} hover:text-blue-600`}
                         >
-                            <option value="">Sélectionner Moteur</option>
+                            <option value="verytis">VerytisAI (Moteur par défaut)</option>
+
                             <option value="openai">OpenAI (Green Core)</option>
                             <option value="anthropic">Anthropic (Orange Core)</option>
                             <option value="google">Google (Blue Core)</option>
-                            <option value="custom">-- Custom LLM --</option>
+                            <option value="ollama">-- Ollama (Soon) --</option>
                         </select>
                     </div>
                     <div className={`text-[13px] font-black line-clamp-1 px-4 tracking-tight ${!selectedProvider ? 'text-slate-400 italic' : !hasApiKey ? 'text-red-900' : 'text-slate-900'}`}>
@@ -175,21 +198,18 @@ const LLMNodeV3 = ({ data, isConnectable }) => {
             </div>
 
             {/* Content Zone: Authentification strictly on visual node */}
-            <div className="px-5 py-4 space-y-4">
-                {selectedProvider === 'custom' && (
-                    <div className="space-y-1.5 animate-in slide-in-from-top-1">
-                        <label className="text-[9px] font-black uppercase text-slate-400">Endpoint URL</label>
-                        <input
-                            type="text"
-                            placeholder="https://votre-api.com/v1"
-                            value={data.apiUrl || ''}
-                            onChange={(e) => data.onChange?.('apiUrl', e.target.value)}
-                            className={`w-full bg-slate-50 border border-${config.baseColor}-200 rounded-xl py-2 px-3 text-[10px] font-mono outline-none focus:border-${config.baseColor}-500`}
-                        />
+            <div className={`px-5 py-4 space-y-4 ${selectedProvider === 'ollama' ? 'grayscale opacity-60' : ''}`}>
+                {selectedProvider === 'ollama' ? (
+                    <div className="py-4 text-center space-y-2 animate-in fade-in slide-in-from-top-2">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full border border-slate-200">
+                             <Clock className="w-3 h-3 text-slate-400" />
+                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Bientôt Disponible</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium leading-tight">
+                            L'intégration native d'Ollama est en cours de développement.
+                        </p>
                     </div>
-                )}
-
-                {!selectedProvider ? (
+                ) : !selectedProvider ? (
                     <div className="py-2 text-center">
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight leading-tight">
                             Choisissez un moteur pour commencer la configuration.
@@ -239,13 +259,13 @@ const LLMNodeV3 = ({ data, isConnectable }) => {
                 type="target"
                 position={Position.Top}
                 isConnectable={isConnectable}
-                className={`w-4 h-4 bg-slate-200 border-4 border-white rounded-full transition-all hover:bg-${selectedProvider ? config.baseColor : 'blue'}-500 z-10 -top-2`}
+                className={`w-4 h-4 bg-slate-200 border-4 border-white rounded-full transition-all hover:bg-${selectedProvider && config ? config.baseColor : 'blue'}-500 z-10 -top-2`}
             />
             <Handle
                 type="source"
                 position={Position.Bottom}
                 isConnectable={isConnectable}
-                className={`w-4 h-4 bg-${selectedProvider ? config.baseColor : 'blue'}-600 border-4 border-white rounded-full transition-all hover:bg-${selectedProvider ? config.baseColor : 'blue'}-700 z-10 -bottom-2`}
+                className={`w-4 h-4 bg-${selectedProvider && config ? config.baseColor : 'blue'}-600 border-4 border-white rounded-full transition-all hover:bg-${selectedProvider && config ? config.baseColor : 'blue'}-700 z-10 -bottom-2`}
             />
         </div>
     );

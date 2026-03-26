@@ -153,7 +153,7 @@ export default function AgentBuilder() {
         // 1.1 Real-time Connection Listener
         const handleRefresh = (event) => {
             if (event.origin !== window.location.origin) return;
-            if (['SLACK_CONNECTED', 'GITHUB_CONNECTED', 'TRELLO_CONNECTED', 'STRIPE_CONNECTED', 'GOOGLE_CONNECTED', 'GOOGLE_WORKSPACE_CONNECTED', 'SHOPIFY_CONNECTED', 'TRELLO_LINKED', 'GITHUB_LINKED'].includes(event.data?.type)) {
+            if (['SLACK_CONNECTED', 'GITHUB_CONNECTED', 'TRELLO_CONNECTED', 'STRIPE_CONNECTED', 'GOOGLE_CONNECTED', 'GOOGLE_WORKSPACE_CONNECTED', 'SHOPIFY_CONNECTED', 'TRELLO_LINKED', 'GITHUB_LINKED', 'YOUTUBE_CONNECTED', 'STREAMLABS_CONNECTED', 'TIKTOK_CONNECTED'].includes(event.data?.type)) {
                 console.log("[BUILDER] Connection detected, refreshing settings...", event.data.type);
                 fetchSettings();
             }

@@ -12,7 +12,20 @@ export async function GET(req) {
     const installationId = searchParams.get('installation_id');
 
     if (error) {
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=${error}`);
+        const html = `
+            <!DOCTYPE html>
+            <html><body>
+            <script>
+                if (window.opener) {
+                    window.opener.postMessage({ type: 'GITHUB_ERROR', error: '${error}' }, '*');
+                    window.close();
+                } else {
+                    window.location.href = '/?error=${error}';
+                }
+            </script>
+            </body></html>
+        `;
+        return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
     }
 
     if (!code) {
@@ -38,7 +51,20 @@ export async function GET(req) {
 
         if (data.error) {
             console.error('GitHub OAuth Error:', data.error_description);
-            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=${data.error}`);
+            const html = `
+                <!DOCTYPE html>
+                <html><body>
+                <script>
+                    if (window.opener) {
+                        window.opener.postMessage({ type: 'GITHUB_ERROR', error: '${data.error}' }, '*');
+                        window.close();
+                    } else {
+                        window.location.href = '/?error=${data.error}';
+                    }
+                </script>
+                </body></html>
+            `;
+            return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
         }
 
         const accessToken = data.access_token;
@@ -201,39 +227,41 @@ export async function GET(req) {
             throw new Error(`Database upsert failed: ${upsertError.message}`);
         }
 
-        // Prepare response HTML
+        // Redirect with postMessage script for better builder integration
         const html = `
-            <html>
-                <body style="background: #f8fafc; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; color: #1e293b;">
-                    <div style="text-align: center; padding: 2rem; background: white; border-radius: 1rem; shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05); border: 1px solid #e2e8f0;">
-                        <h2 style="margin-bottom: 0.5rem; color: #0f172a;">GitHub Connecté !</h2>
-                        <p style="font-size: 0.875rem; color: #64748b;">Le workspace est maintenant lié à l'organisation <strong>${accountName}</strong>.</p>
-                        <script>
-                            if (window.opener) {
-                                window.opener.postMessage({ 
-                                    type: 'GITHUB_CONNECTED', 
-                                    user: ${JSON.stringify(accountName)} 
-                                }, '*');
-                                window.close();
-                            } else {
-                                window.location.href = '/settings?tab=integrations&connected=true&app=github';
-                            }
-                        </script>
-                    </div>
-                </body>
-            </html>
+            <!DOCTYPE html>
+            <html><body>
+            <script>
+                if (window.opener) {
+                    window.opener.postMessage({ type: 'GITHUB_CONNECTED' }, '*');
+                    window.close();
+                } else {
+                    window.location.href = '/settings';
+                }
+            </script>
+            </body></html>
         `;
-
-        const finalResponse = new NextResponse(html, {
-            headers: { 'Content-Type': 'text/html' },
-        });
+        const finalResponse = new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
         finalResponse.cookies.delete('github_oauth_nonce');
 
         return finalResponse;
 
     } catch (err) {
         console.error('❌ OAuth Exception Details:', err);
-        const encodedError = encodeURIComponent(err.message || 'unknown_server_error');
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}?error=server_error&details=${encodedError}`);
+        const errorMsg = err.message || 'unknown_server_error';
+        const html = `
+            <!DOCTYPE html>
+            <html><body>
+            <script>
+                if (window.opener) {
+                    window.opener.postMessage({ type: 'GITHUB_ERROR', error: '${errorMsg.replace(/'/g, "\\'")}' }, '*');
+                    window.close();
+                } else {
+                    window.location.href = '/?error=server_error';
+                }
+            </script>
+            </body></html>
+        `;
+        return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
     }
 }

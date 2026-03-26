@@ -1,8 +1,6 @@
-import React from 'react';
 import { Sparkles } from 'lucide-react';
-import TargetingList from './TargetingList';
 
-const TrelloConfig = ({ node, theme, metadata, isLoadingMetadata, targets, isLoadingTargets, search, setSearch, onUpdate, onBoardChange, detectedBrand }) => {
+const TrelloConfig = ({ node, theme, metadata, isLoadingMetadata, onUpdate, onBoardChange, detectedBrand }) => {
     const config = node.data.config || {};
     const isAuto = config.board_id === 'auto' || config.repo_name === 'auto';
 
@@ -62,23 +60,6 @@ const TrelloConfig = ({ node, theme, metadata, isLoadingMetadata, targets, isLoa
                             <p className="text-[9px] text-slate-400 mt-1 italic">L'IA créera les cartes directement dans cette liste.</p>
                         </div>
                     </div>
-
-                    <TargetingList 
-                        targets={targets}
-                        isLoading={isLoadingTargets}
-                        search={search}
-                        setSearch={setSearch}
-                        selectedTargets={config.targets}
-                        onToggle={(target) => {
-                            const current = config.targets || [];
-                            const exists = current.find(t => t.id === target.id);
-                            const next = exists 
-                                ? current.filter(t => t.id !== target.id)
-                                : [{ id: target.id, name: target.name }];
-                            onUpdate('config', { ...config, targets: next });
-                        }}
-                        detectedBrand={detectedBrand}
-                    />
                 </>
             )}
         </div>

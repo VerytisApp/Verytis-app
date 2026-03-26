@@ -19,7 +19,8 @@ export default function IntegrationSidebar({ node, isOpen, onClose, onUpdate }) 
     const provider = nodeData.label?.toLowerCase().includes('github') || (nodeData.logoDomain || '').includes('github') ? 'github' : 
                      nodeData.label?.toLowerCase().includes('slack') || (nodeData.logoDomain || '').includes('slack') ? 'slack' : 
                      (nodeData.label?.toLowerCase().includes('google') || nodeData.label?.toLowerCase().includes('workspace') || nodeData.label?.toLowerCase().includes('drive') || nodeData.label?.toLowerCase().includes('calendar') || nodeData.label?.toLowerCase().includes('gmail') || nodeData.label?.toLowerCase().includes('mail') || (nodeData.logoDomain || '').includes('google')) ? 'google_workspace' :
-                     nodeData.label?.toLowerCase().includes('trello') || (nodeData.logoDomain || '').includes('trello') ? 'trello' :
+                     (nodeData.label?.toLowerCase().includes('trello') || (nodeData.logoDomain || '').includes('trello')) ? 'trello' :
+                     (nodeData.label?.toLowerCase().includes('streamlabs') || nodeData.label?.toLowerCase().includes('stream labs') || (nodeData.logoDomain || '').includes('streamlabs')) ? 'streamlabs' :
                      nodeData.type?.toLowerCase().includes('tool') ? 'tool' : null;
     const isLLM = nodeData.type === 'llmNode';
 
@@ -278,8 +279,9 @@ export default function IntegrationSidebar({ node, isOpen, onClose, onUpdate }) 
             <div className="w-20 h-20 rounded-3xl bg-slate-50 flex items-center justify-center border border-slate-100 shadow-inner overflow-hidden">
                 {provider === 'github' ? <Github className="w-10 h-10 text-slate-300" /> :
                  provider === 'slack' ? <Slack className="w-10 h-10 text-slate-300" /> :
+                 provider === 'trello' ? <Trello className="w-10 h-10 text-slate-300" /> :
                  provider === 'google_workspace' ? <img src="/logos/google.svg" className="w-10 h-10 object-contain grayscale opacity-30" /> :
-                 <Trello className="w-10 h-10 text-slate-300" />}
+                 <img src={`https://www.google.com/s2/favicons?domain=${provider === 'streamlabs' ? 'streamlabs.com' : provider === 'stripe' ? 'stripe.com' : provider === 'youtube' ? 'youtube.com' : provider === 'shopify' ? 'shopify.com' : provider + '.com'}&sz=128`} className="w-10 h-10 object-contain grayscale opacity-30" />}
             </div>
             <div className="space-y-2">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Connexion Requise</h3>
@@ -312,7 +314,11 @@ export default function IntegrationSidebar({ node, isOpen, onClose, onUpdate }) 
                     } else if (provider === 'trello') {
                         authUrl = `/api/auth/trello/login?userId=${user.id}&organizationId=${orgId}`;
                     } else if (provider === 'slack') {
-                        authUrl = '/api/slack/install'; // Slack handles it internally in its install route
+                        authUrl = `/api/slack/install?organizationId=${orgId}`;
+                    } else if (provider === 'youtube') {
+                        authUrl = `/api/auth/youtube/login?userId=${user.id}&organizationId=${orgId}`;
+                    } else if (provider === 'tiktok') {
+                        authUrl = `/api/auth/tiktok/login?userId=${user.id}&organizationId=${orgId}`;
                     }
 
                     if (authUrl) {
@@ -327,9 +333,9 @@ export default function IntegrationSidebar({ node, isOpen, onClose, onUpdate }) 
                         );
                     }
                 }}
-                className="w-full py-4 bg-slate-900 hover:bg-black text-white rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all shadow-lg shadow-black/10"
+                className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-sm"
             >
-                <RefreshCw className="w-4 h-4" /> Reconnecter {provider === 'google_workspace' ? 'Google Workspace' : provider}
+                <RefreshCw className="w-4 h-4" /> Connecter {provider === 'google_workspace' ? 'Google Workspace' : provider}
             </button>
         </div>
     );

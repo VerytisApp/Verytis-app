@@ -15,17 +15,20 @@ const fetcher = (url) => fetch(url).then(res => res.json());
 const DEFAULT_PROVIDERS = [
     { id: 'openai', name: 'OpenAI', domain: 'openai.com', status: 'Not Configured', tokenPreview: '', logo: '/logos/openai.svg' },
     { id: 'anthropic', name: 'Anthropic Claude', domain: 'anthropic.com', status: 'Not Configured', tokenPreview: '', logo: '/logos/anthropic.svg' },
-    { id: 'google', name: 'Google Gemini', domain: 'gemini.google.com', logo: '/logos/google-gemini.svg', status: 'Not Configured', tokenPreview: '' },
+    { id: 'google', name: 'Google Gemini', domain: 'gemini.google.com', logo: 'https://www.gstatic.com/lamda/images/gemini_sparkle_4g_512_lt_f94943af3be039176192d.png', status: 'Not Configured', tokenPreview: '' },
+    { id: 'ollama', name: 'Ollama', domain: 'ollama.com', status: 'Not Configured', tokenPreview: '', isComingSoon: true },
     { id: 'google_workspace', name: 'Google Workspace', domain: 'workspace.google.com', logo: '/logos/google.svg', status: 'Not Configured' },
     { id: 'github', name: 'GitHub', domain: 'github.com', status: 'Not Configured', tokenPreview: '', logo: '/logos/github.svg' },
     { id: 'slack', name: 'Slack', domain: 'slack.com', status: 'Not Configured', tokenPreview: '', logo: '/logos/slack.svg' },
     { id: 'trello', name: 'Trello', domain: 'trello.com', status: 'Not Configured', tokenPreview: '', logo: '/logos/trello.svg' },
     { id: 'shopify', name: 'Shopify', domain: 'shopify.com', status: 'Not Configured', tokenPreview: '', logo: '/logos/shopify.svg' },
-    { id: 'stripe', name: 'Stripe', domain: 'stripe.com', status: 'Not Configured', tokenPreview: '', logo: '/logos/stripe.svg' },
+    { id: 'stripe', name: 'Stripe', domain: 'stripe.com', status: 'Not Configured', tokenPreview: '', logo: 'https://www.google.com/s2/favicons?domain=stripe.com&sz=128' },
     { id: 'youtube', name: 'YouTube', domain: 'youtube.com', status: 'Not Configured', tokenPreview: '', logo: '/logos/youtube.svg' },
+    { id: 'streamlabs', name: 'Streamlabs', domain: 'streamlabs.com', status: 'Not Configured', tokenPreview: '', logo: 'https://www.google.com/s2/favicons?domain=streamlabs.com&sz=128' },
+    { id: 'tiktok', name: 'TikTok', domain: 'tiktok.com', status: 'Not Configured', tokenPreview: '', logo: 'https://www.google.com/s2/favicons?domain=tiktok.com&sz=128' },
 ];
 
-const OAUTH_PROVIDERS = ['github', 'slack', 'trello', 'shopify', 'google_workspace', 'stripe', 'youtube'];
+const OAUTH_PROVIDERS = ['github', 'slack', 'trello', 'shopify', 'google_workspace', 'stripe', 'youtube', 'streamlabs', 'tiktok'];
 
 export default function IntegrationsSettings() {
     const { currentUser } = useRole();
@@ -60,7 +63,7 @@ export default function IntegrationsSettings() {
                 console.warn("[SETTINGS] Origin mismatch ignored, but logging:", event.origin, "vs", window.location.origin);
             }
 
-            if (['SLACK_CONNECTED', 'GITHUB_CONNECTED', 'TRELLO_CONNECTED', 'TRELLO_LINKED', 'GITHUB_LINKED', 'GOOGLE_CONNECTED', 'GOOGLE_WORKSPACE_CONNECTED', 'STRIPE_CONNECTED', 'YOUTUBE_CONNECTED'].includes(event.data?.type)) {
+            if (['SLACK_CONNECTED', 'GITHUB_CONNECTED', 'TRELLO_CONNECTED', 'TRELLO_LINKED', 'GITHUB_LINKED', 'GOOGLE_CONNECTED', 'GOOGLE_WORKSPACE_CONNECTED', 'STRIPE_CONNECTED', 'YOUTUBE_CONNECTED', 'STREAMLABS_CONNECTED', 'TIKTOK_CONNECTED'].includes(event.data?.type)) {
                 console.log("[SETTINGS] Connection SUCCESS detected, forcing re-fetch...", event.data.type);
                 mutate();
             }
@@ -264,18 +267,22 @@ export default function IntegrationsSettings() {
                                          onError={(e) => { e.target.src = `https://logo.clearbit.com/${p.domain}`; }}
                                          alt={p.name} className="w-6 h-6 object-contain" />
                                 </div>
-                                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${p.status === 'Connected' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                                    {p.status}
+                                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${p.isComingSoon ? 'bg-amber-50 text-amber-600' : p.status === 'Connected' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                    {p.isComingSoon ? 'Bientôt' : p.status}
                                 </span>
                             </div>
 
                             <h3 className="font-bold text-slate-900 mb-1">{p.name}</h3>
                             <p className="text-xs text-slate-500 line-clamp-2 min-h-[32px]">
-                                {isAdmin ? 'Configurez la clé API globale pour toute l\'organisation.' : 'Licence Entreprise gérée par l\'administrateur.'}
+                                {p.isComingSoon ? "L'intégration native est en cours de développement." : isAdmin ? 'Configurez la clé API globale pour toute l\'organisation.' : 'Licence Entreprise gérée par l\'administrateur.'}
                             </p>
 
                             <div className="mt-5 pt-4 border-t border-slate-100 space-y-3">
-                                {p.status === 'Connected' ? (
+                                {p.isComingSoon ? (
+                                    <div className="w-full py-2 bg-amber-50/50 text-amber-500 text-[10px] font-black uppercase tracking-widest text-center rounded-lg border border-dashed border-amber-200">
+                                        Prochainement
+                                    </div>
+                                ) : p.status === 'Connected' ? (
                                     <>
                                         <div className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-md border border-slate-100">
                                             <div className="flex items-center gap-2">
@@ -334,6 +341,8 @@ export default function IntegrationsSettings() {
                                              p.id === 'trello' ? 'Trello' : 
                                              p.id === 'google_workspace' ? 'Google Workspace' :
                                              p.id === 'youtube' ? 'YouTube' :
+                                             p.id === 'streamlabs' ? 'Streamlabs' :
+                                             p.id === 'tiktok' ? 'TikTok' :
                                              p.name}
                                         </h3>
                                     </div>
@@ -400,7 +409,7 @@ export default function IntegrationsSettings() {
 
                                                         if (p.id === 'stripe') {
                                                             const authUrl = `/api/auth/stripe/login?userId=${user.id}&organizationId=${profile?.organization_id}`;
-                                                            openCenteredPopup(authUrl, `Connecter Stripe`);
+                                                            window.location.href = authUrl;
                                                             return;
                                                         }
 
@@ -408,8 +417,10 @@ export default function IntegrationsSettings() {
                                                                         p.id === 'trello' ? `/api/auth/trello/login?userId=${user.id}&organizationId=${profile?.organization_id}` :
                                                                         p.id === 'google_workspace' ? `/api/auth/google/login?userId=${user.id}&organizationId=${profile?.organization_id}` :
                                                         p.id === 'youtube' ? `/api/auth/youtube/login?userId=${user.id}&organizationId=${profile?.organization_id}` :
+                                                        p.id === 'streamlabs' ? `/api/auth/streamlabs/login?userId=${user.id}&organizationId=${profile?.organization_id}` :
+                                                        p.id === 'tiktok' ? `/api/auth/tiktok/login?userId=${user.id}&organizationId=${profile?.organization_id}` :
                                                         `/api/slack/install?userId=${user.id}&organizationId=${profile?.organization_id}`;
-                                                        openCenteredPopup(authUrl, `Connecter ${p.name}`);
+                                                        window.location.href = authUrl;
                                                     } finally {
                                                         setTimeout(() => setProcessingIds(prev => prev.filter(k => k !== processKey)), 2000);
                                                     }
@@ -578,7 +589,7 @@ export default function IntegrationsSettings() {
                                     disabled={!shopifyStoreUrl.trim()}
                                     onClick={() => {
                                         const url = `/api/auth/shopify/login?store_url=${encodeURIComponent(shopifyStoreUrl.trim())}&scope=workspace`;
-                                        openCenteredPopup(url, 'Shopify Workspace Connect');
+                                        window.location.href = url;
                                         setIsShopifyModalOpen(false);
                                     }}
                                 >

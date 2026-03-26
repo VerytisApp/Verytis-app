@@ -21,14 +21,17 @@ const ToolNode = ({ data, isConnectable }) => {
     React.useEffect(() => {
         const handleRefresh = (event) => {
             if (event.origin !== window.location.origin) return;
-            if (['SLACK_CONNECTED', 'GITHUB_CONNECTED', 'TRELLO_CONNECTED', 'STRIPE_CONNECTED', 'GOOGLE_CONNECTED', 'GOOGLE_WORKSPACE_CONNECTED', 'SHOPIFY_CONNECTED', 'TRELLO_LINKED', 'GITHUB_LINKED', 'YOUTUBE_CONNECTED'].includes(event.data?.type)) {
-                // If the builder parent already refreshes, this might be redundant but safer
+            const type = event.data?.type || '';
+            if (type.endsWith('_CONNECTED')) {
+                showToast({ title: 'Actualisation', message: 'Connexion réussie !', type: 'success' });
                 mutate('/api/settings');
+            } else if (type.endsWith('_ERROR')) {
+                showToast({ title: 'Échec', message: event.data?.error || 'La connexion a échoué.', type: 'error' });
             }
         };
         window.addEventListener('message', handleRefresh);
         return () => window.removeEventListener('message', handleRefresh);
-    }, [mutate]);
+    }, [mutate, showToast]);
 
     const label = data.label || 'Action / Integration';
     const description = data.description || '';
@@ -64,6 +67,8 @@ const ToolNode = ({ data, isConnectable }) => {
         'calendar': 'google.com',
         'trello': 'trello.com',
         'youtube': 'youtube.com',
+        'streamlabs': 'streamlabs.com',
+        'tiktok': 'tiktok.com',
     };
 
     const getDomain = () => {
@@ -83,41 +88,24 @@ const ToolNode = ({ data, isConnectable }) => {
     const isInternalSkill = authRecord.type === 'none' && !domain;
     const providerName = domain ? domain.split('.')[0] : 'tool';
     
-    const connectedOrg = data.connectedProviders?.find(p => {
+    const connectedProvider = data.connectedProviders?.find(p => {
         const pId = (p.id || '').toLowerCase();
         const pDomain = (p.domain || '').toLowerCase();
         const targetDomain = domain?.toLowerCase();
-        
-        // Robust Google Match: matches if p.id or p.domain contains 'google' or 'workspace' 
-        // and targetDomain is google.com
+
         const isGoogleProvider = pId.includes('google') || pId.includes('workspace') || pDomain.includes('google');
         const isGoogleTarget = targetDomain === 'google.com' || 
                                ['google', 'google_workspace', 'gmail', 'drive', 'calendar'].includes(providerName.toLowerCase());
-        
-        const isMatch = (pDomain && targetDomain && (pDomain.includes(targetDomain) || targetDomain.includes(pDomain))) ||
-                        (isGoogleProvider && isGoogleTarget);
-
-        return isMatch && 
-               p.status === 'Connected' && (p.connection_type === 'team' || (!p.is_perso && p.connection_type !== 'personal'));
-    });
-
-    const connectedPerso = data.connectedProviders?.find(p => {
-        const pId = (p.id || '').toLowerCase();
-        const pDomain = (p.domain || '').toLowerCase();
-        const targetDomain = domain?.toLowerCase();
-
-        const isGoogleProvider = pId.includes('google') || pId.includes('workspace') || pDomain.includes('google');
-        const isGoogleTarget = targetDomain === 'google.com';
 
         const isMatch = (pDomain && targetDomain && (pDomain.includes(targetDomain) || targetDomain.includes(pDomain))) ||
-                        (isGoogleProvider && isGoogleTarget);
+                        (isGoogleProvider && isGoogleTarget) ||
+                        (pId === 'tiktok' && providerName === 'tiktok');
 
-        return isMatch && 
-               p.status === 'Connected' && (p.connection_type === 'personal' || p.is_perso);
+        return isMatch && p.status === 'Connected';
     });
 
-    const isGlobalConnected = !!(connectedOrg || connectedPerso);
-    const isOrgLevel = !!connectedOrg;
+    const isGlobalConnected = !!connectedProvider;
+    const isOrgLevel = !!connectedProvider;
 
     const isConnected = isGlobalConnected || isSynced || isInternalSkill;
 
@@ -298,7 +286,8 @@ const ToolNode = ({ data, isConnectable }) => {
                                         </p>
                                     </div>
                                     <button
-                                        onClick={async () => {
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
                                             setIsSaving(true);
                                             try {
                                                 const supabase = createClient();
@@ -329,15 +318,27 @@ const ToolNode = ({ data, isConnectable }) => {
                                                     const supabaseUser = await createClient();
                                                     const { data: { user: currentUser } } = await supabaseUser.auth.getUser();
                                                     authUrl = `/api/auth/youtube/login?userId=${currentUser?.id}&organizationId=${orgId}`;
+                                                } else if (providerName === 'streamlabs') {
+                                                    const supabaseUser = await createClient();
+                                                    const { data: { user: currentUser } } = await supabaseUser.auth.getUser();
+                                                    authUrl = `/api/auth/streamlabs/login?userId=${currentUser?.id}&organizationId=${orgId}`;
                                                 } else if (providerName === 'shopify') {
                                                     const storeUrl = prompt("Veuillez entrer l'URL de votre boutique Shopify (ex: mat-boutique.myshopify.com) :");
                                                     if (storeUrl) {
                                                         authUrl = `/api/auth/shopify/login?store_url=${storeUrl}&scope=team&organizationId=${orgId}`;
                                                     }
+                                                } else if (providerName === 'tiktok') {
+                                                    const supabaseUser = await createClient();
+                                                    const { data: { user: currentUser } } = await supabaseUser.auth.getUser();
+                                                    authUrl = `/api/auth/tiktok/login?userId=${currentUser?.id}&organizationId=${orgId}`;
+                                                } else if (providerName === 'stripe') {
+                                                    authUrl = `/api/auth/stripe/login?organizationId=${orgId}`;
+                                                } else if (providerName === 'google_workspace' || providerName === 'google' || providerName === 'gmail' || providerName === 'drive' || providerName === 'calendar') {
+                                                    authUrl = `/api/auth/google/login?organizationId=${orgId}`;
                                                 }
 
                                                 if (authUrl) {
-                                                    // Open in a popup to avoid "redirecting" the user away from the builder
+                                                    // Open in a popup
                                                     const width = 600;
                                                     const height = 700;
                                                     const left = window.screenX + (window.outerWidth - width) / 2;
@@ -349,22 +350,9 @@ const ToolNode = ({ data, isConnectable }) => {
                                                         `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,status=yes`
                                                     );
 
-                                                    // Simple check for popup closure to refresh status
                                                     const timer = setInterval(() => {
-                                                        if (popup.closed) {
+                                                        if (popup?.closed) {
                                                             clearInterval(timer);
-                                                            showToast({
-                                                                title: 'Vérification',
-                                                                message: 'Vérification de la connexion en cours...',
-                                                                type: 'info'
-                                                            });
-                                                            // Logic to refresh node status would go here
-                                                            // Suggesting manual refresh for now if needed
-                                                            showToast({
-                                                                title: 'Actualisation',
-                                                                message: 'Veillez à sauvegarder votre flux.',
-                                                                type: 'success'
-                                                            });
                                                         }
                                                     }, 1000);
                                                 }
@@ -376,22 +364,9 @@ const ToolNode = ({ data, isConnectable }) => {
                                             }
                                         }}
                                         disabled={isSaving}
-                                        className="w-full h-11 flex items-center justify-center gap-3 bg-[#111827] hover:bg-[#1f2937] text-white rounded-xl text-[11px] font-bold transition-all active:scale-[0.98] shadow-md group/btn"
+                                        className="w-full h-10 flex items-center justify-center bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all active:scale-[0.98] shadow-sm"
                                     >
-                                        {isSaving ? (
-                                            <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                                        ) : (
-                                            <>
-                                                <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center p-1 shadow-sm">
-                                                    <img 
-                                                        src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
-                                                        className="w-4 h-4 object-contain"
-                                                        alt=""
-                                                    />
-                                                </div>
-                                                <span>Connecter {label}</span>
-                                            </>
-                                        )}
+                                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Connecter'}
                                     </button>
                                 </div>
                             </div>

@@ -14,7 +14,7 @@ export async function GET(req) {
             <html><body>
             <script>
                 if (window.opener) {
-                    window.opener.postMessage({ type: 'GOOGLE_WORKSPACE_ERROR', error: 'Missing code or state' }, '*');
+                    window.opener.postMessage({ type: 'TIKTOK_ERROR', error: 'Missing code or state' }, '*');
                     window.close();
                 } else {
                     window.location.href = '/?error=missing_params';
@@ -30,30 +30,30 @@ export async function GET(req) {
         const state = JSON.parse(stateStr);
         const { userId, organizationId } = state;
 
-        // Exchange code for tokens
-        const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        // Exchange code for tokens via TikTok v2 API
+        const tokenResponse = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                client_key: process.env.TIKTOK_CLIENT_KEY,
+                client_secret: process.env.TIKTOK_CLIENT_SECRET,
                 code,
-                client_id: process.env.GOOGLE_CLIENT_ID,
-                client_secret: process.env.GOOGLE_CLIENT_SECRET,
-                redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`,
-                grant_type: 'authorization_code'
-            })
+                grant_type: 'authorization_code',
+                redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/tiktok/callback`,
+            }).toString()
         });
 
         const tokenData = await tokenResponse.json();
 
-        if (!tokenResponse.ok) {
-            console.error('[GOOGLE CALLBACK] Token exchange failed:', tokenData);
-            const errorMsg = tokenData.error_description || 'Token exchange failed';
+        if (!tokenResponse.ok || tokenData.error) {
+            console.error('[TIKTOK CALLBACK] Token exchange failed:', tokenData);
+            const errorMsg = tokenData.error_description || tokenData.error || 'Token exchange failed';
             const html = `
                 <!DOCTYPE html>
                 <html><body>
                 <script>
                     if (window.opener) {
-                        window.opener.postMessage({ type: 'GOOGLE_WORKSPACE_ERROR', error: '${errorMsg.replace(/'/g, "\\'")}' }, '*');
+                        window.opener.postMessage({ type: 'TIKTOK_ERROR', error: '${errorMsg.replace(/'/g, "\\'")}' }, '*');
                         window.close();
                     } else {
                         window.location.href = '/?error=${errorMsg}';
@@ -64,39 +64,58 @@ export async function GET(req) {
             return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
         }
 
-        // Fetch user info to get the account name (email)
-        const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-            headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
-        });
-        const userData = await userResponse.json();
-        const accountName = userData.email || 'Google Account';
+        const accessToken = tokenData.access_token;
+        const refreshToken = tokenData.refresh_token;
+        const expiresIn = tokenData.expires_in;
+        const openId = tokenData.open_id;
 
-        const expiresAt = Math.floor(Date.now() / 1000) + tokenData.expires_in;
+        // Fetch TikTok user info
+        let accountName = 'TikTok Account';
+        let avatarUrl = null;
+        try {
+            const userResponse = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=display_name,avatar_url', {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            const userData = await userResponse.json();
+            console.log('[TIKTOK CALLBACK] User Data:', JSON.stringify(userData));
+
+            if (userData?.data?.user) {
+                accountName = userData.data.user.display_name || accountName;
+                avatarUrl = userData.data.user.avatar_url || null;
+            }
+        } catch (userErr) {
+            console.warn('[TIKTOK CALLBACK] Could not fetch user info:', userErr.message);
+        }
+
+        const expiresAt = expiresIn
+            ? Math.floor(Date.now() / 1000) + expiresIn
+            : null;
 
         // Save to user_connections
         const supabase = createAdminClient();
-        // Manual upsert logic to avoid "no unique constraint" error
         const { data: existing } = await supabase
             .from('user_connections')
             .select('id')
             .eq('organization_id', organizationId)
-            .eq('provider', 'google_workspace')
+            .eq('provider', 'tiktok')
             .maybeSingle();
 
         const connectionData = {
             organization_id: organizationId,
             user_id: userId,
-            provider: 'google_workspace',
-            access_token: tokenData.access_token,
-            refresh_token: tokenData.refresh_token, // Only present on first consent or if prompt=consent
+            provider: 'tiktok',
+            domain: 'tiktok.com',
+            access_token: accessToken,
+            refresh_token: refreshToken || null,
             account_name: accountName,
             connection_type: 'team',
             scope: 'team',
             metadata: {
-                expires_in: tokenData.expires_in,
+                open_id: openId,
+                expires_in: expiresIn || null,
                 expires_at: expiresAt,
-                email: accountName,
-                picture: userData.picture,
+                avatar_url: avatarUrl,
+                token_type: tokenData.token_type || 'Bearer',
                 updated_at: Math.floor(Date.now() / 1000)
             }
         };
@@ -116,17 +135,17 @@ export async function GET(req) {
         }
 
         if (upsertError) {
-            console.error('[GOOGLE CALLBACK] DB Error:', upsertError);
+            console.error('[TIKTOK CALLBACK] DB Error:', upsertError);
             throw upsertError;
         }
 
-        // Redirect with postMessage script for better builder integration
+        // Redirect with postMessage script so settings page refreshes
         const html = `
             <!DOCTYPE html>
             <html><body>
             <script>
                 if (window.opener) {
-                    window.opener.postMessage({ type: 'GOOGLE_WORKSPACE_CONNECTED' }, '*');
+                    window.opener.postMessage({ type: 'TIKTOK_CONNECTED' }, '*');
                     window.close();
                 } else {
                     window.location.href = '/settings';
@@ -137,14 +156,14 @@ export async function GET(req) {
         return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
 
     } catch (err) {
-        console.error('[GOOGLE CALLBACK] Unexpected Error:', err);
-        const errorMsg = err.message || 'unknown_google_error';
+        console.error('[TIKTOK CALLBACK] Unexpected Error:', err);
+        const errorMsg = err.message || 'unknown_tiktok_error';
         const html = `
             <!DOCTYPE html>
             <html><body>
             <script>
                 if (window.opener) {
-                    window.opener.postMessage({ type: 'GOOGLE_WORKSPACE_ERROR', error: '${errorMsg.replace(/'/g, "\\'")}' }, '*');
+                    window.opener.postMessage({ type: 'TIKTOK_ERROR', error: '${errorMsg.replace(/'/g, "\\'")}' }, '*');
                     window.close();
                 } else {
                     window.location.href = '/?error=server_error';

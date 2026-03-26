@@ -104,8 +104,22 @@ function BuilderInternal({ agent, onSave }) {
                 }
             }
         };
+
+        const handleGlobalMessage = (event) => {
+            if (event.origin !== window.location.origin) return;
+            const type = event.data?.type || '';
+            if (type.endsWith('_CONNECTED')) {
+                showToast({ title: 'Succès', message: `Connexion établie !`, type: 'success' });
+                fetchSettings(); // Refresh list globally
+            } else if (type.endsWith('_ERROR')) {
+                showToast({ title: 'Échec', message: event.data?.error || 'La connexion a échoué.', type: 'error' });
+            }
+        };
+
         fetchSettings();
-    }, [agent, fitView, hydrateNodes, setEdges, setNodes]);
+        window.addEventListener('message', handleGlobalMessage);
+        return () => window.removeEventListener('message', handleGlobalMessage);
+    }, [agent, fitView, hydrateNodes, setEdges, setNodes, showToast]);
     
     // 4b. Sync connectedProviders to all nodes when they change
     useEffect(() => {
@@ -121,6 +135,35 @@ function BuilderInternal({ agent, onSave }) {
     }, [connectedProviders, setNodes]);
 
     const handleSave = async () => {
+        // --- DEPLOYMENT GUARD: Connection Check ---
+        const disconnectedNodes = nodes.filter(node => {
+            if (node.type === 'toolNode') {
+                const provider = node.data?.provider || node.data?.selectedProvider;
+                if (!provider) return false;
+                return !connectedProviders.some(cp => 
+                    (cp.provider?.toLowerCase() === provider.toLowerCase()) && cp.status === 'Connected'
+                );
+            }
+            if (node.type === 'triggerNode' && node.data?.trigger_type === 'app') {
+                const provider = node.data?.provider || node.data?.selectedProvider;
+                if (!provider) return false;
+                return !connectedProviders.some(cp => 
+                    (cp.provider?.toLowerCase() === provider.toLowerCase()) && cp.status === 'Connected'
+                );
+            }
+            return false;
+        });
+
+        if (disconnectedNodes.length > 0) {
+            const names = disconnectedNodes.map(n => n.data?.label || n.type).join(', ');
+            showToast({ 
+                title: 'Connexion Manquante', 
+                message: `L'agent ne peut pas être déployé car certains services ne sont pas connectés : ${names}. Veuillez les connecter pour continuer.`, 
+                type: 'error' 
+            });
+            return;
+        }
+
         setIsSaving(true);
         try {
             const agentNode = nodes.find(n => n.type === 'llmNode' || n.type === 'placeholderNode');
@@ -185,7 +228,11 @@ function BuilderInternal({ agent, onSave }) {
                 setMagicPrompt('');
                 setTimeout(() => fitView({ padding: 0.3, duration: 800 }), 300);
             } else {
-                showToast({ title: 'Erreur', message: config.error || 'Check console', type: 'error' });
+                showToast({ 
+                    title: config.error === 'precision_required' ? 'Précision Requise' : 'Erreur', 
+                    message: config.message || config.error || 'Une erreur est survenue.', 
+                    type: config.error === 'precision_required' ? 'info' : 'error' 
+                });
             }
         } catch (error) {
             console.error(error);
@@ -242,7 +289,62 @@ function BuilderInternal({ agent, onSave }) {
                     onDrop={onDrop}
                     onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
                     nodeTypes={nodeTypes}
-                    onNodeClick={(_, node) => setSelectedNode(node)}
+                    onNodeClick={(_, node) => {
+                        const isGuardrail = node.type === 'guardrailNode';
+                        const isLLM = node.type === 'llmNode' || node.type === 'placeholderNode';
+                        const isKnowledge = node.type === 'knowledgeNode';
+                        const isTrigger = node.type === 'triggerNode';
+                        const isTool = node.type === 'toolNode';
+
+                        if (isGuardrail || isLLM || isKnowledge) {
+                            setSelectedNode(node);
+                            return;
+                        }
+
+                        // For Tool/Trigger, check connection
+                        // USE STATE SO IT'S ALWAYS UP TO DATE (node.data can be stale)
+                        const providers = connectedProviders || [];
+                        const rawLabel_low = (node.data?.label || '').toLowerCase();
+                        const rawProvider_low = (node.data?.provider || '').toLowerCase();
+                        
+                        let brand = rawProvider_low;
+                        if (!brand || brand === 'custom' || brand === 'llm') {
+                             if (rawLabel_low.includes('github')) brand = 'github';
+                             else if (rawLabel_low.includes('slack')) brand = 'slack';
+                             else if (rawLabel_low.includes('trello')) brand = 'trello';
+                             else if (rawLabel_low.includes('shopify')) brand = 'shopify';
+                             else if (rawLabel_low.includes('stripe')) brand = 'stripe';
+                             else if (rawLabel_low.includes('youtube')) brand = 'youtube';
+                             else if (rawLabel_low.includes('streamlabs')) brand = 'streamlabs';
+                             else if (rawLabel_low.includes('tiktok')) brand = 'tiktok';
+                             else if (rawLabel_low.includes('google') || rawLabel_low.includes('workspace')) brand = 'google_workspace';
+                        }
+
+                        if (!brand) {
+                            setSelectedNode(node);
+                            return;
+                        }
+
+                        const isConnected = providers.some(p => {
+                            if (p.status !== 'Connected') return false;
+                            const pId = (p.provider || p.id || '').toLowerCase();
+                            const pDomain = (p.domain || '').toLowerCase();
+                            
+                            // Flexible matching
+                            const isGoogleMatch = (brand === 'google_workspace' || brand === 'google') && 
+                                                  (pId.includes('google') || pId.includes('workspace') || pDomain.includes('google'));
+                            const isMatch = isGoogleMatch || pId.includes(brand) || pDomain.includes(brand);
+                            
+                            return isMatch;
+                        });
+
+                        if (isConnected) {
+                            setSelectedNode(node);
+                        } else {
+                            // BLOCK MODAL: If not connected, don't open sidebar
+                            setSelectedNode(null);
+                        }
+                    }}
                     onPaneClick={() => setSelectedNode(null)}
                     fitView
                 >

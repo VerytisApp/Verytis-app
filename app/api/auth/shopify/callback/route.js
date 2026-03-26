@@ -112,24 +112,19 @@ export async function GET(req) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/settings?tab=integrations&error=db_save_failed`);
   }
 
-  // 5) Respond with HTML for popup closure or redirect
+  // Redirect with postMessage script for better builder integration
   const html = `
-    <html>
-      <body style="background: #f8fafc; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; color: #1e293b;">
-          <div style="text-align: center; padding: 2rem; background: white; border-radius: 1rem; shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05); border: 1px solid #e2e8f0;">
-              <h2 style="margin-bottom: 0.5rem; color: #0f172a;">Shopify Connecté !</h2>
-              <p style="font-size: 0.875rem; color: #64748b;">La boutique <strong>${state.shop}</strong> est liée au workspace.</p>
-              <script>
-                if (window.opener) {
-                  window.opener.postMessage({ type: 'SHOPIFY_CONNECTED', shop: '${state.shop}' }, '*');
-                  window.close();
-                } else {
-                  window.location.href = '/settings?tab=integrations&connected=true&app=shopify';
-                }
-              </script>
-          </div>
-      </body>
-    </html>
+      <!DOCTYPE html>
+      <html><body>
+      <script>
+          if (window.opener) {
+              window.opener.postMessage({ type: 'SHOPIFY_CONNECTED' }, '*');
+              window.close();
+          } else {
+              window.location.href = '/settings';
+          }
+      </script>
+      </body></html>
   `;
   const res = new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
   res.cookies.delete('shopify_oauth_nonce');

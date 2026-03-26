@@ -9,7 +9,20 @@ export async function GET(req) {
     const encodedState = searchParams.get('state');
 
     if (!code || !encodedState) {
-        return NextResponse.json({ error: 'Missing code or state' }, { status: 400 });
+        const html = `
+            <!DOCTYPE html>
+            <html><body>
+            <script>
+                if (window.opener) {
+                    window.opener.postMessage({ type: 'YOUTUBE_ERROR', error: 'Missing code or state' }, '*');
+                    window.close();
+                } else {
+                    window.location.href = '/?error=missing_params';
+                }
+            </script>
+            </body></html>
+        `;
+        return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
     }
 
     try {
@@ -34,7 +47,21 @@ export async function GET(req) {
 
         if (!tokenResponse.ok) {
             console.error('[YOUTUBE CALLBACK] Token exchange failed:', tokenData);
-            return NextResponse.json({ error: tokenData.error_description || 'Token exchange failed' }, { status: 400 });
+            const errorMsg = tokenData.error_description || 'Token exchange failed';
+            const html = `
+                <!DOCTYPE html>
+                <html><body>
+                <script>
+                    if (window.opener) {
+                        window.opener.postMessage({ type: 'YOUTUBE_ERROR', error: '${errorMsg.replace(/'/g, "\\'")}' }, '*');
+                        window.close();
+                    } else {
+                        window.location.href = '/?error=${errorMsg}';
+                    }
+                </script>
+                </body></html>
+            `;
+            return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
         }
 
         // Fetch user info (email)
@@ -106,37 +133,38 @@ export async function GET(req) {
             throw upsertError;
         }
 
-        // Return a page that posts a message to the opener and closes
+        // Redirect with postMessage script for better builder integration
         const html = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>YouTube Connected</title>
-    <style>
-        body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; }
-        .card { padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); text-align: center; }
-        .success { color: #dc2626; font-weight: bold; font-size: 1.25rem; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <div class="success">YouTube Connected!</div>
-        <p>You can close this window now.</p>
-    </div>
-    <script>
-        if (window.opener) {
-            window.opener.postMessage({ type: 'YOUTUBE_CONNECTED' }, '*');
-            setTimeout(() => window.close(), 1000);
-        }
-    </script>
-</body>
-</html>
+            <!DOCTYPE html>
+            <html><body>
+            <script>
+                if (window.opener) {
+                    window.opener.postMessage({ type: 'YOUTUBE_CONNECTED' }, '*');
+                    window.close();
+                } else {
+                    window.location.href = '/settings';
+                }
+            </script>
+            </body></html>
         `;
-
         return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
 
     } catch (err) {
         console.error('[YOUTUBE CALLBACK] Unexpected Error:', err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        const errorMsg = err.message || 'unknown_youtube_error';
+        const html = `
+            <!DOCTYPE html>
+            <html><body>
+            <script>
+                if (window.opener) {
+                    window.opener.postMessage({ type: 'YOUTUBE_ERROR', error: '${errorMsg.replace(/'/g, "\\'")}' }, '*');
+                    window.close();
+                } else {
+                    window.location.href = '/?error=server_error';
+                }
+            </script>
+            </body></html>
+        `;
+        return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
     }
 }

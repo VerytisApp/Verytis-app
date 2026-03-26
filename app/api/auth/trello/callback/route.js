@@ -142,11 +142,10 @@ export async function GET(req) {
                     document.getElementById('message').textContent = 'Trello linked successfully.';
                     
                     if (window.opener) {
-                        window.opener.postMessage({ 
-                            type: 'TRELLO_LINKED',
-                            user: { username: result.username || 'Trello User' }
-                        }, '*');
-                        setTimeout(function() { window.close(); }, 1500);
+                        window.opener.postMessage({ type: 'TRELLO_CONNECTED' }, '*');
+                        window.close();
+                    } else {
+                        window.location.href = '/settings';
                     }
                 } else {
                     throw new Error(result.error || 'Save failed');
@@ -156,6 +155,11 @@ export async function GET(req) {
                 document.getElementById('title').textContent = 'Connection Error';
                 document.getElementById('title').className = 'error';
                 document.getElementById('message').textContent = err.message;
+                
+                if (window.opener) {
+                    window.opener.postMessage({ type: 'TRELLO_ERROR', error: err.message }, '*');
+                    setTimeout(() => window.close(), 2000); // Leave message visible briefly
+                }
             }
         })();
     </script>

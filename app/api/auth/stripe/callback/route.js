@@ -100,33 +100,20 @@ export async function GET(req) {
 
         if (upsertError) throw upsertError;
 
+        // Redirect with postMessage script for better builder integration
         const html = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Stripe Connecté</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; }
-        .card { padding: 3rem; background: white; border-radius: 24px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); text-align: center; max-width: 400px; }
-        .success { color: #6366f1; font-weight: 800; font-size: 1.5rem; margin-bottom: 1rem; }
-        p { color: #64748b; font-size: 1rem; line-height: 1.5; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <div class="success">Stripe Connecté !</div>
-        <p>Votre compte Stripe a été lié avec succès à Verytis. Vous pouvez fermer cette fenêtre.</p>
-    </div>
-    <script>
-        if (window.opener) {
-            window.opener.postMessage({ type: 'STRIPE_CONNECTED' }, '*');
-            setTimeout(() => window.close(), 1500);
-        }
-    </script>
-</body>
-</html>
+            <!DOCTYPE html>
+            <html><body>
+            <script>
+                if (window.opener) {
+                    window.opener.postMessage({ type: 'STRIPE_CONNECTED' }, '*');
+                    window.close();
+                } else {
+                    window.location.href = '/settings';
+                }
+            </script>
+            </body></html>
         `;
-
         return new NextResponse(html, { headers: { 'Content-Type': 'text/html' } });
 
     } catch (err) {

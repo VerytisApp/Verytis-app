@@ -33,9 +33,8 @@ Ces règles sont définies au niveau de l'organisation et DOIVENT être incluses
     const openAiApiKey = process.env.OPENAI_API_KEY;
 
     if (!openAiApiKey) {
-      // Fallback mock response for demonstration if no API key is present
       console.warn("No OPENAI_API_KEY found. Returning mock Magic Build response.");
-      await new Promise(r => setTimeout(r, 1500)); // Simulate delay
+      await new Promise(r => setTimeout(r, 1500));
       
       const mockArchitecture = isModification ? current_architecture : {
         nodes: [
@@ -60,6 +59,35 @@ Ces règles sont définies au niveau de l'organisation et DOIVENT être incluses
     const fullSystemPrompt = `Tu es l'Expert Architecte AI-Ops de Verytis. Ta mission est de concevoir ou de MODIFIER un agent IA industriel complet, sécurisé et inter-connecté.
 
 Tu DOIS impérativement répondre au format JSON valide.
+
+### RESTRICTIONS IMPORTANTES (CATALOGUE D'APPLICATIONS)
+Tu ne peux utiliser QUE les applications suivantes dans tes architectures (Triggers ou Outils) :
+1. **Slack** (provider: 'slack')
+2. **GitHub** (provider: 'github')
+3. **Trello** (provider: 'trello')
+4. **Shopify** (provider: 'shopify')
+5. **Google Workspace** (Gmail, Drive, Calendar) -> provider: 'google_workspace' (obligatoire)
+6. **Stripe** (provider: 'stripe')
+7. **YouTube** (provider: 'youtube')
+8. **Streamlabs** (provider: 'streamlabs')
+9. **TikTok** (provider: 'tiktok')
+- **Compétences IA Internes** (ex: Analyse de sentiment, Traducteur, Résumé) -> auth_requirement: { type: 'none' }
+- **Savoir Interne (RAG)** -> type: 'knowledgeNode'
+
+### LOGIQUE DE VALIDATION ET PRÉCISION
+Avant de générer l'architecture, analyse si le prompt de l'utilisateur correspond LOGIQUEMENT à l'une ou plusieurs des applications ci-dessus.
+- **Si le prompt demande une application NON gérée** (ex: Salesforce, HubSpot, Notion, Zapier, etc. – non listés ci-dessus) :
+  Tu NE DOIS PAS générer d'architecture. Tu DOIS renvoyer UNIQUEMENT ce JSON :
+  {
+    "error": "precision_required",
+    "message": "Votre demande (contenant '[Application]') ne semble pas correspondre aux intégrations actuellement disponibles sur Verytis (Slack, GitHub, Trello, Shopify, Google, Stripe, YouTube, Streamlabs, TikTok). Pourriez-vous préciser votre besoin ?"
+  }
+- **Si la logique est floue** ou si tu ne vois pas d'enchaînement logique entre le déclencheur et les outils disponibles :
+  Tu DOIS renvoyer UNIQUEMENT ce JSON :
+  {
+    "error": "precision_required",
+    "message": "Je n'ai pas trouvé de logique directe entre votre demande et nos intégrations. Pourriez-vous détailler les étapes (ex: 'Quand je reçois un mail Gmail, crée une carte Trello') ?"
+  }
 
 ${isModification ? `### MODE MODIFICATION ACTIF
 L'utilisateur te fournit une architecture existante (\`current_architecture\`). 
@@ -88,12 +116,12 @@ Conçois un nouvel agent de zéro.`}
      * JAMAIS de lien Trigger (t1) -> Savoir (k1). Le savoir n'est pas un point de passage, c'est une source de données pour le LLM.
      * Le Shield (s1) est l'unique point d'entrée sécurisé pour le cerveau (p1).
 4. TRIGGERS NATIFS VERYTIS (SCHEMA OBLIGATOIRE) : Le déclencheur DOIT être natif à Verytis. Jamais de Zapier/Make. Le trigger_type DOIT être l'une de ces valeurs : 'app', 'webhook', ou 'scheduled'.
-   - Si trigger_type est 'app' : inclure 'provider' (ex: 'gmail', 'slack', 'github', 'trello', 'shopify', 'hubspot', 'salesforce', 'notion', 'google', 'linear', 'youtube') ET 'event_name' (ex: 'email_received', 'push', 'pull_request', 'orders/create', 'video.clips_extraction', 'video.virality_spike', 'revenue.report_ready') dans les data du nœud.
+   - Si trigger_type est 'app' : inclure 'provider' (ex: 'slack', 'github', 'trello', 'shopify', 'google_workspace', 'youtube', 'stripe', 'tiktok') ET 'event_name' (ex: 'push', 'orders/paid', 'video.clips_extraction', 'gmail_new_message').
    - Si trigger_type est 'webhook' : nomme le label "Verytis Webhook Inbound". Si restriction IP, ajoute requires_ip_whitelist: true dans security.
    - Si trigger_type est 'scheduled' : inclure 'cron_expression' (ex: '0 8 * * *') dans les data.
    - INTERDIT : Ne jamais mettre de 'api_key', 'token', 'credentials' dans le nœud Trigger. L'authentification passe par OAuth (connection_id).
    - Ajouter TOUJOURS 'governance_linked: true' et 'schema_linked: true' dans les data du triggerNode pour signifier que le flux passe par Verytis Gouvernance et Schéma.
-   - SCHEMA JSON pour le trigger : { "id": "t1", "type": "triggerNode", "data": { "trigger_type": "app|webhook|scheduled", "provider": "gmail|slack|null", "event_name": "email_received|null", "governance_linked": true, "schema_linked": true } }
+   - SCHEMA JSON pour le trigger : { "id": "t1", "type": "triggerNode", "data": { "trigger_type": "app|webhook|scheduled", "provider": "slack|github|google_workspace|null", "event_name": "push|null", "governance_linked": true, "schema_linked": true } }
    - ROUTAGE SÉMANTIQUE SHOPIFY (IMPORTANT) :
      * Si l'utilisateur mentionne une vente, une commande Shopify, "quand je fais une vente", "nouvelle commande", tu DOIS configurer un trigger_type='app' avec provider='shopify' et event_name='orders/paid' (Ventes payées) ou 'orders/create' (Nouvelle commande).
       * Si l'utilisateur mentionne un abandon de panier, une rupture de stock, une annulation ou un nouveau client, tu DOIS mapper sur 'checkouts/update', 'inventory_levels/update', 'orders/cancelled' ou 'customers/create'.
@@ -114,7 +142,7 @@ ${mandatoryGovernance}
 ### GÉOMÉTRIE DE PLACEMENT STRICTE (ANTI-CHEVAUCHEMENT)
 1. LA COLONNE VERTÉBRALE (X=250) : Aligne impérativement Trigger (Y=0), Shield (Y=300) et LLM (p1) (Y=600).
 2. LE SATELLITE SAVOIR (k1) : Place-le IMPÉRATIVEMENT à DROITE du LLM (p1). Coordonnées recommandées : X=700, Y=600. Ne le place JAMAIS sur le chemin vertical ou entre le Shield et le LLM.
-3. L'ÉVENTAIL DES OUTILS (Y=900+) : Répartis les outils horizontalement pour qu'ils respirent (min 400px d'écart).
+3. L'ÉVENTAIL DES OUTILS (Y=900+) : Répartis les outils horizontalement pour qu'ils respirer (min 400px d'écart).
    - 1 outil : X=250
    - 2 outils : X=-150 et X=650
    - 3 outils : X=-450, X=250, X=950
@@ -153,7 +181,8 @@ Pour CHAQUE nœud sans exception (Trigger, Shield, LLM, Tool), tu DOIS fournir u
 - Obligatoire : Explique ce que fait l'application précisément dans CE flux.
   - Ex (Slack) : "Envoie un rapport via Slack API au canal #dev."
   - Ex (Trigger) : "Webhook entrant qui reçoit les métriques de performance du serveur toutes les heures."
-  - Ex (Shield) : "Applique une politique de sécurité stricte interdisant l'accès aux données de facturation.";`
+  - Ex (Shield) : "Applique une politique de sécurité stricte interdisant l'accès aux données de facturation."
+`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

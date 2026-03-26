@@ -60,7 +60,7 @@ export async function middleware(request) {
     // Remove 'unsafe-inline' and 'unsafe-eval' from script-src and style-src before deploying to production.
     // These directives allow inline scripts/styles and eval(), which are primary XSS attack vectors.
     // Replace with nonce-based CSP (e.g., script-src 'nonce-{random}') or hash-based policies.
-    response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://unavatar.io https://*.githubusercontent.com https://*.slack-edge.com https://*.slack.com https://*.trello.com https://*.gstatic.com https://*.google.com https://google.com https://gstatic.com https://*.sentry.io; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.sentry.io; worker-src 'self' blob:; frame-src 'self' https://*.sentry.io;");
+    response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://unavatar.io https://*.githubusercontent.com https://*.slack-edge.com https://*.slack.com https://*.trello.com https://*.gstatic.com https://*.google.com https://google.com https://gstatic.com https://*.sentry.io https://*.tiktokcdn.com https://*.tiktokcdn-us.com https://*.tiktok.com; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.sentry.io; worker-src 'self' blob:; frame-src 'self' https://*.sentry.io;");
 
     if (limitResult) {
         response.headers.set('X-RateLimit-Limit', limitResult.limit.toString());

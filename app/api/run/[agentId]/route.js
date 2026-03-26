@@ -58,7 +58,8 @@ function discoverTools(visualConfig, isSimulation = false, organizationId = null
         node._orgId = organizationId;
         
         const label = node.data?.label || 'tool';
-        const toolId = label.toLowerCase().replace(/[^a-z0-9_]/g, '_').substring(0, 64);
+        const appLabel = label.toLowerCase();
+        const toolId = appLabel.replace(/[^a-z0-9_]/g, '_').substring(0, 64);
         const description = node.data?.description || `Exécute l'outil "${label}".`;
 
         // ─── ARCHITECTURE PRO : Utilisation de tool() avec JSON Schema natif ───
@@ -71,14 +72,24 @@ function discoverTools(visualConfig, isSimulation = false, organizationId = null
                         type: 'object', 
                         description: (label.toLowerCase().includes('github') || label.toLowerCase().includes('trello'))
                             ? "Contenu de l'action (Titre, Description). Ne spécifiez PAS le dépôt ou la liste, ils sont déjà configurés."
+                            : label.toLowerCase().includes('streamlabs')
+                            ? `Outil de Montage/Production. Configuré en mode: ${node.data?.config?.active_tab || 'montage'}. Format: ${node.data?.config?.format || '9:16'}.`
                             : "Objet JSON natif contenant les paramètres requis par l'API cible.",
                         properties: (label.toLowerCase().includes('github') || label.toLowerCase().includes('trello'))
                             ? {
                                 title: { type: 'string', description: "Titre du ticket ou de la carte." },
                                 body: { type: 'string', description: "Description détaillée du contenu." }
                               }
+                            : label.toLowerCase().includes('streamlabs')
+                            ? {
+                                video_url: { type: 'string', description: "URL de la vidéo à traiter." },
+                                start_time: { type: 'number', description: "Début du clip en secondes." },
+                                end_time: { type: 'number', description: "Fin du clip en secondes." },
+                                title: { type: 'string', description: "Titre du montage." },
+                                description: { type: 'string', description: "Description du montage." }
+                              }
                             : undefined,
-                        additionalProperties: (label.toLowerCase().includes('github') || label.toLowerCase().includes('trello')) ? false : true 
+                        additionalProperties: (label.toLowerCase().includes('github') || label.toLowerCase().includes('trello') || label.toLowerCase().includes('streamlabs')) ? false : true 
                     }
                 }
             }),
@@ -132,6 +143,42 @@ function discoverTools(visualConfig, isSimulation = false, organizationId = null
                         } catch (err) { console.error(`[GOOGLE GUARD] Failed:`, err.message); }
                     }
 
+                    if (appLabel.includes('streamlabs')) {
+                        console.log(`[STREAMLABS GUARD] Secure token injection for tool: ${label}`);
+                        try {
+                            const supabase = createAdminClient();
+                            const { data: conn } = await supabase
+                                .from('user_connections')
+                                .select('access_token')
+                                .eq('organization_id', node._orgId)
+                                .eq('provider', 'streamlabs')
+                                .maybeSingle();
+                            
+                            if (conn?.access_token) {
+                                headers['Authorization'] = `Bearer ${conn.access_token}`;
+                                console.log(`[STREAMLABS GUARD] Token injected successfully.`);
+                            }
+                        } catch (err) { console.error(`[STREAMLABS GUARD] Failed:`, err.message); }
+                    }
+                    
+                    if (appLabel.includes('tiktok')) {
+                        console.log(`[TIKTOK GUARD] Secure token injection for tool: ${label}`);
+                        try {
+                            const supabase = createAdminClient();
+                            const { data: conn } = await supabase
+                                .from('user_connections')
+                                .select('access_token')
+                                .eq('organization_id', node._orgId)
+                                .eq('provider', 'tiktok')
+                                .maybeSingle();
+                            
+                            if (conn?.access_token) {
+                                headers['Authorization'] = `Bearer ${conn.access_token}`;
+                                console.log(`[TIKTOK GUARD] Token injected successfully.`);
+                            }
+                        } catch (err) { console.error(`[TIKTOK GUARD] Failed:`, err.message); }
+                    }
+
                     if (appLabel.includes('trello')) {
                         console.log(`[TRELLO GUARD] Secure token injection for tool: ${label}`);
                         try {
@@ -166,6 +213,31 @@ function discoverTools(visualConfig, isSimulation = false, organizationId = null
                     if (appLabel.includes('github') && config.repo_name) {
                         console.log(`[GITHUB TARGETING] Injecting repo_name: ${config.repo_name}`);
                         finalPayload.repo = config.repo_name;
+                    }
+
+                    if (appLabel.includes('streamlabs')) {
+                        console.log(`[STREAMLABS TARGETING] Injecting config into payload`);
+                        finalPayload.config = {
+                            active_tab: config.active_tab || 'montage',
+                            format: config.format || '9:16',
+                            template: config.template || 'viral',
+                            auto_caption: !!config.auto_caption,
+                            auto_music: !!config.auto_music,
+                            smart_crop: !!config.smart_crop,
+                            feat_virality: !!config.feat_virality,
+                            feat_multi_sync: !!config.feat_multi_sync
+                        };
+                    }
+
+                    if (appLabel.includes('tiktok')) {
+                        console.log(`[TIKTOK TARGETING] Injecting config into payload`);
+                        finalPayload.publish_config = {
+                            video_status: config.video_status || 'DRAFT',
+                            privacy_level: config.privacy_level || 'PUBLIC',
+                            allow_comment: !!config.allow_comment,
+                            allow_duet: !!config.allow_duet,
+                            allow_stitch: !!config.allow_stitch
+                        };
                     }
 
                     if ((appLabel.includes('drive') || appLabel.includes('calendar')) && config.target_id && config.target_id !== 'auto') {
@@ -670,7 +742,7 @@ function discoverTools(visualConfig, isSimulation = false, organizationId = null
         });
     }
 
-    return toolMap;
+    return { toolMap, autoProviders };
 }
 
 // ──────────────────────────────────────────────────
@@ -723,6 +795,7 @@ export async function POST(req, { params }) {
     // Track context for error logging (Fix 5)
     let resolvedAgentId = null;
     let resolvedOrgId = null;
+    let supabase = null;
 
     try {
         const { agentId } = await params;
@@ -732,7 +805,6 @@ export async function POST(req, { params }) {
         let isSimulation = false;
         let providedKey = null;
         let user = null;
-        let supabase = null;
 
         // ─── 0. Authenticate: Session (Playground) OR API Key (Webhook) ───
         try {
@@ -749,13 +821,10 @@ export async function POST(req, { params }) {
         }
 
         if (!isSimulation && !(internalCronToken && internalCronToken === process.env.CRON_SECRET)) {
-            // No session, require API Key and Admin Client
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                return NextResponse.json({ error: 'Missing or invalid Authorization header (No active session discovered)' }, { status: 401 });
-            }
-            providedKey = authHeader.substring(7);
+            // Webhook or API Mode
+            providedKey = (authHeader && authHeader.startsWith('Bearer ')) ? authHeader.substring(7) : null;
             
-            // For external keys, we MUST use Admin client to bypass RLS since there's no session
+            // Use Admin client for all non-session calls to bypass RLS
             try {
                 supabase = createAdminClient();
             } catch (authErr) {
@@ -789,25 +858,40 @@ export async function POST(req, { params }) {
         resolvedAgentId = targetAgent.id;
         resolvedOrgId = targetAgent.organization_id;
 
+        console.log(`[AGENT RUN] Agent ${targetAgent.id} found with status: ${targetAgent.status}`);
         if (targetAgent.status !== 'active') {
-            return NextResponse.json({ error: 'Agent is inactive or paused' }, { status: 403 });
+            return NextResponse.json({ error: `Agent is ${targetAgent.status}` }, { status: 403 });
         }
 
         // ─── 2. FIX IDOR: Cross-Tenant Ownership Validation ───
         // If it's a simulation, we've already verified the user is logged in.
-        // If it's a webhook (not simulation), validate the API key.
-        if (!isSimulation && providedKey) {
-            const providedKeyHash = crypto.createHash('sha256').update(providedKey).digest('hex');
-            if (targetAgent.api_key_hash !== providedKeyHash) {
-                // Fallback: also check the global org key via secureCompare
-                const { data: settings } = await supabase
-                    .from('organization_settings')
-                    .select('verytis_api_key')
-                    .eq('id', 'default')
-                    .single();
+        // If it's a webhook (not simulation), validate the API key or Header Secret.
+        if (!isSimulation && !internalCronToken) {
+            const security = targetAgent.configuration?.security || {};
+            
+            // a) Zero-Trust Header Secret check
+            if (security.header_secret) {
+                const incomingSecret = req.headers.get('X-Verytis-Secret') || req.headers.get('x-verytis-secret');
+                if (incomingSecret !== security.header_secret) {
+                    console.warn(`[SECURITY] Header Secret mismatch for agent: ${targetAgent.id}`);
+                    return NextResponse.json({ error: 'Forbidden: Invalid security header' }, { status: 403 });
+                }
+            }
 
-                if (!settings || !secureCompareKeys(providedKey, settings.verytis_api_key)) {
-                    return NextResponse.json({ error: 'Forbidden: API key does not match this agent' }, { status: 403 });
+            // b) Legacy/API Key fallback check
+            if (providedKey) {
+                const providedKeyHash = crypto.createHash('sha256').update(providedKey).digest('hex');
+                if (targetAgent.api_key_hash !== providedKeyHash) {
+                    // Fallback: also check the global org key via secureCompare
+                    const { data: settings } = await supabase
+                        .from('organization_settings')
+                        .select('verytis_api_key')
+                        .eq('id', 'default')
+                        .single();
+
+                    if (!settings || !secureCompareKeys(providedKey, settings.verytis_api_key)) {
+                        return NextResponse.json({ error: 'Forbidden: API key does not match this agent' }, { status: 403 });
+                    }
                 }
             }
         }
@@ -839,12 +923,37 @@ export async function POST(req, { params }) {
         }
 
         // ─── 4. Parse Input ───
-        const body = await req.json();
-        const { message } = body;
+        let body = {};
+        try {
+            body = await req.json();
+            console.log(`[AGENT RUN] Incoming payload for agent ${agentId}:`, JSON.stringify(body));
+        } catch (e) {
+            console.warn('[AGENT RUN] Non-JSON or empty body received. Attempting raw text recovery.');
+            try {
+                const text = await req.text();
+                body = { message: text };
+            } catch (textErr) {
+                body = { message: "" };
+            }
+        }
+
+        // Webhook verification support (optional but helpful for some providers)
+        if (body.challenge) {
+            console.log('[AGENT RUN] Challenge detected, returning it directly.');
+            return NextResponse.json({ challenge: body.challenge });
+        }
+
+        let message = body.message;
 
         if (!message) {
-            console.error('Request received without message field');
-            return NextResponse.json({ error: 'Message is required' }, { status: 400 });
+            // If it's a webhook (not simulation), we use the whole body as context to avoid 400 errors
+            if (!isSimulation) {
+                console.log('[AGENT RUN] Webhook without message field. Extracting from payload.');
+                // Try to find common fields or just stringify the whole thing
+                message = body.text || body.content || body.data?.message || `[WEBHOOK EVENT] Payload: ${JSON.stringify(body)}`;
+            } else {
+                return NextResponse.json({ error: 'Message is required' }, { status: 400 });
+            }
         }
 
         // ─── 4b. Token Exhaustion Prevention (Payload Size Limit) ───
@@ -947,7 +1056,7 @@ export async function POST(req, { params }) {
             .single();
         const isGoogleWsConnected = !!gWsConn;
 
-        const discoveredTools = discoverTools(visualConfig, isSimulation, resolvedOrgId, isGoogleWsConnected);
+        const { toolMap: discoveredTools, autoProviders } = discoverTools(visualConfig, isSimulation, resolvedOrgId, isGoogleWsConnected);
         const hasTools = Object.keys(discoveredTools).length > 0;
 
         // ─── 9. FIX 2: Budget Enforcement (Financial DoS Prevention) ───

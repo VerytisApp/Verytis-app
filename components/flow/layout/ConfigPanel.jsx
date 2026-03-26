@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Settings2, X, Sparkles, AlertTriangle, AlertCircle, Database, Clock, Save, CheckCircle2, Shield, Box, ChevronRight, Hash, User, FileText, LayoutDashboard, ListTodo, Github } from 'lucide-react';
+import { Settings2, X, Sparkles, AlertTriangle, AlertCircle, Database, Clock, Save, CheckCircle2, Shield, Box, ChevronRight, Hash, User, Key, FileText, LayoutDashboard, ListTodo, Github } from 'lucide-react';
 import KnowledgeBaseSettings from './KnowledgeBaseSettings';
 import LLMConfig from './config/LLMConfig';
 import KnowledgeConfig from './config/KnowledgeConfig';
@@ -12,6 +12,8 @@ import ShopifyConfig from './config/ShopifyConfig';
 import StripeConfig from './config/StripeConfig';
 import GoogleWorkspaceConfig from './config/GoogleWorkspaceConfig';
 import YouTubeConfig from './config/YouTubeConfig';
+import StreamlabsConfig from './config/StreamlabsConfig';
+import TikTokConfig from './config/TikTokConfig';
 import GovernanceConfig from './config/GovernanceConfig';
 import TargetingList from './config/TargetingList';
 import { PanelTagInput, PanelNumField } from './config/ConfigUtils';
@@ -76,6 +78,10 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
     const hasPlaceholders = detectedPlaceholders.length > 0;
 
     const LLM_MODELS_BY_PROVIDER = useMemo(() => ({
+        verytis: [
+            { id: 'gpt-4o', name: 'VerytisAI (Standard)' },
+            { id: 'gpt-4o-mini', name: 'VerytisAI Mini' }
+        ],
         openai: [
             { id: 'gpt-4o', name: 'GPT-4o (Standard)' },
             { id: 'o1-preview', name: 'o1-preview' },
@@ -90,6 +96,11 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
         google: [
             { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
             { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' }
+        ],
+        ollama: [
+            { id: 'llama3.1', name: 'Llama 3.1 8B' },
+            { id: 'llama3.1:70b', name: 'Llama 3.1 70B' },
+            { id: 'mistral', name: 'Mistral' }
         ]
     }), []);
 
@@ -108,6 +119,10 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
         
         if (isGuardrail) {
             brand = 'verytis';
+        } else if (brand === 'verytis' || rawLabel_low.includes('verytis')) {
+            brand = 'verytis_ai';
+        } else if (brand === 'ollama' || brand === 'llama3' || rawLabel_low.includes('ollama') || rawLabel_low.includes('llama')) {
+            brand = 'ollama';
         } else if (!brand || brand === 'custom' || brand === 'llm') {
             if (rawLabel_low.includes('github') || (selectedNode.data?.logoDomain || '').includes('github')) brand = 'github';
             else if (rawLabel_low.includes('slack') || (selectedNode.data?.logoDomain || '').includes('slack')) brand = 'slack';
@@ -118,6 +133,8 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
             else if (rawLabel_low.includes('anthropic')) brand = 'anthropic';
             else if (rawLabel_low.includes('stripe')) brand = 'stripe';
             else if (rawLabel_low.includes('youtube')) brand = 'youtube';
+            else if (rawLabel_low.includes('streamlabs') || rawLabel_low.includes('stream labs')) brand = 'streamlabs';
+            else if (rawLabel_low.includes('tiktok')) brand = 'tiktok';
             else if (rawLabel_low.includes('google') || 
                      rawLabel_low.includes('workspace') || 
                      rawLabel_low.includes('drive') || 
@@ -134,10 +151,31 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
         }
         return brand;
     }, [selectedNode, isGuardrail]);
+    
+    const isConnected = useMemo(() => {
+        if (!selectedNode || isGuardrail || isLLM || isKnowledge) return true;
+        if (!detectedBrand) return true; // Default to showing if no specific brand detected (generic tools)
+        
+        const providers = selectedNode.data?.connectedProviders || [];
+        return providers.some(p => {
+            if (p.status !== 'Connected') return false;
+            
+            const pId = (p.provider || p.id || '').toLowerCase();
+            const pDomain = (p.domain || '').toLowerCase();
+            
+            // Flexible matching (same as ToolNode and Builder)
+            const isGoogleMatch = (detectedBrand === 'google_workspace' || detectedBrand === 'google') && 
+                                  (pId.includes('google') || pId.includes('workspace') || pDomain.includes('google'));
+            const isMatch = isGoogleMatch || pId.includes(detectedBrand) || pDomain.includes(detectedBrand);
+            
+            return isMatch;
+        });
+    }, [selectedNode, isGuardrail, isLLM, isKnowledge, detectedBrand]);
 
     const availableModels = useMemo(() => {
         if (!isLLM || !selectedNode) return [];
-        const brand = detectedBrand === 'llm' ? 'openai' : detectedBrand;
+        let brand = detectedBrand === 'llm' ? 'openai' : detectedBrand;
+        if (brand === 'verytis_ai') brand = 'verytis';
         return LLM_MODELS_BY_PROVIDER[brand] || FALLBACK_MODELS;
     }, [detectedBrand, isLLM, selectedNode?.id]);
 
@@ -185,6 +223,14 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
                     const res = await fetch('/api/integrations/youtube/metadata');
                     const data = await res.json();
                     if (res.ok) setMetadata(prev => ({ ...prev, channels: data.items || [] }));
+                } else if (detectedBrand === 'streamlabs') {
+                    const res = await fetch('/api/integrations/streamlabs/metadata');
+                    const data = await res.json();
+                    if (res.ok) setMetadata(prev => ({ ...prev, streamlabs_user: data.user || null, recent_donations: data.recent_donations || [] }));
+                } else if (detectedBrand === 'tiktok') {
+                    const res = await fetch('/api/integrations/tiktok/metadata');
+                    const data = await res.json();
+                    if (res.ok) setMetadata(prev => ({ ...prev, tiktok_user: data.user || null }));
                 }
             } catch (err) {
                 console.error('Failed to load tool metadata:', err);
@@ -199,7 +245,7 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
         if (selectedNode?.data?.label === 'Slack Notification') {
             handleInstantChange('label', 'Slack API');
         }
-    }, [selectedNode?.id, detectedBrand]);
+    }, [selectedNode?.id, detectedBrand, selectedNode?.data?.connectedProviders]);
 
     const handleBoardChange = async (boardId) => {
         handleInstantChange('config', { ...selectedNode.data.config, board_id: boardId, list_id: '' });
@@ -404,12 +450,16 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
         notion: { name: 'NOTION', color: 'text-slate-800', bg: 'bg-slate-800', lightBg: 'bg-slate-800/5', border: 'border-slate-800/20', domain: 'notion.so', targets: 'Pages' },
         verytis: { name: 'VERYTIS', color: 'text-rose-600', bg: 'bg-rose-600', lightBg: 'bg-rose-600/5', border: 'border-rose-600/20', logo: '/verytis-governance-logo.png' },
         openai: { name: 'OPENAI', color: 'text-[#10a37f]', bg: 'bg-[#10a37f]', lightBg: 'bg-[#10a37f]/5', border: 'border-[#10a37f]/20', domain: 'openai.com' },
+        verytis_ai: { name: 'VERYTIS AI', color: 'text-blue-600', bg: 'bg-blue-600', lightBg: 'bg-blue-600/5', border: 'border-blue-600/20', logo: '/verytis-governance-logo.png' },
+        ollama: { name: 'OLLAMA', color: 'text-slate-600', bg: 'bg-slate-600', lightBg: 'bg-slate-600/5', border: 'border-slate-600/20', domain: 'ollama.com' },
         anthropic: { name: 'ANTHROPIC', color: 'text-[#D97757]', bg: 'bg-[#D97757]', lightBg: 'bg-[#D97757]/5', border: 'border-[#D97757]/20', domain: 'anthropic.com' },
         google: { name: 'GOOGLE WORKSPACE', color: 'text-[#4285F4]', bg: 'bg-[#4285F4]', lightBg: 'bg-[#4285F4]/5', border: 'border-[#4285F4]/20', domain: 'gemini.google.com' },
         google_workspace: { name: 'GOOGLE WORKSPACE', color: 'text-[#4285F4]', bg: 'bg-[#4285F4]', lightBg: 'bg-[#4285F4]/5', border: 'border-[#4285F4]/20', logo: '/logos/google.svg', domain: 'workspace.google.com', targets: 'Dossiers/Agendas' },
         shopify: { name: 'SHOPIFY', color: 'text-[#008060]', bg: 'bg-[#008060]', lightBg: 'bg-[#008060]/5', border: 'border-[#008060]/20', domain: 'shopify.com', targets: 'Boutiques' },
         stripe: { name: 'STRIPE', color: 'text-[#635BFF]', bg: 'bg-[#635BFF]', lightBg: 'bg-[#635BFF]/5', border: 'border-[#635BFF]/20', domain: 'stripe.com', targets: 'Séquences IA' },
-        youtube: { name: 'YOUTUBE', color: 'text-[#FF0000]', bg: 'bg-[#FF0000]', lightBg: 'bg-[#FF0000]/5', border: 'border-[#FF0000]/20', domain: 'youtube.com', logo: '/logos/youtube.svg', targets: 'Chaînes' },
+        youtube: { name: 'YOUTUBE', color: 'text-[#FF0000]', bg: 'bg-[#FF0000]', lightBg: 'bg-[#FF0000]/5', border: 'border-[#FF0000]/20', domain: 'youtube.com', targets: 'Chaînes' },
+        streamlabs: { name: 'STREAMLABS', color: 'text-[#80F5D2]', bg: 'bg-[#09161D]', lightBg: 'bg-[#80F5D2]/5', border: 'border-[#80F5D2]/20', domain: 'streamlabs.com', targets: 'Alertes' },
+        tiktok: { name: 'TIKTOK', color: 'text-[#FE2C55]', bg: 'bg-[#010101]', lightBg: 'bg-[#FE2C55]/5', border: 'border-[#FE2C55]/20', domain: 'tiktok.com', targets: 'Vidéos' },
         knowledge: { name: 'KNOWLEDGE', color: 'text-blue-600', bg: 'bg-blue-600', lightBg: 'bg-blue-50', border: 'border-blue-100', domain: 'database.verytis.com', targets: 'Sources' },
     };
 
@@ -460,13 +510,7 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
                                     className="w-12 h-12 object-contain" 
                                 />
                             </div>
-                            {selectedNode.data.connectedProviders?.some(p => {
-                                const pId = (p.provider || p.id || '').toLowerCase();
-                                const pDomain = (p.domain || '').toLowerCase();
-                                const isGoogleProvider = pId.includes('google') || pId.includes('workspace') || pDomain.includes('google');
-                                const isGoogleBrand = detectedBrand === 'google_workspace' || detectedBrand === 'google';
-                                return (pId === detectedBrand) || (isGoogleProvider && isGoogleBrand);
-                            }) && (
+                            {isConnected && !isGuardrail && !isLLM && !isKnowledge && (
                                 <div className="absolute -bottom-1 -right-1 bg-white p-1 rounded-full shadow-lg border border-slate-100">
                                     <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center"><CheckCircle2 className="w-3 h-3 text-white" /></div>
                                 </div>
@@ -519,7 +563,26 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
                     )}
 
                     {isTool && (
-                        <>
+                        <div className="space-y-6">
+                            {!isConnected ? (
+                                <div className="p-5 bg-amber-50 border border-amber-100 rounded-2xl flex flex-col items-center gap-4 text-center animate-in fade-in zoom-in-95 duration-300">
+                                    <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-amber-200 flex items-center justify-center">
+                                        <Key className="w-6 h-6 text-amber-500" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <h4 className="text-xs font-black text-amber-900 uppercase tracking-tight">Connexion Requise</h4>
+                                        <p className="text-[10px] text-amber-600 font-medium leading-relaxed">
+                                            Autorisez Verytis à accéder à votre compte {activeTheme.name} pour configurer cet Agent.
+                                        </p>
+                                    </div>
+                                    <div className="w-full pt-2">
+                                        <p className="text-[9px] text-amber-400 font-bold uppercase tracking-widest italic">
+                                            Cliquez sur "Connecter" dans le bloc central
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
                             {detectedBrand === 'slack' && (
                                 <SlackConfig 
                                     node={selectedNode}
@@ -597,8 +660,26 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
                                 />
                             )}
 
+                            {detectedBrand === 'streamlabs' && (
+                                <StreamlabsConfig 
+                                    node={selectedNode}
+                                    theme={activeTheme}
+                                    metadata={{ user: metadata.streamlabs_user, recent_donations: metadata.recent_donations }}
+                                    onUpdate={handleInstantChange}
+                                />
+                            )}
+
+                            {detectedBrand === 'tiktok' && (
+                                <TikTokConfig 
+                                    node={selectedNode}
+                                    theme={activeTheme}
+                                    metadata={{ user: metadata.tiktok_user }}
+                                    onUpdate={handleInstantChange}
+                                />
+                            )}
+
                             {/* Fallback for other tools (e.g. Notion) */}
-                            {!['slack', 'trello', 'github', 'shopify', 'google_workspace', 'stripe', 'youtube'].includes(detectedBrand) && (
+                            {!['slack', 'trello', 'github', 'shopify', 'google_workspace', 'stripe', 'youtube', 'streamlabs', 'tiktok'].includes(detectedBrand) && (
                                 <TargetingList 
                                     targets={filteredTargets}
                                     isLoading={isLoadingTargets}
@@ -617,7 +698,9 @@ export default function ConfigPanel({ selectedNode, orgSettings, agentId, orgId,
                                     detectedBrand={detectedBrand}
                                 />
                             )}
-                        </>
+                                </>
+                            )}
+                        </div>
                     )}
 
                     {/* Hybrid Mode Description at the bottom of targeting */}

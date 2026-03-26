@@ -101,6 +101,20 @@ function AgentGovernanceContent({ params }) {
         stats.velocity = `${Math.round(totalDuration / total)}ms`;
     }
 
+    // Extract trigger provider for dynamic icons in Webhook tab
+    const triggerNode = agent?.visual_config?.nodes?.find(n => n.type === 'triggerNode');
+    const triggerProvider = triggerNode?.data?.provider;
+    const triggerProviderDomain = triggerProvider ? {
+        slack: 'slack.com',
+        github: 'github.com',
+        trello: 'trello.com',
+        shopify: 'shopify.com',
+        stripe: 'stripe.com',
+        google_workspace: 'workspace.google.com',
+        youtube: 'youtube.com',
+        streamlabs: 'streamlabs.com'
+    }[triggerProvider.toLowerCase()] : null;
+
     if (isLoading) return <div className="p-12 text-center text-slate-500 font-medium">Loading Agent details...</div>;
     if (error || !agent) return <div className="p-12 text-center text-rose-500 font-medium">Error loading AI Agent. Make sure it exists.</div>;
 
@@ -488,8 +502,16 @@ function AgentGovernanceContent({ params }) {
             {activeTab === 'deployment' && (
                 <div className="space-y-6 animate-in fade-in duration-300">
                     <Card className="p-6 overflow-hidden relative">
-                        <div className="absolute top-0 right-0 p-8 opacity-5">
-                            <Globe className="w-48 h-48" />
+                        <div className="absolute top-0 right-0 p-8 opacity-10">
+                            {triggerProviderDomain ? (
+                                <img 
+                                    src={`https://www.google.com/s2/favicons?domain=${triggerProviderDomain}&sz=128`} 
+                                    className="w-48 h-48 grayscale opacity-50 contrast-125"
+                                    alt="Provider Logo"
+                                />
+                            ) : (
+                                <Globe className="w-48 h-48" />
+                            )}
                         </div>
                         <div className="relative">
                             <h3 className="text-lg font-bold text-slate-900">Endpoint Webhook (Live)</h3>

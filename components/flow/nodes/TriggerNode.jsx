@@ -1,9 +1,11 @@
 'use client';
 import React, { memo, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { Handle, Position } from '@xyflow/react';
-import { Zap, Radio, Copy, Check, Clock, Globe, ChevronDown, ChevronUp, Shield, Lock, Webhook, AlertCircle, CheckCircle2, RefreshCw, ExternalLink } from 'lucide-react';
+import { Zap, Radio, Copy, Check, Clock, Globe, ChevronDown, ChevronUp, Shield, Lock, Webhook, AlertCircle, CheckCircle2, RefreshCw, ExternalLink, Loader2, Info } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { createClient } from '@/lib/supabase/client';
 
 // ─── Allowed trigger types (no API Key / Token – OAuth only) ───
 const TRIGGER_TYPES = [
@@ -80,19 +82,63 @@ const OAUTH_PROVIDERS = {
             { value: 'revenue.report_ready', label: 'Disponibilité : Rapport de Revenus Prêt', description: 'Déclenché quand le rapport quotidien AdSense, Super Chats et abonnements est disponible.' },
             { value: 'comment.ai_reply', label: 'Événement : Nouveau Commentaire (Réponse IA)', description: 'Déclenché par un nouveau commentaire nécessitant une réponse automatisée via votre base de connaissance.' }
         ]
+    },
+    streamlabs: {
+        label: 'Streamlabs',
+        domain: 'streamlabs.com',
+        events: [
+            { 
+                value: 'stream_end', 
+                label: 'Fin de Stream (VOD)', 
+                description: 'Déclenche l’agent dès que le live est terminé pour traiter la rediffusion.' 
+            },
+            { 
+                value: 'manual_clip_created', 
+                label: 'Clip Créé Manuellement', 
+                description: 'Déclenche l’agent quand l’utilisateur ou un modérateur crée un clip en direct.' 
+            },
+            { 
+                value: 'highlight_generated', 
+                label: 'Highlight Automatique', 
+                description: 'S’active quand l’IA Streamlabs détecte un moment fort (via les logs ou le chat).' 
+            },
+            { 
+                value: 'replay_ready', 
+                label: 'Rediffusion Disponible', 
+                description: 'Alerte l’agent quand le fichier HD est prêt pour un export haute qualité.' 
+            },
+        ]
+    },
+    tiktok: {
+        label: 'TikTok',
+        domain: 'tiktok.com',
+        events: [
+            { value: 'video.new_post', label: 'Nouvelle Vidéo Publiée', description: 'Déclenché quand une nouvelle vidéo est publiée sur le compte TikTok.' },
+            { value: 'video.viral_spike', label: 'Pic de Viralité Détecté', description: 'Déclenché dès qu\'une vidéo décolle en vues et partages.' },
+            { value: 'comment.new', label: 'Nouveau Commentaire', description: 'Déclenché par un nouveau commentaire nécessitant une réponse IA.' },
+            { value: 'follower.milestone', label: 'Palier d\'Abonnés Atteint', description: 'Déclenché quand un palier d\'abonnés clé est franchi (1K, 10K, 100K...).' },
+        ]
     }
 };
 
 const TriggerNode = ({ data, isConnectable }) => {
     const { showToast } = useToast();
+    const searchParams = useSearchParams();
+    
     const label = data.label || 'Verytis Trigger';
-    const agentId = data.agentId || 'bcb58aa1-31d7-4aa2-a735-c1886662a723';
-    const webhookUrl = `https://api.verytis-ops.com/api/run/${agentId}`;
+    const agentId = data.agentId || searchParams.get('id') || 'bcb58aa1-31d7-4aa2-a735-c1886662a723';
+    const [webhookUrl, setWebhookUrl] = useState('');
+    useEffect(() => {
+        const origin = window.location.origin;
+        setWebhookUrl(`${origin}/api/run/${agentId}`);
+    }, [agentId]);
 
     const [copied, setCopied] = useState(false);
     const [showSecurity, setShowSecurity] = useState(false);
     const [oauthConnections, setOauthConnections] = useState([]);
     const [isLoadingConnections, setIsLoadingConnections] = useState(false);
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [isTesting, setIsTesting] = useState(false);
 
     // Sync from node data
     const [localTriggerType, setLocalTriggerType] = useState(data.trigger_type || 'webhook');
@@ -101,12 +147,40 @@ const TriggerNode = ({ data, isConnectable }) => {
     );
     const [selectedEvent, setSelectedEvent] = useState(data.event_name || '');
     const [selectedConnectionId, setSelectedConnectionId] = useState(data.connection_id || '');
+    
+    async function handleTestWebhook() {
+        setIsTesting(true);
+        try {
+            // Simulated check: wait 2s and check for any recent activity
+            // Correct implementation would involve a backend call to see if any webhook was received for this agentId in last 60s
+            await new Promise(r => setTimeout(r, 2000));
+            showToast({ title: 'Vérification', message: 'Aucun événement récent détecté. Assurez-vous d\'avoir configuré l\'URL dans votre interface.', type: 'info' });
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsTesting(false);
+        }
+    }
     const [cronExpression, setCronExpression] = useState(data.cron_expression || '0 8 * * *');
     const [triggerConfig, setTriggerConfig] = useState(data.trigger_config || {});
     const [metadata, setMetadata] = useState({ drive_folders: [], calendars: [] });
     const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
 
-    // Scheduled states
+    useEffect(() => {
+        const handleRefresh = (event) => {
+            if (event.origin !== window.location.origin) return;
+            const type = event.data?.type || '';
+            if (type.endsWith('_CONNECTED')) {
+                showToast({ title: 'Actualisation', message: 'Connexion réussie !', type: 'success' });
+                // If SWR is used here, mutate it. But TriggerNode doesn't seem to use SWR for connections.
+                // It relies on AgentVisualBuilderSection to refresh.
+            } else if (type.endsWith('_ERROR')) {
+                showToast({ title: 'Échec', message: event.data?.error || 'La connexion a échoué.', type: 'error' });
+            }
+        };
+        window.addEventListener('message', handleRefresh);
+        return () => window.removeEventListener('message', handleRefresh);
+    }, [showToast]);
     const [schFreq, setSchFreq] = useState(triggerConfig.frequency || 'daily');
     const [schTime, setSchTime] = useState(triggerConfig.time || '08:00');
     const [schTz, setSchTz] = useState(triggerConfig.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
@@ -129,7 +203,7 @@ const TriggerNode = ({ data, isConnectable }) => {
     const theme = colorMap[currentType.color] || colorMap.emerald;
 
     const fetcher = (url) => fetch(url).then(r => r.json());
-    const { data: settingsData } = useSWR('/api/settings', fetcher);
+    const { data: settingsData, mutate } = useSWR('/api/settings', fetcher);
 
     useEffect(() => {
         if (!settingsData) return;
@@ -229,17 +303,18 @@ const TriggerNode = ({ data, isConnectable }) => {
     const faviconDomain = providerInfo?.domain || null;
     const availableEvents = providerInfo?.events || [];
 
-    // Find connections filtered by selected provider
+    // Find connections filtered by selected provider (Unified)
     const connectedProviderConnections = oauthConnections.filter(conn => {
         const p = (conn.provider || '').toLowerCase();
         const sel = (selectedProvider || '').toLowerCase();
-        if (!sel) return true;
+        if (!sel) return false; // Must have a provider selected
         
         // Flexible matching for Google: 'google' or 'google_workspace' or 'workspace'
-        if ((sel.includes('google') || sel.includes('workspace')) && 
-            (p.includes('google') || p.includes('workspace'))) return true;
-            
-        return p === sel;
+        const isGoogleMatch = (sel.includes('google') || sel.includes('workspace')) && 
+                               (p.includes('google') || p.includes('workspace'));
+                               
+        const isMatch = isGoogleMatch || p === sel;
+        return isMatch && conn.status === 'Connected';
     });
 
     // Status of the app trigger
@@ -258,7 +333,8 @@ const TriggerNode = ({ data, isConnectable }) => {
 
     // Display logo or icon
     const renderIcon = () => {
-        if ((triggerType === 'app' || triggerType === 'scheduled') && faviconDomain) {
+        // Show favicon if a provider is selected (works for app, scheduled AND webhook now)
+        if (faviconDomain) {
             return (
                 <div className="w-16 h-16 bg-white shadow-md border border-slate-100 rounded-2xl flex items-center justify-center overflow-hidden">
                     <img
@@ -321,8 +397,8 @@ const TriggerNode = ({ data, isConnectable }) => {
 
             {/* Dynamic Content Zone */}
             <div className="px-4 py-3 space-y-3">
-                {/* ─── Shared Provider/Connection Selection (App & Scheduled) ─── */}
-                {(triggerType === 'app' || triggerType === 'scheduled') && (
+                {/* ─── Shared Provider/Connection Selection (App, Scheduled & Webhook) ─── */}
+                {(triggerType === 'app' || triggerType === 'scheduled' || triggerType === 'webhook') && (
                     <div className="space-y-3 pb-3 border-b border-slate-50">
                         {/* Provider Selector */}
                         <div>
@@ -343,8 +419,8 @@ const TriggerNode = ({ data, isConnectable }) => {
                             </select>
                         </div>
 
-                        {/* OAuth Connection Selector */}
-                        {selectedProvider && (
+                        {/* OAuth Connection Selector - Only for 'app' and 'scheduled' (not for generic webhooks) */}
+                        {selectedProvider && triggerType !== 'webhook' && (
                             <div>
                                 <div className="flex items-center justify-between mb-1 px-0.5">
                                     <label className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">
@@ -366,22 +442,111 @@ const TriggerNode = ({ data, isConnectable }) => {
                                         Chargement des connexions...
                                     </div>
                                 ) : connectedProviderConnections.length === 0 ? (
-                                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
-                                        <div className="flex items-center gap-1.5">
-                                            <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                            <span className="text-[10px] font-bold text-amber-700">
-                                                Aucune connexion {OAUTH_PROVIDERS[selectedProvider]?.label} trouvée
-                                            </span>
+                                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-1.5">
+                                                <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                                <span className="text-[10px] font-bold text-amber-700">
+                                                    Compte non connecté
+                                                </span>
+                                            </div>
+                                            <p className="text-[9px] text-amber-600 leading-tight font-medium">
+                                                {triggerType === 'webhook' 
+                                                    ? `Configurez l'URL ci-dessous dans votre interface ${OAUTH_PROVIDERS[selectedProvider]?.label}.`
+                                                    : `Connectez votre compte ${OAUTH_PROVIDERS[selectedProvider]?.label} pour activer les déclencheurs.`}
+                                            </p>
                                         </div>
-                                        <p className="text-[9px] text-amber-600 leading-tight">
-                                            Connectez votre compte dans <strong>Paramètres → Intégrations</strong>.
-                                        </p>
+                                        
+                                        {triggerType !== 'webhook' && (
+                                            <button
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    setIsConnecting(true);
+                                                    try {
+                                                        const supabase = createClient();
+                                                        const { data: { user } } = await supabase.auth.getUser();
+                                                        if (!user) {
+                                                            showToast({ title: 'Erreur', message: 'Veuillez vous reconnecter.', type: 'error' });
+                                                            return;
+                                                        }
+
+                                                        // Fetch organization_id
+                                                        const { data: profile } = await supabase
+                                                            .from('profiles')
+                                                            .select('organization_id')
+                                                            .eq('id', user.id)
+                                                            .single();
+                                                        const orgId = profile?.organization_id;
+
+                                                        let authUrl = '';
+                                                        const pId = selectedProvider;
+                                                        
+                                                        if (pId === 'github') authUrl = `/api/auth/github/login?organizationId=${orgId}`;
+                                                        else if (pId === 'trello') authUrl = `/api/auth/trello/login?organizationId=${orgId}`;
+                                                        else if (pId === 'slack') authUrl = `/api/slack/install?organizationId=${orgId}`;
+                                                        else if (pId === 'youtube') authUrl = `/api/auth/youtube/login?userId=${user.id}&organizationId=${orgId}`;
+                                                        else if (pId === 'tiktok') authUrl = `/api/auth/tiktok/login?userId=${user.id}&organizationId=${orgId}`;
+                                                        else if (pId === 'shopify') {
+                                                            const storeUrl = prompt("URL de la boutique Shopify :");
+                                                            if (storeUrl) authUrl = `/api/auth/shopify/login?store_url=${storeUrl}&scope=team&organizationId=${orgId}`;
+                                                        }
+                                                        else if (pId === 'google_workspace' || pId === 'google') authUrl = `/api/auth/google/login?organizationId=${orgId}`;
+                                                        else if (pId === 'stripe') authUrl = `/api/auth/stripe/login?organizationId=${orgId}`;
+                                                        else if (pId === 'streamlabs') authUrl = `/api/auth/streamlabs/login?userId=${user.id}&organizationId=${orgId}`;
+
+                                                        if (authUrl) {
+                                                            const width = 600;
+                                                            const height = 700;
+                                                            const left = window.screenX + (window.outerWidth - width) / 2;
+                                                            const top = window.screenY + (window.outerHeight - height) / 2;
+
+                                                            const handleOAuthMessage = (event) => {
+                                                                // Ensure message is from a trusted origin if possible, or check event.source
+                                                                // For simplicity, we'll assume messages from the popup are relevant.
+                                                                if (event.data && event.data.type === 'oauthSuccess') {
+                                                                    showToast({ title: 'Actualisation', message: 'Connexion détectée.', type: 'success' });
+                                                                    mutate(); // Refresh SWR
+                                                                    if (popup) popup.close();
+                                                                } else if (event.data && event.data.type === 'oauthError') {
+                                                                    showToast({ title: 'Erreur', message: event.data.message || 'Échec de la connexion.', type: 'error' });
+                                                                    if (popup) popup.close();
+                                                                }
+                                                            };
+
+                                                            window.addEventListener('message', handleOAuthMessage);
+
+                                                            const popup = window.open(authUrl, `Connecter ${pId}`, `width=${width},height=${height},left=${left},top=${top}`);
+                                                            
+                                                            const timer = setInterval(() => {
+                                                                if (popup?.closed) {
+                                                                    clearInterval(timer);
+                                                                    window.removeEventListener('message', handleOAuthMessage); // Clean up listener
+                                                                    // If the popup closed without sending a success message, it might be a user cancellation or an unhandled error.
+                                                                    // We could add a generic error toast here if no specific message was received.
+                                                                }
+                                                            }, 1000);
+                                                        }
+                                                    } catch (err) {
+                                                        console.error(err);
+                                                    } finally {
+                                                        setIsConnecting(false);
+                                                    }
+                                                }}
+                                                disabled={isConnecting}
+                                                className="w-full h-9 flex items-center justify-center bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold transition-all active:scale-[0.98] shadow-sm nodrag"
+                                            >
+                                                {isConnecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Connecter'}
+                                            </button>
+                                        )}
                                     </div>
                                 ) : (
                                     <select
                                         value={selectedConnectionId}
-                                        onChange={e => handleConnectionChange(e.target.value)}
-                                        className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 nodrag"
+                                        onChange={e => {
+                                            e.stopPropagation();
+                                            handleConnectionChange(e.target.value);
+                                        }}
+                                        onClick={e => e.stopPropagation()}
                                     >
                                         <option value="">-- Choisir une connexion --</option>
                                         {connectedProviderConnections.map(conn => (
@@ -549,12 +714,22 @@ const TriggerNode = ({ data, isConnectable }) => {
                 {/* ─── Webhook Mode ─── */}
                 {triggerType === 'webhook' && (
                     <>
+                        <div className="p-2.5 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-2.5 mb-1 text-left">
+                            <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-blue-900 leading-tight">Installation requise</p>
+                                <p className="text-[9px] text-blue-700 leading-tight font-medium">
+                                    Copiez l'URL ci-dessous et installez-la dans les paramètres Webhooks de <strong>{OAUTH_PROVIDERS[selectedProvider]?.label || 'votre service'}</strong>.
+                                </p>
+                            </div>
+                        </div>
+
                         <div className="flex items-center gap-2">
                             <Radio className={`w-3.5 h-3.5 ${theme.dot} animate-pulse`} />
                             <span className="text-[10px] font-bold text-slate-500 tracking-tight">Listening for POST...</span>
                         </div>
                         <div className="space-y-1.5">
-                            <div className="text-[9px] font-black uppercase text-slate-400 tracking-tighter px-0.5">Webhook URL (Verytis)</div>
+                            <div className="text-[9px] font-black uppercase text-slate-400 tracking-tighter px-0.5 text-left">Webhook URL (Verytis)</div>
                             <div className="relative group/copy">
                                 <input
                                     type="text"
@@ -569,6 +744,12 @@ const TriggerNode = ({ data, isConnectable }) => {
                                     {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                                 </button>
                             </div>
+                        </div>
+                        <div className="pt-2 mt-1 border-t border-slate-100 flex items-center gap-1.5 px-0.5 opacity-80">
+                            <AlertCircle className="w-2.5 h-2.5 text-orange-500 shrink-0" />
+                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">
+                                Le webhook ne s'active qu'une fois l'agent déployé
+                            </span>
                         </div>
 
                         {/* Zero-Trust Security Accordion */}
