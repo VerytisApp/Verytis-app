@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import {
     ChevronRight,
@@ -13,20 +13,23 @@ import {
     DollarSign,
     CheckCircle2,
     Link as LinkIcon,
-    Cpu,
-    Layers,
-    Bot,
-    ExternalLink,
-    Slack,
-    Github,
     Database,
     Copy,
     Send,
-    Sparkles,
-    Check,
     X,
-    UserCircle
+    UserCircle,
+    Lock,
+    Settings,
+    Sparkles,
+    Clock,
+    Cpu,
+    Bot,
+    Layers,
+    ExternalLink,
+    Hash,
+    Search
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, Button, Modal } from '@/components/ui';
 import { useToast } from '@/components/ui/Toast';
 import AgentVisualBuilderSection from '@/components/pages/AgentVisualBuilderSection';
@@ -34,6 +37,97 @@ import AgentVisualBuilderSection from '@/components/pages/AgentVisualBuilderSect
 import useSWR from 'swr';
 
 const fetcher = (url) => fetch(url).then(r => r.json());
+
+// ─── MetadataMultiSelect (module-level, stable, multi-select with checkboxes) ───
+function MetadataMultiSelect({ payload, onChange }) {
+    const [options, setOptions] = useState([]);
+    const [selected, setSelected] = useState(['\u2728 Automatique']);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const lowLabel = (payload.change_detected || '').toLowerCase();
+        let endpoint = null;
+        if (lowLabel.includes('slack')) endpoint = '/api/slack/channels';
+        else if (lowLabel.includes('trello')) endpoint = '/api/integrations/trello/metadata';
+        else if (lowLabel.includes('github') || lowLabel.includes('repo')) endpoint = '/api/integrations/github/metadata';
+        else if (lowLabel.includes('youtube')) endpoint = '/api/integrations/youtube/metadata';
+        else if (lowLabel.includes('tiktok')) endpoint = '/api/integrations/tiktok/metadata';
+        if (!endpoint) return;
+
+        setLoading(true);
+        fetch(endpoint)
+            .then(r => r.json())
+            .then(data => {
+                let items = data.channels || data.items || data.repositories || [];
+                if (lowLabel.includes('tiktok') && data.user) items = [{ name: data.user.display_name }];
+                const names = items.map(i => i.label || i.name || i.id).filter(Boolean);
+                setOptions(['\u2728 Automatique', ...new Set(names)]);
+            })
+            .catch(() => setError('Erreur de chargement'))
+            .finally(() => setLoading(false));
+    }, [payload.change_detected]);
+
+    const toggle = (opt) => {
+        setSelected(prev => {
+            let next;
+            if (opt === '\u2728 Automatique') {
+                // Automatique is exclusive
+                next = ['\u2728 Automatique'];
+            } else {
+                // De-select Automatique when a real option is picked
+                const without = prev.filter(v => v !== '\u2728 Automatique');
+                next = without.includes(opt)
+                    ? without.filter(v => v !== opt)
+                    : [...without, opt];
+                if (next.length === 0) next = ['\u2728 Automatique'];
+            }
+            // Notify parent without useState in parent (prevents scroll jump)
+            onChange(next);
+            return next;
+        });
+    };
+
+    if (loading) return (
+        <div className="flex items-center gap-2 py-3 text-slate-400 text-[12px] font-semibold">
+            <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            Chargement des canaux...
+        </div>
+    );
+
+    if (error) return <p className="text-[10px] text-rose-500 font-bold">{error}</p>;
+
+    return (
+        <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-1">
+            {options.map((opt) => {
+                const isChecked = selected.includes(opt);
+                return (
+                    <button
+                        key={opt}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); toggle(opt); }}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[12px] font-semibold text-left transition-all ${
+                            isChecked
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                                : 'bg-white border border-slate-200 text-slate-700 hover:border-blue-300 hover:bg-blue-50'
+                        }`}
+                    >
+                        <span className={`w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                            isChecked ? 'border-white bg-white/30' : 'border-slate-300'
+                        }`}>
+                            {isChecked && (
+                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                            )}
+                        </span>
+                        <span>{opt}</span>
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
 
 export default function AgentGovernancePage(props) {
     return (
@@ -68,9 +162,23 @@ function AgentGovernanceContent({ params }) {
     const globalApiKey = settingsData?.verytis_api_key || 'vrt_live_xxxxxxxxxxxxxxxx';
     const agentName = agent ? agent.name : "Loading...";
 
-    const [chatInput, setChatInput] = useState('');
     const [messages, setMessages] = useState([]);
+    const [chatInput, setChatInput] = useState('');
     const [isChatting, setIsChatting] = useState(false);
+    const [resolvedActions, setResolvedActions] = useState(new Set());
+    // Use a ref for selections to avoid scroll-on-select re-renders
+    const actionSelectionsRef = useRef({});
+    const [, forceRender] = useState(0); // used only to trigger re-render for resolved state
+    const chatEndRef = useRef(null);
+
+    const scrollToBottom = () => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    // Only scroll when a NEW message arrives, NOT when selection changes
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages.length, isChatting]);
     const [regeneratedKey, setRegeneratedKey] = useState(null);
     const [isRegenerating, setIsRegenerating] = useState(false);
 
@@ -81,12 +189,23 @@ function AgentGovernanceContent({ params }) {
         }
     }, [data?.chatHistory]);
 
+
     // Human-in-the-Loop: Execute Action (Signal back to Agent)
-    const executeAction = async (payload, confirmed) => {
+    const executeAction = async (payload, confirmed, index) => {
+        // Mark as resolved locally
+        if (index !== undefined) {
+            setResolvedActions(prev => new Set(prev).add(index));
+        }
+
+        const finalValue = actionSelectionsRef.current[index] 
+            ? (Array.isArray(actionSelectionsRef.current[index]) 
+                ? actionSelectionsRef.current[index].join(', ') 
+                : actionSelectionsRef.current[index])
+            : payload.new_value;
         const signal = confirmed 
-            ? `[SIGNAL: CONFIRMED] J'approuve la modification : ${payload.target_field} = ${payload.new_value}. Tu peux synchroniser la mémoire.`
-            : `[SIGNAL: CANCELLED] Je refuse cette modification. Reste sur les paramètres actuels.`;
-        
+            ? `[SIGNAL: CONFIRMED] J'approuve la modification : ${payload.target_field} = ${finalValue}. Tu peux synchroniser la mémoire.`
+            : `[SIGNAL: REFUSED] Je refuse cette modification : ${payload.target_field}. N'effectue pas ce changement.`;
+            
         const userMsg = { role: 'user', content: signal };
         const currentHistory = [...messages, userMsg];
         setMessages(currentHistory);
@@ -105,6 +224,8 @@ function AgentGovernanceContent({ params }) {
             if (res.ok) {
                 setMessages([...currentHistory, { role: 'assistant', content: data.response, action_payload: data.action_payload }]);
                 if (confirmed) showToast({ title: 'Succès', message: 'Paramètres mis à jour avec succès', type: 'success' });
+                // Force refresh agent data so UI (like Visual Builder) updates
+                mutate();
             } else {
                 setMessages([...currentHistory, { role: 'system', content: `Erreur: ${data.error}` }]);
             }
@@ -113,6 +234,145 @@ function AgentGovernanceContent({ params }) {
         } finally {
             setIsChatting(false);
         }
+    };
+
+    // Helper to check if a message should be grouped with the previous one
+    const isGrouped = (index) => {
+        if (index === 0) return false;
+        const current = messages[index];
+        const previous = messages[index - 1];
+        return current.role === previous.role;
+    };
+
+    const ChatMessage = ({ m, i, isLastInGroup, isFirstInGroup }) => {
+        const isUser = m.role === 'user';
+        const isBot = m.role === 'assistant';
+        
+        return (
+            <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                layout
+                className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} ${isFirstInGroup ? 'mt-6' : 'mt-1'}`}
+            >
+                {isBot && !isGrouped(i) && (
+                    <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-lg shadow-slate-200 mt-1">
+                        <Bot className="w-4 h-4 text-white" />
+                    </div>
+                )}
+                {isBot && isGrouped(i) && <div className="w-8 flex-shrink-0" />}
+
+                <div className={`max-w-[85%] group relative ${isUser ? 'text-right' : 'text-left'}`}>
+                    {!isGrouped(i) && (
+                        <div className={`text-[10px] font-bold uppercase tracking-widest mb-1.5 text-slate-400 ${isUser ? 'mr-1' : 'ml-1'}`}>
+                            {isUser ? 'Propriétaire' : agentName}
+                        </div>
+                    )}
+                    
+                    <div className={`
+                        inline-block px-5 py-3.5 text-[13px] leading-relaxed transition-all relative
+                        ${isUser 
+                            ? 'bg-blue-600 text-white shadow-blue-500/10 shadow-lg font-medium' 
+                            : 'bg-white border border-slate-100 text-slate-800 font-medium shadow-sm'
+                        }
+                        ${isFirstInGroup && isUser ? 'rounded-2xl rounded-tr-none' : ''}
+                        ${isFirstInGroup && isBot ? 'rounded-2xl rounded-tl-none' : ''}
+                        ${!isFirstInGroup && !isLastInGroup ? 'rounded-2xl' : ''}
+                        ${isLastInGroup && !isFirstInGroup ? 'rounded-2xl' : ''}
+                        ${!isFirstInGroup ? 'rounded-2xl' : ''}
+                    `}>
+                        <div className="whitespace-pre-wrap">{m.content.replace(/\[SIGNAL: CONFIRMED\].*/, 'Je confirme ce paramétrage.').replace(/\[SIGNAL: REFUSED\].*/, 'J\'annule cette opération.').replace(/\*\*/g, '').replace(/###\s*/g, '')}</div>
+
+                        {m.action_payload && !resolvedActions.has(i) && (
+                            <div className="mt-4 p-6 bg-white/40 backdrop-blur-xl border border-white/60 rounded-[24px] shadow-2xl shadow-blue-500/10 overflow-hidden animate-in zoom-in-95 duration-500 relative group text-left">
+                                {/* Decorative elements */}
+                                <div className="absolute -right-8 -top-8 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/15 transition-all duration-700"></div>
+                                <div className="absolute -left-4 -bottom-4 w-20 h-20 bg-indigo-500/5 rounded-full blur-2xl"></div>
+                                
+                                <div className="flex items-center justify-between mb-6 relative z-10">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-9 h-9 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-200">
+                                            <Cpu className="w-5 h-5 text-white" />
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] leading-none mb-1">Configuration Requise</div>
+                                            <div className="text-[11px] font-bold text-slate-400 leading-none uppercase tracking-tight">Pilotage Verytis v1</div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* App Identifier Logo */}
+                                    {(() => {
+                                        const text = (m.action_payload.change_detected || '').toLowerCase();
+                                        let logoSrc = null;
+                                        if (text.includes('youtube')) logoSrc = '/logos/youtube.svg';
+                                        else if (text.includes('slack')) logoSrc = '/logos/slack.svg';
+                                        else if (text.includes('shopify')) logoSrc = '/logos/shopify.svg';
+                                        else if (text.includes('github') || text.includes('git')) logoSrc = '/logos/github.svg';
+                                        else if (text.includes('trello')) logoSrc = '/logos/trello.svg';
+                                        else if (text.includes('tiktok')) logoSrc = 'https://www.google.com/s2/favicons?domain=tiktok.com&sz=128';
+                                        else if (text.includes('google')) logoSrc = '/logos/google.svg';
+                                        else if (text.includes('stripe')) logoSrc = 'https://www.google.com/s2/favicons?domain=stripe.com&sz=128';
+                                        
+                                        return logoSrc ? (
+                                            <div className="bg-white p-1.5 rounded-xl border border-slate-100 shadow-sm">
+                                                <img 
+                                                    src={logoSrc} 
+                                                    className="w-5 h-5 object-contain"
+                                                    alt="Provider"
+                                                />
+                                            </div>
+                                        ) : null;
+                                    })()}
+                                </div>
+
+                                <div className="bg-white/60 p-4 rounded-2xl mb-5 border border-white shadow-sm relative z-10 backdrop-blur-sm">
+                                    <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                        <div className="w-1 h-1 rounded-full bg-blue-500"></div>
+                                        Impact Système Détecté
+                                    </div>
+                                    <div className="text-[14px] text-slate-900 font-black leading-snug tracking-tight">{m.action_payload.change_detected}</div>
+                                </div>
+
+                                {m.action_payload.type === 'CONFIG_UPDATE' && (
+                                    <div className="mb-6 relative z-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2 pl-1">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500/50"></div>
+                                            Configuration de la Cible
+                                        </div>
+                                        <MetadataMultiSelect
+                                            payload={m.action_payload}
+                                            onChange={(vals) => { actionSelectionsRef.current[i] = vals; }}
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="flex gap-3 relative z-10">
+                                    <button 
+                                        onClick={() => executeAction(m.action_payload, true, i)}
+                                        className="flex-[2] flex items-center justify-center gap-2 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-[11px] font-black transition-all active:scale-[0.98] shadow-xl shadow-blue-500/20"
+                                    >
+                                        <CheckCircle2 className="w-4 h-4" /> DÉPLOYER LE CHANGEMENT
+                                    </button>
+                                    <button 
+                                        onClick={() => executeAction(m.action_payload, false, i)}
+                                        className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-2xl text-[11px] font-black transition-all active:scale-[0.98]"
+                                    >
+                                        ANNULER
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {isUser && !isGrouped(i) && (
+                    <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-100 mt-1">
+                        <UserCircle className="w-5 h-5 text-white" />
+                    </div>
+                )}
+                {isUser && isGrouped(i) && <div className="w-8 flex-shrink-0" />}
+            </motion.div>
+        );
     };
 
     // Calculate dynamic stats based on logs (FinOps & Usage)
@@ -430,101 +690,100 @@ function AgentGovernanceContent({ params }) {
                     {/* Main Chat Hub */}
                     <div className="flex-1 flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden relative">
                         {/* Status Bar */}
-                        <div className="px-6 py-3 border-b border-slate-100 flex justify-between items-center bg-white/80 backdrop-blur-md z-10 sticky top-0">
-                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-tight">Session Active - {agentName}</h3>
+                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white z-10 sticky top-0 shadow-sm shadow-slate-50">
+                            <div className="flex items-center gap-4">
+                                <div className="flex -space-x-2">
+                                    <div className="w-8 h-8 rounded-full bg-slate-900 border-2 border-white flex items-center justify-center shadow-sm">
+                                        <Bot className="w-4 h-4 text-white" />
+                                    </div>
+                                    <div className="w-8 h-8 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center shadow-sm">
+                                        <Hash className="w-4 h-4 text-white" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-[13px] font-bold text-slate-900 leading-none">Conversation Multi-Canal</h3>
+                                        <div className="px-1.5 py-0.5 rounded bg-emerald-50 text-[10px] font-bold text-emerald-600 border border-emerald-100 uppercase tracking-tight">Active</div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 mt-1">
+                                        <Hash className="w-3 h-3 text-slate-400" />
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">#{agentName?.toLowerCase().replace(/\s+/g, '-')}-ops</span>
+                                    </div>
+                                </div>
                             </div>
-                            <Button variant="ghost" onClick={() => setMessages([])} className="h-7 text-[10px] text-slate-400 hover:text-slate-600">
-                                Réinitialiser
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button variant="ghost" onClick={() => setMessages([])} className="h-8 px-3 text-[10px] font-bold text-slate-500 hover:bg-slate-50 border border-slate-100 rounded-lg">
+                                    Réinitialiser
+                                </Button>
+                                <Button variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:bg-slate-50 border border-slate-100 rounded-lg">
+                                    <Settings className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Context Dock (Quick Stats) */}
+                        <div className="px-6 py-2 bg-slate-50 border-b border-slate-100 flex gap-6 overflow-x-auto no-scrollbar">
+                           <div className="flex items-center gap-2 whitespace-nowrap">
+                               <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Membres: 2</span>
+                           </div>
+                           <div className="flex items-center gap-2 whitespace-nowrap">
+                               <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
+                               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Dernier Sync: {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                           </div>
+                           <div className="flex items-center gap-2 whitespace-nowrap">
+                               <Lock className="w-3 h-3 text-slate-400" />
+                               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Session Chiffrée</span>
+                           </div>
                         </div>
 
                         {/* Scrollable Conversation */}
-                        <div className="flex-1 overflow-y-auto p-8 space-y-8 scroll-smooth">
-                            {messages.length === 0 && (
-                                <div className="h-full flex flex-col items-center justify-center text-center max-w-sm mx-auto">
-                                    <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4 rotate-3 animate-bounce">
-                                        <Sparkles className="w-8 h-8 text-blue-500" />
-                                    </div>
-                                    <h3 className="text-lg font-bold text-slate-900 mb-2">Prêt pour le déploiement ?</h3>
-                                    <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                                        Testez les capacités de votre agent, demandez-lui d'ajuster son ton ou d'activer de nouvelles intégrations.
-                                    </p>
-                                </div>
-                            )}
-
-                            {messages.map((m, i) => (
-                                <div key={i} className={`flex gap-4 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    {m.role !== 'user' && (
-                                        <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-lg mt-1">
-                                            <Bot className="w-4 h-4 text-white" />
+                        <div className="flex-1 overflow-y-auto p-8 space-y-2 scroll-smooth bg-slate-50/30">
+                            <AnimatePresence initial={false}>
+                                {messages.length === 0 && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        className="h-full flex flex-col items-center justify-center text-center max-w-sm mx-auto"
+                                    >
+                                        <div className="w-20 h-20 bg-white shadow-xl shadow-blue-500/10 rounded-3xl flex items-center justify-center mb-6 rotate-3 border border-slate-100">
+                                            <Sparkles className="w-10 h-10 text-blue-500" />
                                         </div>
-                                    )}
+                                        <h3 className="text-xl font-bold text-slate-900 mb-3">Assistant Verytis Ops</h3>
+                                        <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                            Pilotage stratégique multi-canal. Testez les déploiements, ajustez les protocoles ou activez de nouveaux modules en temps réel.
+                                        </p>
+                                    </motion.div>
+                                )}
 
-                                    <div className={`max-w-[85%] group relative ${m.role === 'user' ? 'text-right' : 'text-left'}`}>
-                                        <div className={`text-[10px] font-black uppercase tracking-widest mb-1.5 opacity-30 ${m.role === 'user' ? 'mr-1' : 'ml-1'}`}>
-                                            {m.role === 'user' ? 'Propriétaire' : agentName}
+                                {messages.map((m, i) => (
+                                    <ChatMessage 
+                                        key={i} 
+                                        m={m} 
+                                        i={i} 
+                                        isFirstInGroup={!isGrouped(i)}
+                                        isLastInGroup={i === messages.length - 1 || messages[i+1].role !== m.role}
+                                    />
+                                ))}
+
+                                {isChatting && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: 5 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="flex gap-4 mt-4"
+                                    >
+                                        <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
+                                            <Bot className="w-4 h-4 text-slate-400" />
                                         </div>
-                                        
-                                        <div className={`
-                                            inline-block px-5 py-3.5 rounded-2xl text-[13px] leading-relaxed transition-all
-                                            ${m.role === 'user' 
-                                                ? 'bg-blue-600 text-white rounded-tr-none shadow-blue-500/10 shadow-lg font-medium' 
-                                                : 'bg-slate-50 border border-slate-200 text-slate-800 rounded-tl-none font-medium'
-                                            }
-                                        `}>
-                                            <div className="whitespace-pre-wrap">{m.content}</div>
-
-                                            {m.action_payload && (
-                                                <div className="mt-4 p-4 bg-white/80 border border-slate-200 rounded-xl shadow-inner-white overflow-hidden animate-in zoom-in-95 duration-200">
-                                                    <div className="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase mb-3">
-                                                        <Cpu className="w-3.5 h-3.5" />
-                                                        Action du Gouverneur Requis
-                                                    </div>
-                                                    <div className="bg-slate-100/50 p-2.5 rounded-lg mb-4 border border-slate-200">
-                                                        <div className="text-[11px] text-slate-500 font-bold uppercase mb-1">Impact Détecté :</div>
-                                                        <div className="text-xs text-slate-800 font-bold">{m.action_payload.change_detected}</div>
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        <button 
-                                                            onClick={() => executeAction(m.action_payload, true)}
-                                                            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[11px] font-black transition-all active:scale-95 shadow-lg shadow-blue-500/20"
-                                                        >
-                                                            <Check className="w-4 h-4" /> VALIDER
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => executeAction(m.action_payload, false)}
-                                                            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-[11px] font-black transition-all active:scale-95"
-                                                        >
-                                                            <X className="w-4 h-4" /> ANNULER
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
+                                        <div className="bg-white border border-slate-100 rounded-2xl rounded-tl-none px-5 py-4 flex gap-1.5 items-center shadow-sm">
+                                            <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-duration:0.8s]"></div>
+                                            <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-duration:0.8s] [animation-delay:0.2s]"></div>
+                                            <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-duration:0.8s] [animation-delay:0.4s]"></div>
                                         </div>
-                                    </div>
-
-                                    {m.role === 'user' && (
-                                        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg mt-1">
-                                            <UserCircle className="w-5 h-5 text-white" />
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-
-                            {isChatting && (
-                                <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                    <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center">
-                                        <Bot className="w-4 h-4 text-slate-400" />
-                                    </div>
-                                    <div className="bg-slate-50 border border-slate-200 rounded-2xl rounded-tl-none px-4 py-3 flex gap-1.5 items-center shadow-sm">
-                                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-duration:0.8s]"></div>
-                                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-duration:0.8s] [animation-delay:0.2s]"></div>
-                                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-duration:0.8s] [animation-delay:0.4s]"></div>
-                                    </div>
-                                </div>
-                            )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                            <div ref={chatEndRef} />
                         </div>
 
                         {/* Professional Input Dock */}
@@ -551,6 +810,7 @@ function AgentGovernanceContent({ params }) {
                                         const data = await res.json();
                                         if (res.ok) {
                                             setMessages([...currentHistory, { role: 'assistant', content: data.response, action_payload: data.action_payload }]);
+                                            mutate(); // Refresh the visual builder on chat change
                                         } else {
                                             setMessages([...currentHistory, { role: 'system', content: `Erreur critique: ${data.error || 'Gateway Timeout'}` }]);
                                         }
@@ -561,28 +821,39 @@ function AgentGovernanceContent({ params }) {
                                     }
                                 }}
                             >
-                                <div className="flex-1 relative group">
+                                <div className="flex-1 relative group bg-white rounded-2xl shadow-sm border border-slate-200 focus-within:border-blue-600 focus-within:ring-4 focus-within:ring-blue-600/5 transition-all overflow-hidden flex items-center">
+                                    <div className="pl-4 pr-1 text-blue-500">
+                                        <Sparkles className="w-5 h-5 animate-pulse" />
+                                    </div>
                                     <input
                                         type="text"
                                         placeholder="Piloter l'intelligence de votre agent..."
-                                        className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-4 py-4 text-sm outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 transition-all shadow-sm group-hover:border-slate-300"
+                                        className="w-full bg-transparent border-none px-3 py-4 text-[13px] font-medium outline-none text-slate-800 placeholder:text-slate-400"
                                         value={chatInput}
                                         onChange={(e) => setChatInput(e.target.value)}
+                                        disabled={isChatting}
                                     />
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2">
-                                        <Sparkles className="w-5 h-5 text-blue-500 opacity-50 group-hover:opacity-100 transition-opacity" />
-                                    </div>
                                 </div>
-                                <button 
-                                    type="submit" 
-                                    disabled={isChatting || !chatInput.trim()} 
-                                    className="bg-slate-900 hover:bg-blue-600 disabled:bg-slate-200 text-white p-4 rounded-2xl transition-all shadow-lg active:scale-95"
+                                <button
+                                    type="submit"
+                                    disabled={!chatInput.trim() || isChatting}
+                                    className={`
+                                        w-12 h-12 flex items-center justify-center rounded-2xl transition-all active:scale-90
+                                        ${!chatInput.trim() || isChatting 
+                                            ? 'bg-slate-100 text-slate-300' 
+                                            : 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700'
+                                        }
+                                    `}
                                 >
-                                    <Send className="w-5 h-5" />
+                                    {isChatting ? (
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    ) : (
+                                        <Send className="w-4 h-4" />
+                                    )}
                                 </button>
                             </form>
-                            <p className="text-[9px] text-center text-slate-400 mt-2 font-medium tracking-wide">
-                                Les actions structurelles demandent votre approbation.
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center mt-4 opacity-50">
+                                Les actions structurelles demandent votre approbation explicite.
                             </p>
                         </div>
                     </div>
