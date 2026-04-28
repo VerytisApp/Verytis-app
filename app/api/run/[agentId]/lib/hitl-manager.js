@@ -46,26 +46,51 @@ export function processHITL(result, originalMessage = '') {
                name.includes('_get_metadata');
     });
 
+    const confirmEntry = allEntries.find(e => e.result?.hitl_config?.type === 'confirm');
+
     // 3. INTENT DETECTION (Auto-Correction)
+    // [SURGICAL FIX] Disable for system signals or confirmed actions to prevent "reappearing" cards.
     let forcedProvider = null;
-    const aiTextLower = scrubbedResponse.toLowerCase();
-    const msgLower = (originalMessage || '').toLowerCase();
+    const isSystemAction = originalMessage.includes('[SYSTEM:') || originalMessage.includes('[SIGNAL:');
     
-    if (!listEntry && !uiEntry) {
-        // Detect provider in AI text or original message if tools failed (Lazy AI)
-        if (aiTextLower.includes('slack') || msgLower.includes('slack')) forcedProvider = 'slack';
-        else if (aiTextLower.includes('youtube') || msgLower.includes('youtube')) forcedProvider = 'youtube';
-        else if (aiTextLower.includes('github') || msgLower.includes('github') || msgLower.includes('git')) forcedProvider = 'github';
-        else if (aiTextLower.includes('tiktok') || msgLower.includes('tiktok')) forcedProvider = 'tiktok';
+    if (!listEntry && !uiEntry && !confirmEntry && !isSystemAction) {
+        const msgLower = (originalMessage || '').toLowerCase();
         
-        if (forcedProvider) {
-            console.log(`[HITL] INTENT DETECTED: Forced provider: ${forcedProvider}`);
+        // [SURGICAL FIX] Avoid forcing a provider for simple questions or help requests.
+        // If it's a question (starts with 'c'est quoi', 'comment', etc.) we don't trigger the card.
+        const isQuestion = /^(c'est quoi|comment|pourquoi|rappelle|qu'est|est-ce|peux-tu m'expliquer|quel|quelle|peux-tu aider)/i.test(msgLower) || 
+                          msgLower.includes('?') || 
+                          msgLower.includes('aide');
+
+        if (!isQuestion) {
+            const aiTextLower = scrubbedResponse.toLowerCase();
+            
+            // Detect provider in AI text or original message if tools failed (Lazy AI)
+            if (aiTextLower.includes('slack') || msgLower.includes('slack')) forcedProvider = 'slack';
+            else if (aiTextLower.includes('youtube') || msgLower.includes('youtube')) forcedProvider = 'youtube';
+            else if (aiTextLower.includes('github') || msgLower.includes('github') || msgLower.includes('git')) forcedProvider = 'github';
+            else if (aiTextLower.includes('tiktok') || msgLower.includes('tiktok')) forcedProvider = 'tiktok';
+            
+            if (forcedProvider) {
+                console.log(`[HITL] INTENT DETECTED: Forced provider: ${forcedProvider}`);
+            }
         }
     }
 
     if (uiEntry?.call?.args) {
         const { change_detected, target_field, options } = uiEntry.call.args;
-        actionPayload = { type: 'CONFIG_UPDATE', change_detected, target_field, options, requires_approval: true };
+        actionPayload = { type: 'select', label: change_detected, target_field, options, requires_approval: true };
+    } else if (confirmEntry) {
+        const { label, target_field, new_value } = confirmEntry.result.hitl_config;
+        actionPayload = { 
+            type: 'confirm', 
+            label: label, 
+            target_field, 
+            new_value, 
+            requires_approval: true,
+            payload: confirmEntry.result.raw_payload 
+        };
+        scrubbedResponse = `J'ai préparé la mise à jour de ma configuration interne. Souhaitez-vous valider ce changement ?`;
     } else if (listEntry || forcedProvider) {
         const toolResult = listEntry?.result || {};
         const toolName = listEntry ? (listEntry.call.toolName || '') : forcedProvider;
@@ -86,8 +111,8 @@ export function processHITL(result, originalMessage = '') {
         const targetKey = hitlConfig.field || (toolName.split('_')[0].charAt(0).toUpperCase() + toolName.split('_')[0].slice(1) + '_Target');
 
         actionPayload = {
-            type: 'CONFIG_UPDATE',
-            change_detected: actionLabel,
+            type: 'select',
+            label: actionLabel,
             target_field: targetKey,
             new_value: '✨ Automatique',
             options: extractedOptions,
@@ -95,7 +120,9 @@ export function processHITL(result, originalMessage = '') {
         };
         
         // [GHOSTING GUARD] Force a clean instructional response if payload is present
-        scrubbedResponse = `Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous.`;
+        if (scrubbedResponse.length < 20) {
+            scrubbedResponse = `Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous.`;
+        }
     }
 
     // --- FINAL SCRUBBING ---
@@ -108,13 +135,17 @@ export function processHITL(result, originalMessage = '') {
         .replace(/Trace:\s*[a-z0-9-]+/gi, '')
         .replace(/```json[\s\S]*?```/g, '')
         .replace(/\{[\s\S]*"type"\s*:\s*"CONFIG_UPDATE"[\s\S]*\}/g, '')
+        .replace(/\{[\s\S]*"type"\s*:\s*"confirm"[\s\S]*\}/g, '')
         .trim();
 
     // Final Polish: Ensure the user sees a clear call to action if a card is present
-    if (actionPayload && scrubbedResponse.length < 10) {
+    if (actionPayload && !isSystemAction && scrubbedResponse.length < 10) {
         scrubbedResponse = `Veuillez sélectionner l'option souhaitée ci-dessous pour finaliser la configuration.`;
-    } else if (!scrubbedResponse || scrubbedResponse.length < 5) {
-        scrubbedResponse = `J'ai préparé la configuration demandée. De quel compte ou canal s'agit-il ?`;
+    } else if (!scrubbedResponse || (!isSystemAction && scrubbedResponse.length < 5)) {
+        // [SURGICAL FIX] Different fallback if it's a system success message
+        scrubbedResponse = isSystemAction 
+            ? `Parfait ! Vos modifications ont été appliquées avec succès. Tout est prêt.`
+            : `J'ai préparé la configuration demandée. De quel compte ou canal s'agit-il ?`;
     }
 
     return { actionPayload, scrubbedResponse };

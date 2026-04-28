@@ -56,7 +56,7 @@ export function useAgentChat(agentId) {
                         for (let j = idx + 1; j < data.chatHistory.length; j++) {
                             const next = data.chatHistory[j];
                             if (next.role === 'user' && next.content) {
-                                if (next.content.includes('[SIGNAL: CONFIRMED]')) {
+                                if (next.content.includes('[SIGNAL: ACTION_CONFIRMED]') || next.content.includes('[SIGNAL: CONFIRMED]')) {
                                     const match = next.content.match(/=\s*(.+?)\.\s*Tu peux/s) || next.content.match(/=\s*(.+)$/s);
                                     const value = match ? match[1].split('.')[0].trim() : msg.action_payload.new_value;
                                     restored[msg.id] = { confirmed: true, value };
@@ -93,9 +93,18 @@ export function useAgentChat(agentId) {
             setResolvedActions(prev => ({ ...prev, [key]: { confirmed, value: finalValue } }));
         }
 
-        const signalMessage = confirmed 
-            ? `[SIGNAL: CONFIRMED] J'approuve la modification : ${payload.target_field} = ${finalValue}. Tu peux synchroniser la mémoire.`
+        let signalMessage = confirmed 
+            ? `[SIGNAL: ACTION_CONFIRMED] J'approuve la modification : ${payload.target_field} = ${finalValue}. Tu peux synchroniser la mémoire.`
             : `[SIGNAL: REFUSED] Je refuse cette modification : ${payload.target_field}. N'effectue pas ce changement.`;
+
+        // If it's a structural config update, send the JSON payload for the backend
+        if (confirmed && payload.target_field === 'Internal_Config_Update' && payload.payload) {
+            const signalData = {
+                field: 'Internal_Config_Update',
+                payload: payload.payload
+            };
+            signalMessage = `[SIGNAL: ACTION_CONFIRMED] ${JSON.stringify(signalData)}`;
+        }
             
         const userMsg = { role: 'user', content: signalMessage };
         const optimisticHistory = [...messages, userMsg];

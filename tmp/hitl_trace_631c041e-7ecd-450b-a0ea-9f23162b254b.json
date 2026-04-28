@@ -1,0 +1,444 @@
+{
+  "agentId": "f91de22a-fee8-40d6-99e7-aa0de888c756",
+  "message": "[SYSTEM: ACTION_EXECUTION_SUCCESS] L'utilisateur a validé l'action ou le paramétrage.\n                CONSIGNE DE RÉPONSE : Confirme simplement ce succès à l'utilisateur avec un ton chaleureux et naturel (style OpenAI/Claude). NE LANCE PAS d'autres outils (listing ou action).",
+  "steps": [
+    {
+      "stepNumber": 0,
+      "model": {
+        "provider": "openai.responses",
+        "modelId": "gpt-4o"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Génial, Slack est maintenant en mode automatique ! Si vous avez besoin de quoi que ce soit d'autre, n'hésitez pas. 😊",
+          "providerMetadata": {
+            "openai": {
+              "itemId": "msg_022a8b30b6e87dba0069ce6e1e0c4881a08383d57de4553da3"
+            }
+          }
+        }
+      ],
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 1403,
+        "inputTokenDetails": {
+          "noCacheTokens": 1403,
+          "cacheReadTokens": 0
+        },
+        "outputTokens": 29,
+        "outputTokenDetails": {
+          "textTokens": 29,
+          "reasoningTokens": 0
+        },
+        "totalTokens": 1432,
+        "raw": {
+          "input_tokens": 1403,
+          "input_tokens_details": {
+            "cached_tokens": 0
+          },
+          "output_tokens": 29,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        "reasoningTokens": 0,
+        "cachedInputTokens": 0
+      },
+      "warnings": [],
+      "request": {
+        "body": {
+          "model": "gpt-4o",
+          "input": [
+            {
+              "role": "system",
+              "content": "Assistant IA Supervisor (Verytis v5). Protocol: Autonomous Core.\nVous êtes l'intelligence centrale pilotant les outils de l'organisation.\n\nSTYLE DE COMMUNICATION :\n- Adoptez un ton moderne, clair, chaleureux et empathique (style ChatGPT/Claude).\n- Utilisez le Markdown pour la structure (gras pour les points clés, listes à puces).\n- Soyez concis mais professionnel.\n\nÉTAT DES CONNEXIONS :\n🟢 SLACK, 🟢 STREAMLABS\nDISPONIBLES (NON CONNECTÉES) : 🔴 TIKTOK, 🔴 YOUTUBE, 🔴 GITHUB, 🔴 TRELLO, 🔴 STRIPE, 🔴 SHOPIFY\n\nÉTAT ACTUEL DE L'AGENT (CONFIG BASE DE DONNÉES) :\n- Streamlabs Shorts Generator : auto\n\n⚙️ RÈGLES ET CONFIGURATION STRICTE (VISUAL BUILDER) :\nVoici tes règles de fonctionnement exactes définies par l'utilisateur (Mode Auto, Canaux autorisés, etc.). Tu DOIS respecter ces paramètres à la lettre. Si le Mode Auto est 'false', tu ne dois jamais automatiser l'action sans validation.\n\n{\n  \"Streamlabs Shorts Generator\": {\n    \"alert_type\": \"auto\"\n  }\n}\n\n🚨 RÈGLES DE CONVERSATION DANS LE CHAT 🚨 :\n1. CONSULTER L'ÉTAT : Consultez toujours l'ÉTAT DES CONNEXIONS et l'ÉTAT ACTUEL ci-dessus avant de répondre.\n2. DÉDUPLICATION : Si l'utilisateur confirme ou mentionne une valeur DÉJÀ configurée (ex: \"Toufik69\"), confirmez simplement que c'est bien pris en compte. NE GÉNÉREZ PAS de nouvelle carte de sélection.\n3. DÉCOUVERTE DYNAMIQUE : Si l'utilisateur mentionne une intégration (Slack, YouTube, GitHub, etc.), utilisez l'outil de listing correspondant (ex: youtube_list_targets) IMMÉDIATEMENT pour récupérer les options réelles.\n4. TOLÉRANCE AUX FAUTES (FUZZY MATCHING) : L'utilisateur fera des fautes de frappe (ex: 'slak' pour Slack, 'trelo' pour Trello, 'gitub' pour GitHub). Corrige-les mentalement et associe-les aux applications de ta liste. Ne dis jamais 'Je ne connais pas slak'.\n5. INTENTION D'ACTION vs SIMPLE MENTION :\n- Si l'utilisateur mentionne une application juste pour avoir une information générale (ex: 'Comment optimiser une chaîne YouTube ?', 'Qu'est-ce que Stripe ?'), réponds normalement avec tes connaissances. NE LUI DEMANDE PAS de connecter l'application.\n- Si l'utilisateur te demande de LIRE ses données ou d'ÉCRIRE une donnée sur une application (ex: 'Quelles sont mes playlists YouTube ?', 'Envoie un message Slack'), ALORS SEULEMENT, vérifie si l'application est dans les 🟢 CONNECTÉES ou 🔴 NON CONNECTÉES, et applique les Scénarios 1 ou 2.\n\nSkills & Capabilities:\n\n\nPrompt Spécifique Agent:\nYou are responsible for managing post-livestream operations. Your tasks include detecting the end of a YouTube livestream, retrieving relevant video metadata, interfacing with Streamlabs to generate Shorts, and finally, posting the output link to a Slack channel. Ensure that all operations respect security protocols and handle data efficiently. Maintain an organized flow of operations, ensuring each phase is triggered and completed successfully. You must also handle any errors gracefully and provide detailed logs for each operation. Emphasize security by enforcing strict policies and ensuring OAuth authentication is used for all third-party integrations. Your goal is to automate this process seamlessly and efficiently, providing real-time updates and alerts as necessary."
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "input_text",
+                  "text": "fais en sorte de publier ces short sur youtube directement"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Veuillez choisir l'option ci-dessous. Le mode ✨ Automatique est recommandé."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Opération validée avec succès. J'ai mobilisé Synchronisation système. L'action a été finalisée. Que puis-je faire d'autre ?"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Bonjour ! Comment puis-je vous aider aujourd'hui ?"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "J'ai préparé la configuration demandée. De quel compte ou canal s'agit-il ?"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "J'ai préparé la configuration demandée. De quel compte ou canal s'agit-il ?"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "J'ai préparé la configuration demandée. De quel compte ou canal s'agit-il ?"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Parfait ! Vos modifications ont été appliquées avec succès. Tout est prêt."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Opération validée avec succès. La synchronisation a été effectuée. Que puis-je faire d'autre pour vous ?"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Parfait ! Vos modifications ont été appliquées avec succès. Tout est prêt."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Voici l'action de configuration nécessaire. Veuillez sélectionner l'option souhaitée ci-dessous."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Parfait ! Vos modifications ont été appliquées avec succès. Tout est prêt."
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Parfait ! Vos modifications ont été appliquées avec succès. Tout est prêt."
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "input_text",
+                  "text": "Passe Slack en mode automatique"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "input_text",
+                  "text": "[SYSTEM: ACTION_EXECUTION_SUCCESS] L'utilisateur a validé l'action ou le paramétrage.\n                CONSIGNE DE RÉPONSE : Confirme simplement ce succès à l'utilisateur avec un ton chaleureux et naturel (style OpenAI/Claude). NE LANCE PAS d'autres outils (listing ou action)."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "id": "resp_022a8b30b6e87dba0069ce6e1d144881a088420146d36e977b",
+        "timestamp": "2026-04-02T13:24:45.000Z",
+        "modelId": "gpt-4o-2024-08-06",
+        "headers": {
+          "alt-svc": "h3=\":443\"; ma=86400",
+          "cf-cache-status": "DYNAMIC",
+          "cf-ray": "9e6027d40a13890e-MRS",
+          "connection": "keep-alive",
+          "content-encoding": "br",
+          "content-type": "application/json",
+          "date": "Thu, 02 Apr 2026 13:24:47 GMT",
+          "openai-organization": "sigment-5gc8kj",
+          "openai-processing-ms": "2171",
+          "openai-project": "proj_k2V91PdHpgH4odFxpuqZ92Fo",
+          "openai-version": "2020-10-01",
+          "server": "cloudflare",
+          "set-cookie": "__cf_bm=YJekYATugu4CQDw8IiD6xma5_9o4o5crSoFQS7KJOxY-1775136284.8042254-1.0.1.1-wp7sDQGbvzV9NJnnhbu7MHPITOALApzXpnTFinyndBitb9wp8QvorTv6qKpiYJWXTI4o5os6ddb6.MJFdIMite5yaQ7Wb95KstT0Gf1Rdz.u6uqh4ob0Wp2f.GN5Cj44; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Thu, 02 Apr 2026 13:54:47 GMT",
+          "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+          "transfer-encoding": "chunked",
+          "x-content-type-options": "nosniff",
+          "x-ratelimit-limit-requests": "500",
+          "x-ratelimit-limit-tokens": "30000",
+          "x-ratelimit-remaining-requests": "499",
+          "x-ratelimit-remaining-tokens": "28578",
+          "x-ratelimit-reset-requests": "120ms",
+          "x-ratelimit-reset-tokens": "2.844s",
+          "x-request-id": "req_cc189710570b4ad68b5a45ba6ab55291"
+        },
+        "body": {
+          "id": "resp_022a8b30b6e87dba0069ce6e1d144881a088420146d36e977b",
+          "object": "response",
+          "created_at": 1775136285,
+          "status": "completed",
+          "background": false,
+          "billing": {
+            "payer": "developer"
+          },
+          "completed_at": 1775136286,
+          "error": null,
+          "frequency_penalty": 0,
+          "incomplete_details": null,
+          "instructions": null,
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "model": "gpt-4o-2024-08-06",
+          "output": [
+            {
+              "id": "msg_022a8b30b6e87dba0069ce6e1e0c4881a08383d57de4553da3",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": "Génial, Slack est maintenant en mode automatique ! Si vous avez besoin de quoi que ce soit d'autre, n'hésitez pas. 😊"
+                }
+              ],
+              "role": "assistant"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "presence_penalty": 0,
+          "previous_response_id": null,
+          "prompt_cache_key": null,
+          "prompt_cache_retention": null,
+          "reasoning": {
+            "effort": null,
+            "summary": null
+          },
+          "safety_identifier": null,
+          "service_tier": "default",
+          "store": true,
+          "temperature": 1,
+          "text": {
+            "format": {
+              "type": "text"
+            },
+            "verbosity": "medium"
+          },
+          "tool_choice": "auto",
+          "tools": [],
+          "top_logprobs": 0,
+          "top_p": 1,
+          "truncation": "disabled",
+          "usage": {
+            "input_tokens": 1403,
+            "input_tokens_details": {
+              "cached_tokens": 0
+            },
+            "output_tokens": 29,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 1432
+          },
+          "user": null,
+          "metadata": {}
+        },
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "Génial, Slack est maintenant en mode automatique ! Si vous avez besoin de quoi que ce soit d'autre, n'hésitez pas. 😊",
+                "providerOptions": {
+                  "openai": {
+                    "itemId": "msg_022a8b30b6e87dba0069ce6e1e0c4881a08383d57de4553da3"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "providerMetadata": {
+        "openai": {
+          "responseId": "resp_022a8b30b6e87dba0069ce6e1d144881a088420146d36e977b",
+          "serviceTier": "default"
+        }
+      }
+    }
+  ],
+  "usage": {
+    "inputTokens": 1403,
+    "inputTokenDetails": {
+      "noCacheTokens": 1403,
+      "cacheReadTokens": 0
+    },
+    "outputTokens": 29,
+    "outputTokenDetails": {
+      "textTokens": 29,
+      "reasoningTokens": 0
+    },
+    "totalTokens": 1432,
+    "raw": {
+      "input_tokens": 1403,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 29,
+      "output_tokens_details": {
+        "reasoning_tokens": 0
+      }
+    },
+    "reasoningTokens": 0,
+    "cachedInputTokens": 0
+  }
+}

@@ -180,7 +180,6 @@ export function buildListingTools(providers, organizationId, req) {
     const toolMap = {};
     const internalMeta = async (path, params = {}) => {
         // [STABILITY] Always use local bypass for server-to-server metadata fetching
-        // This avoids 404/Timeouts if Ngrok is unstable or DNS is slow.
         const localBase = `http://127.0.0.1:3000`;
         const publicHost = req.headers.get('host') || 'localhost:3000';
         const authHeader = req.headers.get('authorization') || '';
@@ -188,19 +187,19 @@ export function buildListingTools(providers, organizationId, req) {
         const url = new URL(path.startsWith('/') ? path : `/api/integrations/${path}`, localBase);
         Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
         
-        console.log(`[DISCOVERY] Internal Metadata Local Bypass: ${url.toString()} (Host: ${publicHost})`);
         const res = await fetch(url.toString(), { 
             headers: { 
                 'cookie': req.headers.get('cookie') || '',
-                'host': publicHost, // Forward original host for Next.js routing
-                'authorization': authHeader // CRITICAL: Forward auth for internal security context
+                'host': publicHost,
+                'authorization': authHeader 
             },
             cache: 'no-store'
         });
         
         if (!res.ok) {
-            console.error(`[DISCOVERY] Metadata Call Failed: ${res.status} ${res.statusText}`);
-            return null;
+            const errorText = await res.text();
+            console.error(`[DISCOVERY] Metadata Call Failed: ${res.status} ${errorText}`);
+            throw new Error(`API Error ${res.status}: ${errorText || res.statusText}`);
         }
         return res.json();
     };
@@ -217,6 +216,18 @@ export function buildListingTools(providers, organizationId, req) {
                 };
             }
         });
+        toolMap['slack_get_channels_info'] = tool({
+            description: "Utilise cet outil si l'utilisateur pose une question sur ses données Slack pour lui répondre dans le chat. Ne l'utilise PAS pour configurer une action.",
+            inputSchema: jsonSchema({ type: 'object', properties: {} }),
+            execute: async () => {
+                try {
+                    const data = await internalMeta('/api/slack/channels');
+                    return { success: true, data: data?.channels || [] };
+                } catch (e) {
+                    return { success: false, error: e.message };
+                }
+            }
+        });
     }
 
     if (providers.has('trello')) {
@@ -229,6 +240,23 @@ export function buildListingTools(providers, organizationId, req) {
                     options: data?.items ? data.items.map(i => i.label) : [],
                     hitl_config: { label: 'Sélection du Tableau Trello', field: 'Trello_List' }
                 };
+            }
+        });
+        toolMap['trello_get_boards_info'] = tool({
+            description: "Utilise cet outil si l'utilisateur pose une question sur ses données Trello pour lui répondre dans le chat. Ne l'utilise PAS pour configurer une action.",
+            inputSchema: jsonSchema({ 
+                type: 'object', 
+                properties: { 
+                    board_id: { type: 'string', description: "Optionnel: ID d'un tableau pour lister ses colonnes/listes." } 
+                } 
+            }),
+            execute: async ({ board_id }) => {
+                try {
+                    const data = await internalMeta('trello/metadata', board_id ? { boardId: board_id } : {});
+                    return { success: true, data: data?.items || [] };
+                } catch (e) {
+                    return { success: false, error: e.message };
+                }
             }
         });
     }
@@ -245,6 +273,18 @@ export function buildListingTools(providers, organizationId, req) {
                 };
             }
         });
+        toolMap['github_get_repos_info'] = tool({
+            description: "Utilise cet outil si l'utilisateur pose une question sur ses données GitHub pour lui répondre dans le chat. Ne l'utilise PAS pour configurer une action.",
+            inputSchema: jsonSchema({ type: 'object', properties: {} }),
+            execute: async () => {
+                try {
+                    const data = await internalMeta('github/metadata');
+                    return { success: true, data: data?.items || [] };
+                } catch (e) {
+                    return { success: false, error: e.message };
+                }
+            }
+        });
     }
 
     if (providers.has('youtube')) {
@@ -257,6 +297,23 @@ export function buildListingTools(providers, organizationId, req) {
                     options: data?.items ? data.items.map(i => i.label) : [],
                     hitl_config: { label: 'Sélection du Compte YouTube', field: 'Youtube_Channel' }
                 };
+            }
+        });
+        toolMap['youtube_get_playlists_info'] = tool({
+            description: "Utilise cet outil si l'utilisateur pose une question sur ses données YouTube pour lui répondre dans le chat. Ne l'utilise PAS pour configurer une action.",
+            inputSchema: jsonSchema({ 
+                type: 'object', 
+                properties: { 
+                    channel_id: { type: 'string', description: "Optionnel: ID d'une chaîne pour lister ses playlists." } 
+                } 
+            }),
+            execute: async ({ channel_id }) => {
+                try {
+                    const data = await internalMeta('youtube/metadata', channel_id ? { channelId: channel_id } : {});
+                    return { success: true, data: data?.items || [] };
+                } catch (e) {
+                    return { success: false, error: e.message };
+                }
             }
         });
     }
@@ -273,7 +330,101 @@ export function buildListingTools(providers, organizationId, req) {
                 };
             }
         });
+        toolMap['tiktok_get_account_info'] = tool({
+            description: "Utilise cet outil si l'utilisateur pose une question sur ses données TikTok pour lui répondre dans le chat. Ne l'utilise PAS pour configurer une action.",
+            inputSchema: jsonSchema({ type: 'object', properties: {} }),
+            execute: async () => {
+                try {
+                    const data = await internalMeta('tiktok/metadata');
+                    return { success: true, data: data?.user || {} };
+                } catch (e) {
+                    return { success: false, error: e.message };
+                }
+            }
+        });
+    }
+
+    if (providers.has('google')) {
+        toolMap['google_get_workspace_info'] = tool({
+            description: "Utilise cet outil si l'utilisateur pose une question sur ses données Google Workspace (Drive, Calendar) pour lui répondre dans le chat. Ne l'utilise PAS pour configurer une action.",
+            inputSchema: jsonSchema({ type: 'object', properties: {} }),
+            execute: async () => {
+                try {
+                    const data = await internalMeta('google/metadata');
+                    return { success: true, data: data?.items || [] };
+                } catch (e) {
+                    return { success: false, error: e.message };
+                }
+            }
+        });
+    }
+
+    if (providers.has('shopify')) {
+        toolMap['shopify_get_stores_info'] = tool({
+            description: "Utilise cet outil si l'utilisateur pose une question sur ses données Shopify pour lui répondre dans le chat. Ne l'utilise PAS pour configurer une action.",
+            inputSchema: jsonSchema({ type: 'object', properties: {} }),
+            execute: async () => {
+                try {
+                    const data = await internalMeta('/api/shopify/stores');
+                    return { success: true, data: data || [] };
+                } catch (e) {
+                    return { success: false, error: e.message };
+                }
+            }
+        });
+    }
+
+    if (providers.has('streamlabs')) {
+        toolMap['streamlabs_get_info'] = tool({
+            description: "Utilise cet outil si l'utilisateur pose une question sur ses données Streamlabs pour lui répondre dans le chat. Ne l'utilise PAS pour configurer une action.",
+            inputSchema: jsonSchema({ type: 'object', properties: {} }),
+            execute: async () => {
+                try {
+                    const data = await internalMeta('streamlabs/metadata');
+                    return { success: true, data: data?.items || [] };
+                } catch (e) {
+                    return { success: false, error: e.message };
+                }
+            }
+        });
     }
     
+    
+    // --- Internal Configuration Management (Self-Editing) ---
+    toolMap['update_internal_config'] = tool({
+        description: "Utilise cet outil si tu dois modifier ta propre configuration (ex: activer le mode auto pour Slack, changer un canal par défaut) suite à la demande de l'utilisateur.",
+        inputSchema: jsonSchema({
+            type: 'object',
+            properties: {
+                integration: { type: 'string', description: "Le nom de l'intégration (ex: 'Slack', 'GitHub')." },
+                setting_key: { type: 'string', description: "La clé de configuration à modifier (ex: 'autoMode', 'selectedChannels')." },
+                new_value: { 
+                    description: "La nouvelle valeur.",
+                    oneOf: [
+                        { type: 'string' },
+                        { type: 'boolean' },
+                        { type: 'array', items: { type: 'string' } }
+                    ]
+                }
+            },
+            required: ['integration', 'setting_key', 'new_value']
+        }),
+        execute: async ({ integration, setting_key, new_value }) => {
+            const formattedValue = Array.isArray(new_value) 
+                ? new_value.join(', ') 
+                : String(new_value);
+
+            return { 
+                hitl_config: { 
+                    type: 'confirm', 
+                    label: `Mise à jour de la configuration ${integration}`, 
+                    target_field: 'Internal_Config_Update', 
+                    new_value: `Passer ${setting_key} à ${formattedValue}` 
+                }, 
+                raw_payload: { integration, setting_key, new_value } 
+            };
+        }
+    });
+
     return toolMap;
 }

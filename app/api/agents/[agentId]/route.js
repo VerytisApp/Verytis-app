@@ -139,7 +139,7 @@ export async function PATCH(req, { params }) {
         const { agentId } = await params;
         const supabase = await createClient();
         const body = await req.json();
-        const { status, policies, knowledge_configuration } = body;
+        const { status, policies, knowledge_configuration, visual_config, name, description, system_prompt } = body;
 
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -163,6 +163,10 @@ export async function PATCH(req, { params }) {
         // Build the update payload dynamically
         const updatePayload = {};
 
+        if (name) updatePayload.name = name;
+        if (description) updatePayload.description = description;
+        if (system_prompt) updatePayload.system_prompt = system_prompt;
+
         // Handle status change (Active / Inactive)
         if (status) {
             if (!['active', 'inactive'].includes(status)) {
@@ -171,17 +175,29 @@ export async function PATCH(req, { params }) {
             updatePayload.status = status;
         }
 
-        // Handle policies update (Guardrails)
-        if (policies) {
-            // Merge with existing policies to allow partial updates
+        // --- Build-Time Rules Compilation & Policies Update ---
+        if (visual_config || policies) {
             const { data: existing } = await supabase
                 .from('ai_agents')
                 .select('policies')
                 .eq('id', agentId)
-                .eq('organization_id', profile.organization_id)
                 .single();
-
-            updatePayload.policies = { ...(existing?.policies || {}), ...policies };
+            
+            const basePolicies = existing?.policies || {};
+            
+            if (visual_config) {
+                updatePayload.visual_config = visual_config;
+                const compiledRules = {};
+                visual_config.nodes?.forEach(node => {
+                    if (node.data?.config) {
+                        const label = node.data.label || node.type;
+                        compiledRules[label] = node.data.config;
+                    }
+                });
+                updatePayload.policies = { ...basePolicies, ...(policies || {}), compiled_rules: compiledRules };
+            } else {
+                updatePayload.policies = { ...basePolicies, ...policies };
+            }
         }
         
         if (knowledge_configuration) {
